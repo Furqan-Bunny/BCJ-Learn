@@ -1,36 +1,95 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# BCJ Learn — Frontend
 
-## Getting Started
+Custom training & quiz platform for BCJ Account Managers. Built with Next.js 16, Tailwind v4, shadcn/ui, and TanStack Table.
 
-First, run the development server:
+This is a **demo / prototype** — all data is mocked. No backend yet.
+
+## Quick start
 
 ```bash
+npm install
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open [http://localhost:3000](http://localhost:3000) and you'll be redirected to the login screen.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+Sign in (any email/password works in demo mode), then pick a role to enter:
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+- **Account Manager** — take quizzes, study modules, track progress
+- **Teacher** — review AI-drafted questions, see module results
+- **Admin** — full program oversight, dashboards, reporting, at-risk triage
 
-## Learn More
+You can switch roles any time from the topbar.
 
-To learn more about Next.js, take a look at the following resources:
+## Tech stack
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+| Layer | Choice |
+|---|---|
+| Framework | Next.js 16 (App Router, React 19) |
+| Language | TypeScript (strict) |
+| Styling | Tailwind CSS 4 |
+| UI primitives | shadcn/ui (base-ui adapter) |
+| Tables | TanStack Table v8 (search / filter / sort / pagination) |
+| Charts | Recharts |
+| Forms | react-hook-form + zod |
+| Animations | framer-motion |
+| Toasts | sonner |
+| Command palette | cmdk (Cmd+K) |
+| Theme | next-themes (light / dark / system) |
+| State | Zustand |
+| Mock data | TypeScript files seeded with @faker-js/faker |
+| Fonts | Geist Sans + Geist Mono |
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Project layout
+
+```
+src/
+├── app/
+│   ├── (auth)/login/         # Login screen with role-pick demo modal
+│   ├── (app)/                 # Authenticated app shell (sidebar + topbar)
+│   │   ├── manager/           # 7 manager pages
+│   │   ├── teacher/           # 5 teacher pages
+│   │   └── admin/             # 9 admin pages
+│   ├── layout.tsx
+│   └── globals.css            # Tailwind + brand tokens (navy + gold)
+├── components/
+│   ├── ui/                    # shadcn primitives
+│   ├── layout/                # Sidebar, Topbar, RoleSwitcher, CommandPalette, ThemeToggle
+│   └── shared/                # PageHeader, KpiCard, StatusBadge
+├── data/                      # Mock data (managers, modules, questions, attempts, activity)
+├── store/                     # Zustand role store
+├── types/                     # Domain types
+└── lib/                       # cn(), formatting helpers
+```
+
+## Modern features
+
+- **Cmd+K command palette** — jump to any page, switch role, change theme
+- **Role switcher** — top-right, persists via localStorage
+- **Dark mode** — system / light / dark toggle, no flash
+- **Search + faceted filters + sortable columns** on the Managers data table
+- **Toast notifications** for every action
+- **Skeleton loaders** and animated transitions
+- **Mobile-responsive** — sidebar collapses on small screens
+
+## Brand colors
+
+- Primary navy: `#1F3A5F`
+- Gold accent: `#C89B5C`
+- Status: emerald (pass), amber (at-risk), rose (fail), violet (AI-generated)
 
 ## Deploy on Vercel
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+```bash
+git init
+git add .
+git commit -m "Initial BCJ Learn frontend"
+git remote add origin <your-github-repo>
+git push -u origin main
+```
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Then import the repo at [vercel.com/new](https://vercel.com/new). The build is zero-config — Vercel auto-detects Next.js.
+
+---
+
+**Prepared by Ten80ten** — May 2026.
