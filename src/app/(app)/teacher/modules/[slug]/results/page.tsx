@@ -132,7 +132,7 @@ export default function TeacherModuleResults(props: PageProps<"/teacher/modules/
           <table className="w-full text-sm">
             <thead className="border-y bg-muted/30 text-xs uppercase tracking-wider text-muted-foreground">
               <tr>
-                <th className="text-left px-5 py-2.5 font-medium">Manager</th>
+                <th className="text-left px-5 py-2.5 font-medium">Employee</th>
                 <th className="text-left px-5 py-2.5 font-medium">Date</th>
                 <th className="text-left px-5 py-2.5 font-medium">Pool</th>
                 <th className="text-left px-5 py-2.5 font-medium">Score</th>

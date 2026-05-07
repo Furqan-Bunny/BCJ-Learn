@@ -132,7 +132,7 @@ export default function PresenterPage(props: PageProps<"/teacher/modules/[slug]/
     endSessionStore(slug);
     void exitFullscreen();
     toast.success("Session ended — quiz is now open to the room", {
-      description: "Account Managers who checked in can start the Module quiz on their devices now.",
+      description: "Employees who checked in can start the Module quiz on their devices now.",
     });
     setTimeout(() => router.push(`/teacher/modules/${slug}/results`), 1200);
   }

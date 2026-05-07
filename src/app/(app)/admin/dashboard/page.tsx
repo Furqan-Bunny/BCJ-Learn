@@ -76,7 +76,7 @@ export default function AdminDashboard() {
       <PageHeader
         eyebrow="BCJ Learn — Admin"
         title="Program health"
-        description="Live overview of every Account Manager, every module, and every score across the BCJ training program."
+        description="Live overview of every Employee, every module, and every score across the BCJ training program."
         actions={
           <Button asChild variant="outline">
             <Link href="/admin/reports">
@@ -88,7 +88,7 @@ export default function AdminDashboard() {
 
       {/* KPIs */}
       <Stagger className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-8">
-        <StaggerItem><KpiCard label="Total managers" value={stats.totalManagers} icon={Users} delta={{ value: 4 }} /></StaggerItem>
+        <StaggerItem><KpiCard label="Total employees" value={stats.totalManagers} icon={Users} delta={{ value: 4 }} /></StaggerItem>
         <StaggerItem><KpiCard label="Pass rate" value={`${stats.passRate}%`} icon={Trophy} accent="success" delta={{ value: 3 }} /></StaggerItem>
         <StaggerItem><KpiCard label="Average score" value={`${stats.avgScore}%`} icon={Target} delta={{ value: -1 }} /></StaggerItem>
         <StaggerItem><KpiCard label="At-risk" value={stats.atRisk} icon={AlertTriangle} accent="warning" delta={{ value: -2 }} /></StaggerItem>
@@ -122,7 +122,7 @@ export default function AdminDashboard() {
 
         <Card>
           <CardHeader>
-            <CardTitle className="text-base">Manager status</CardTitle>
+            <CardTitle className="text-base">Employee status</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="h-56">
@@ -226,8 +226,8 @@ export default function AdminDashboard() {
       <Card>
         <CardHeader className="flex flex-row items-center justify-between">
           <div>
-            <CardTitle className="text-base">At-risk managers</CardTitle>
-            <p className="text-xs text-muted-foreground mt-1">Managers who failed twice, missed deadlines, or have not logged in.</p>
+            <CardTitle className="text-base">At-risk employees</CardTitle>
+            <p className="text-xs text-muted-foreground mt-1">Employees who failed twice, missed deadlines, or have not logged in.</p>
           </div>
           <Button asChild variant="outline" size="sm">
             <Link href="/admin/at-risk">All {atRisk.length} <ArrowRight className="ml-1 size-3.5" /></Link>

@@ -23,7 +23,7 @@ const REPORTS = [
   {
     title: "At-risk register",
     icon: AlertTriangle,
-    description: "All currently at-risk managers with reasons and last activity. Send straight to HR.",
+    description: "All currently at-risk employees with reasons and last activity. Send straight to HR.",
   },
   {
     title: "Full attempt log",

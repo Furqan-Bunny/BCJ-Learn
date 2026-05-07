@@ -43,11 +43,11 @@ export default function AdminTeachersPage() {
     <>
       <PageHeader
         eyebrow="People"
-        title="Teachers"
-        description={`${teachers.length} module owners. Each Teacher manages their own module's content and question bank.`}
+        title="Department Leads"
+        description={`${teachers.length} module owners. Each Department Lead manages their own module's content and question bank.`}
         actions={
           <Button>
-            <Plus className="mr-2 size-4" /> Invite teacher
+            <Plus className="mr-2 size-4" /> Invite Department Lead
           </Button>
         }
       />
@@ -71,7 +71,7 @@ export default function AdminTeachersPage() {
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead className="text-xs uppercase tracking-wider text-muted-foreground">Teacher</TableHead>
+              <TableHead className="text-xs uppercase tracking-wider text-muted-foreground">Department Lead</TableHead>
               <TableHead className="text-xs uppercase tracking-wider text-muted-foreground">Owned modules</TableHead>
               <TableHead className="text-xs uppercase tracking-wider text-muted-foreground">Question bank</TableHead>
               <TableHead className="text-xs uppercase tracking-wider text-muted-foreground">Joined</TableHead>
@@ -155,9 +155,9 @@ export default function AdminTeachersPage() {
         </Table>
       </Card>
 
-      {/* Per-teacher detail cards below */}
+      {/* Per-Lead detail cards below */}
       <h3 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground mt-10 mb-4">
-        Teacher details
+        Department Lead details
       </h3>
       <div className="grid lg:grid-cols-2 gap-4">
         {filtered.map(({ teacher: t, ownedMods, totalQs, approvedQs }) => (

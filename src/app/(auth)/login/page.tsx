@@ -17,15 +17,15 @@ import { motion } from "framer-motion";
 const ROLES: { id: Role; title: string; subtitle: string; icon: typeof GraduationCap; route: string }[] = [
   {
     id: "manager",
-    title: "Account Manager",
-    subtitle: "Take quizzes, study modules, see your progress.",
+    title: "Employee",
+    subtitle: "Take quizzes, study your modules, track your progress.",
     icon: GraduationCap,
     route: "/manager/dashboard",
   },
   {
     id: "teacher",
-    title: "Teacher",
-    subtitle: "Approve AI-generated questions, see module results.",
+    title: "Department Lead/Manager",
+    subtitle: "Approve AI-drafted questions, see your module results.",
     icon: BookOpen,
     route: "/teacher/dashboard",
   },
@@ -101,7 +101,7 @@ export default function LoginPage() {
             transition={{ duration: 0.6, delay: 0.2, ease: [0.16, 1, 0.3, 1] }}
             className="text-4xl font-bold leading-tight tracking-tight max-w-md"
           >
-            Train every Account Manager. Prove they got it.
+            Train every Employee. Prove they got it.
           </motion.h1>
           <motion.p
             initial={{ opacity: 0, y: 12 }}

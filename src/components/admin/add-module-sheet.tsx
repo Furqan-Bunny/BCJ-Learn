@@ -125,7 +125,7 @@ export function AddModuleSheet({ trigger, lockedOwnerId }: AddModuleSheetProps) 
           <SheetDescription>
             {lockedOwner
               ? "You'll be the owner of this module — you can edit content, approve AI questions, and present it. Saved as a draft until you publish."
-              : "Modules become available to Account Managers in the order you set. AI can draft a starter question bank from your uploaded content."}
+              : "Modules become available to Employees in the order you set. AI can draft a starter question bank from your uploaded content."}
           </SheetDescription>
         </SheetHeader>
 
@@ -194,7 +194,7 @@ export function AddModuleSheet({ trigger, lockedOwnerId }: AddModuleSheetProps) 
             <div className="rounded-lg border-2 border-primary/30 bg-primary/[0.04] p-4">
               <div className="flex items-center gap-2 mb-3">
                 <BookOpen className="size-4 text-primary" />
-                <span className="text-sm font-semibold">Assigned to Teacher</span>
+                <span className="text-sm font-semibold">Assigned to Department Lead</span>
                 <Badge variant="outline" className="ml-auto text-[10px] gap-1">
                   <Lock className="size-2.5" /> You — locked
                 </Badge>
@@ -218,7 +218,7 @@ export function AddModuleSheet({ trigger, lockedOwnerId }: AddModuleSheetProps) 
             <div className="rounded-lg border-2 border-primary/30 bg-primary/[0.04] p-4">
               <div className="flex items-center gap-2 mb-1">
                 <Users className="size-4 text-primary" />
-                <Label className="text-sm font-semibold">Assign to Teachers</Label>
+                <Label className="text-sm font-semibold">Assign to Department Leads</Label>
                 {ownerTeacherIds.length === 0 ? (
                   <Badge variant="outline" className="ml-auto text-[10px] text-amber-700 dark:text-amber-300 border-amber-500/40">
                     Pick at least one
@@ -230,7 +230,7 @@ export function AddModuleSheet({ trigger, lockedOwnerId }: AddModuleSheetProps) 
                 )}
               </div>
               <p className="text-xs text-muted-foreground mb-3">
-                Pick one or more Teachers to co-own this module. They&rsquo;ll edit content, approve AI questions, schedule sessions, and take turns presenting it live.
+                Pick one or more Department Leads to co-own this module. They&rsquo;ll edit content, approve AI questions, schedule sessions, and take turns presenting it live.
               </p>
 
               <div className="grid sm:grid-cols-2 gap-2">
@@ -360,7 +360,7 @@ export function AddModuleSheet({ trigger, lockedOwnerId }: AddModuleSheetProps) 
                   </Label>
                 </div>
                 <p className="text-xs text-muted-foreground mt-1">
-                  Once you upload a manual or slides, AI will draft 50 first-attempt + 30 retake (easier) questions for the Teacher to review and approve.
+                  Once you upload a manual or slides, AI will draft 50 first-attempt + 30 retake (easier) questions for the Department Lead to review and approve.
                 </p>
               </div>
               <Switch id="m-ai" checked={autoGenerate} onCheckedChange={setAutoGenerate} />
@@ -375,7 +375,7 @@ export function AddModuleSheet({ trigger, lockedOwnerId }: AddModuleSheetProps) 
                   <Layers className="size-3.5" /> Seminar plan — Lessons
                 </Label>
                 <p className="text-[11px] text-muted-foreground mt-1">
-                  Break the {totalLessonMinutes || "—"}-minute seminar into lessons. Add videos, documents, slide decks, or external links to each lesson. The Teacher will present them in order.
+                  Break the {totalLessonMinutes || "—"}-minute seminar into lessons. Add videos, documents, slide decks, or external links to each lesson. The Department Lead will present them in order.
                 </p>
               </div>
             </div>

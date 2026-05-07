@@ -107,9 +107,9 @@ export default function AdminNotifications() {
             <CardContent className="space-y-5">
               <div className="flex items-center justify-between gap-4">
                 <div>
-                  <Label htmlFor="auto" className="font-medium">Auto-remind overdue managers</Label>
+                  <Label htmlFor="auto" className="font-medium">Auto-remind overdue employees</Label>
                   <p className="text-xs text-muted-foreground mt-0.5">
-                    Send a friendly reminder if a manager has not completed an assigned module after the threshold.
+                    Send a friendly reminder if an employee has not completed an assigned module after the threshold.
                   </p>
                 </div>
                 <Switch id="auto" checked={autoReminders} onCheckedChange={setAutoReminders} />

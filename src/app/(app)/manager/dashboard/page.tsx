@@ -38,7 +38,7 @@ export default function ManagerDashboard() {
       <PageHeader
         eyebrow={`Welcome back, ${me.name.split(" ")[0]}`}
         title="Your training dashboard"
-        description="Track your progress through the BCJ Account Manager training program."
+        description="Track your progress through the BCJ Employee training program."
       />
 
       {/* Today's session check-in (top priority on training day) */}

@@ -171,7 +171,7 @@ export function ScheduleRedelivery({ moduleSlug, trigger }: ScheduleRedeliveryPr
               </li>
             </ul>
             <p className="mt-3 text-[11px] text-muted-foreground border-t pt-2.5">
-              Already-passed managers are <span className="font-medium text-foreground">not</span> re-invited (they passed once — no need to retake).
+              Already-passed employees are <span className="font-medium text-foreground">not</span> re-invited (they passed once — no need to retake).
               Each invitee gets an email with the new date and the check-in flow.
             </p>
           </div>

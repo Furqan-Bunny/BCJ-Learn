@@ -68,7 +68,7 @@ export function CommandPalette({ open, onOpenChange }: CommandPaletteProps) {
                 <LayoutDashboard className="mr-2 size-4" /> Admin Dashboard
               </CommandItem>
               <CommandItem onSelect={() => go("/admin/managers")}>
-                <Users className="mr-2 size-4" /> Managers
+                <Users className="mr-2 size-4" /> Employees
               </CommandItem>
               <CommandItem onSelect={() => go("/admin/at-risk")}>
                 <AlertTriangle className="mr-2 size-4" /> At-risk list
@@ -87,7 +87,7 @@ export function CommandPalette({ open, onOpenChange }: CommandPaletteProps) {
           {role === "teacher" && (
             <>
               <CommandItem onSelect={() => go("/teacher/dashboard")}>
-                <LayoutDashboard className="mr-2 size-4" /> Teacher Dashboard
+                <LayoutDashboard className="mr-2 size-4" /> Department Lead Dashboard
               </CommandItem>
               <CommandItem onSelect={() => go("/teacher/modules")}>
                 <BookOpen className="mr-2 size-4" /> My Modules
@@ -131,7 +131,7 @@ export function CommandPalette({ open, onOpenChange }: CommandPaletteProps) {
         {role === "admin" && (
           <>
             <CommandSeparator />
-            <CommandGroup heading="Find a manager">
+            <CommandGroup heading="Find an employee">
               {managers.slice(0, 8).map((m) => (
                 <CommandItem key={m.id} onSelect={() => go(`/admin/managers/${m.id}`)}>
                   <Users className="mr-2 size-4" /> {m.name}
@@ -146,10 +146,10 @@ export function CommandPalette({ open, onOpenChange }: CommandPaletteProps) {
 
         <CommandGroup heading="Switch role">
           <CommandItem onSelect={() => pickRole("manager")}>
-            <GraduationCap className="mr-2 size-4" /> View as Account Manager
+            <GraduationCap className="mr-2 size-4" /> View as Employee
           </CommandItem>
           <CommandItem onSelect={() => pickRole("teacher")}>
-            <BookOpen className="mr-2 size-4" /> View as Teacher
+            <BookOpen className="mr-2 size-4" /> View as Department Lead
           </CommandItem>
           <CommandItem onSelect={() => pickRole("admin")}>
             <ShieldCheck className="mr-2 size-4" /> View as Admin

@@ -115,7 +115,7 @@ export function UserSwitcher() {
         {managerSamples.length > 0 && (
           <>
             <DropdownMenuLabel className="text-[10px] uppercase tracking-wider text-muted-foreground">
-              Account Managers
+              Employees
             </DropdownMenuLabel>
             {managerSamples.map((u) => {
               const Icon = ROLE_ICON[u.role];
@@ -138,7 +138,7 @@ export function UserSwitcher() {
         )}
 
         <DropdownMenuLabel className="text-[10px] uppercase tracking-wider text-muted-foreground">
-          Teachers
+          Department Leads
         </DropdownMenuLabel>
         {SAMPLE_USERS.filter((u) => u.role === "teacher").map((u) => {
           const Icon = ROLE_ICON[u.role];

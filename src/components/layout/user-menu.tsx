@@ -34,8 +34,8 @@ const ROLE_ICON: Record<Role, React.ComponentType<{ className?: string }>> = {
 };
 
 const ROLE_LABEL: Record<Role, string> = {
-  manager: "Account Manager",
-  teacher: "Teacher",
+  manager: "Employee",
+  teacher: "Department Lead",
   admin: "Admin",
 };
 

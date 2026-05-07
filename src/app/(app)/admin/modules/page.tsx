@@ -20,7 +20,7 @@ export default function AdminModules() {
       <PageHeader
         eyebrow="Curriculum"
         title="All modules"
-        description="The five-module Account Manager program. Click any to see results, content, and attempts."
+        description="The five-module Employee training program. Click any to see results, content, and attempts."
         actions={<AddModuleSheet />}
       />
 

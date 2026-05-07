@@ -193,12 +193,12 @@ export function ModuleRoster({
             <div className="mt-4 rounded-md border border-amber-500/30 bg-amber-50/50 dark:bg-amber-950/20 px-3 py-2 flex items-center gap-3 text-sm">
               <AlertTriangle className="size-4 text-amber-600 dark:text-amber-400 shrink-0" />
               <span className="flex-1">
-                <span className="font-semibold">{counts.didntAttempt}</span> manager{counts.didntAttempt === 1 ? "" : "s"} didn&rsquo;t take the quiz on training day. Consider sending a reminder or scheduling a makeup.
+                <span className="font-semibold">{counts.didntAttempt}</span> employee{counts.didntAttempt === 1 ? "" : "s"} didn&rsquo;t take the quiz on training day. Consider sending a reminder or scheduling a makeup.
               </span>
               <Button
                 size="sm"
                 variant="outline"
-                onClick={() => toast.success(`Reminder sent to ${counts.didntAttempt} managers`)}
+                onClick={() => toast.success(`Reminder sent to ${counts.didntAttempt} employees`)}
               >
                 <Bell className="size-3.5 mr-1.5" /> Remind all
               </Button>
@@ -235,7 +235,7 @@ export function ModuleRoster({
           {filtered.length === 0 ? (
             <div className="p-12 text-center text-muted-foreground">
               <Filter className="size-8 mx-auto mb-2 opacity-40" />
-              <div className="font-medium text-foreground">No managers match.</div>
+              <div className="font-medium text-foreground">No employees match.</div>
               <div className="text-sm mt-1">Try clearing filters.</div>
             </div>
           ) : (

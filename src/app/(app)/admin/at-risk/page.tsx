@@ -48,14 +48,14 @@ export default function AtRiskPage() {
     <>
       <PageHeader
         eyebrow="Triage"
-        title="At-risk managers"
+        title="At-risk employees"
         description="Auto-flagged because they failed twice, missed deadlines, or have not logged in. Action needed."
         actions={
           <div className="flex items-center gap-2">
             <Button variant="outline" onClick={() => setShowRules((v) => !v)}>
               <Info className="mr-2 size-4" /> {showRules ? "Hide" : "What is at-risk?"}
             </Button>
-            <Button onClick={() => toast.success(`Bulk reminder sent to ${list.length} managers`)}>
+            <Button onClick={() => toast.success(`Bulk reminder sent to ${list.length} employees`)}>
               <Bell className="mr-2 size-4" /> Send reminder to all
             </Button>
           </div>
@@ -71,9 +71,9 @@ export default function AtRiskPage() {
                 <AlertTriangle className="size-5" />
               </div>
               <div>
-                <div className="font-semibold">How BCJ Learn flags an Account Manager</div>
+                <div className="font-semibold">How BCJ Learn flags an Employee</div>
                 <p className="text-sm text-muted-foreground mt-0.5">
-                  An Account Manager is auto-flagged as <span className="font-medium text-foreground">at-risk</span> when any of the following is true. Flags clear automatically once the manager passes a retake or logs back in.
+                  An Employee is auto-flagged as <span className="font-medium text-foreground">at-risk</span> when any of the following is true. Flags clear automatically once the employee passes a retake or logs back in.
                 </p>
               </div>
             </div>
@@ -153,7 +153,7 @@ export default function AtRiskPage() {
       {list.length === 0 && (
         <div className="text-center py-16 text-muted-foreground">
           <AlertTriangle className="size-10 mx-auto mb-3 opacity-30" />
-          No managers are currently at risk. Nice work!
+          No employees are currently at risk. Nice work!
         </div>
       )}
     </>

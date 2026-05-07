@@ -18,13 +18,13 @@ import type { Role } from "@/types";
 
 const ROLE_META: Record<Role, { label: string; icon: typeof GraduationCap; description: string; route: string }> = {
   manager: {
-    label: "Account Manager",
+    label: "Employee",
     icon: GraduationCap,
     description: "Trainee — take quizzes, track progress",
     route: "/manager/dashboard",
   },
   teacher: {
-    label: "Teacher",
+    label: "Department Lead",
     icon: BookOpen,
     description: "Module owner — approve questions, see results",
     route: "/teacher/dashboard",
