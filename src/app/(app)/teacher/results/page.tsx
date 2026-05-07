@@ -112,7 +112,7 @@ export default function TeacherResults() {
     () => [
       {
         accessorKey: "managerName",
-        header: "Manager",
+        header: "Employee",
         cell: ({ row }) => {
           const r = row.original;
           return (
@@ -254,7 +254,7 @@ export default function TeacherResults() {
           <Input
             value={globalFilter}
             onChange={(e) => setGlobalFilter(e.target.value)}
-            placeholder="Search by manager, cohort…"
+            placeholder="Search by employee, cohort…"
             className="pl-9 h-9"
           />
         </div>

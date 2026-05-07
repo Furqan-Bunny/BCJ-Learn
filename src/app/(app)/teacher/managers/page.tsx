@@ -75,7 +75,7 @@ export default function TeacherTrainees() {
     () => [
       {
         accessorKey: "name",
-        header: "Manager",
+        header: "Employee",
         cell: ({ row }) => {
           const m = row.original;
           return (
@@ -192,13 +192,13 @@ export default function TeacherTrainees() {
   return (
     <>
       <PageHeader
-        eyebrow="Trainees"
-        title="My trainees"
-        description={`Account Managers being trained on ${myModules.length === 1 ? "the module you own" : "your modules"} (${myModules.map((m) => `M${m.number}`).join(", ")}). Read-only — Admin manages user records.`}
+        eyebrow="Team"
+        title="My team"
+        description={`Employees being trained on ${myModules.length === 1 ? "the module you own" : "your modules"} (${myModules.map((m) => `M${m.number}`).join(", ")}). Read-only — Admin manages user records.`}
       />
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
-        <KpiCard label="Trainees" value={totalTrainees} icon={Users} />
+        <KpiCard label="Team members" value={totalTrainees} icon={Users} />
         <KpiCard label="Passed your modules" value={passed} icon={Trophy} accent="success" />
         <KpiCard label="Not yet attempted" value={pending} icon={Users} />
         <KpiCard label="At-risk" value={atRisk} icon={AlertTriangle} accent="warning" />
@@ -272,7 +272,7 @@ export default function TeacherTrainees() {
               <TableRow>
                 <TableCell colSpan={columns.length} className="h-32 text-center text-muted-foreground">
                   <Filter className="size-6 mx-auto mb-2 opacity-50" />
-                  No managers match your filters.
+                  No employees match your filters.
                 </TableCell>
               </TableRow>
             )}

@@ -1,6 +1,6 @@
 # BCJ Learn — Frontend
 
-Custom training & quiz platform for BCJ Account Managers. Built with Next.js 16, Tailwind v4, shadcn/ui, and TanStack Table.
+Custom Employee training & quiz platform for BCJ. Built with Next.js 16, Tailwind v4, shadcn/ui, and TanStack Table. Hosted on Vercel.
 
 This is a **demo / prototype** — all data is mocked. No backend yet.
 
@@ -15,8 +15,8 @@ Open [http://localhost:3000](http://localhost:3000) and you'll be redirected to 
 
 Sign in (any email/password works in demo mode), then pick a role to enter:
 
-- **Account Manager** — take quizzes, study modules, track progress
-- **Teacher** — review AI-drafted questions, see module results
+- **Employee** — take quizzes, study modules, track progress
+- **Department Lead/Manager** — review AI-drafted questions, see module results
 - **Admin** — full program oversight, dashboards, reporting, at-risk triage
 
 You can switch roles any time from the topbar.

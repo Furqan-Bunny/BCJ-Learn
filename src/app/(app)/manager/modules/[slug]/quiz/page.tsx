@@ -330,7 +330,7 @@ export default function QuizPage(props: PageProps<"/manager/modules/[slug]/quiz"
           <div className="mt-8 text-sm text-muted-foreground max-w-md mx-auto">
             {result?.passed
               ? `Module ${mod.number + 1} will unlock for you next month. Keep an eye out for the email invitation.`
-              : `A retake has been scheduled with an easier question set. Your manager will follow up with the date.`}
+              : `A retake has been scheduled with an easier question set. Your Department Lead will follow up with the date.`}
           </div>
 
           <div className="mt-8 flex items-center justify-center gap-3">

@@ -131,7 +131,7 @@ export default function BrandingSettings() {
                 </div>
               </div>
               <div className="mt-3 text-xs text-muted-foreground text-center">
-                Manager dashboard preview
+                Employee dashboard preview
               </div>
             </CardContent>
           </Card>

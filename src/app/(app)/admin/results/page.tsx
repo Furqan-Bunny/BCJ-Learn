@@ -126,7 +126,7 @@ export default function AdminResults() {
     () => [
       {
         accessorKey: "managerName",
-        header: "Manager",
+        header: "Employee",
         cell: ({ row }) => {
           const r = row.original;
           return (
@@ -247,7 +247,7 @@ export default function AdminResults() {
       <PageHeader
         eyebrow="Reporting"
         title="All test results"
-        description={`Every quiz attempt across the program — ${totalAttempts} total. Filter by module, search by manager, drill into any attempt.`}
+        description={`Every quiz attempt across the program — ${totalAttempts} total. Filter by module, search by employee, drill into any attempt.`}
         actions={
           <Button variant="outline" onClick={() => toast.success("Results exported as CSV")}>
             <Download className="mr-2 size-4" /> Export CSV
@@ -270,7 +270,7 @@ export default function AdminResults() {
           <Input
             value={globalFilter}
             onChange={(e) => setGlobalFilter(e.target.value)}
-            placeholder="Search by manager, email, module, cohort…"
+            placeholder="Search by employee, email, module, cohort…"
             className="pl-9 h-9"
           />
         </div>

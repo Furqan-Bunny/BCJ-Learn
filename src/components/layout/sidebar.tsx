@@ -58,7 +58,7 @@ const NAV_BY_ROLE: Record<Role, { section: string; items: NavItem[] }[]> = {
     {
       section: "People",
       items: [
-        { label: "My trainees", href: "/teacher/managers", icon: Users },
+        { label: "My team", href: "/teacher/managers", icon: Users },
       ],
     },
   ],
@@ -72,8 +72,8 @@ const NAV_BY_ROLE: Record<Role, { section: string; items: NavItem[] }[]> = {
     {
       section: "People",
       items: [
-        { label: "Account Managers", href: "/admin/managers", icon: Users },
-        { label: "Teachers", href: "/admin/teachers", icon: BookOpen },
+        { label: "Employees", href: "/admin/managers", icon: Users },
+        { label: "Department Leads", href: "/admin/teachers", icon: BookOpen },
         { label: "Admins", href: "/admin/admins", icon: ShieldCheck },
         { label: "At-risk", href: "/admin/at-risk", icon: AlertTriangle },
       ],

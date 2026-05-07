@@ -114,9 +114,9 @@ export function BulkImportSheet() {
           <Badge variant="outline" className="w-fit text-[10px] uppercase tracking-wider">
             CSV bulk import
           </Badge>
-          <SheetTitle className="text-xl tracking-tight">Import managers from CSV</SheetTitle>
+          <SheetTitle className="text-xl tracking-tight">Import employees from CSV</SheetTitle>
           <SheetDescription>
-            Upload a CSV with three columns: <span className="font-mono">name</span>, <span className="font-mono">email</span>, <span className="font-mono">cohort</span>. Each valid row creates a new Account Manager and queues a welcome email.
+            Upload a CSV with three columns: <span className="font-mono">name</span>, <span className="font-mono">email</span>, <span className="font-mono">cohort</span>. Each valid row creates a new Employee and queues a welcome email.
           </SheetDescription>
         </SheetHeader>
 

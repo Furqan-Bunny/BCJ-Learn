@@ -37,7 +37,7 @@ export function Topbar() {
           aria-label="Open command palette"
         >
           <Search className="size-4 transition-transform group-hover:scale-110 group-hover:text-primary" />
-          <span className="flex-1 text-left">Search managers, modules, actions…</span>
+          <span className="flex-1 text-left">Search employees, modules, actions…</span>
           <kbd className="ml-auto inline-flex items-center gap-1 rounded border bg-muted px-1.5 py-0.5 font-mono text-[10px] transition-colors group-hover:border-primary/40">
             <CmdIcon className="size-3" /> K
           </kbd>

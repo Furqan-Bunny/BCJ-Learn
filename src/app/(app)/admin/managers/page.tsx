@@ -98,7 +98,7 @@ export default function AdminManagers() {
       },
       {
         accessorKey: "name",
-        header: "Manager",
+        header: "Employee",
         cell: ({ row }) => {
           const m = row.original;
           return (
@@ -224,8 +224,8 @@ export default function AdminManagers() {
     <>
       <PageHeader
         eyebrow="People"
-        title="Account Managers"
-        description={`${data.length} managers across ${COHORTS.length} cohorts. Search, filter, sort, and act in one place.`}
+        title="Employees"
+        description={`${data.length} employees across ${COHORTS.length} cohorts. Search, filter, sort, and act in one place.`}
         actions={
           <div className="flex items-center gap-2">
             <BulkImportSheet />
@@ -295,10 +295,10 @@ export default function AdminManagers() {
         <div className="mb-3 rounded-lg border border-primary/30 bg-primary/5 px-4 py-2.5 flex items-center gap-3">
           <Badge>{selectedRows.length} selected</Badge>
           <span className="text-sm text-muted-foreground">Apply an action to all:</span>
-          <Button size="sm" variant="outline" onClick={() => toast.success(`Reminder sent to ${selectedRows.length} managers`)}>
+          <Button size="sm" variant="outline" onClick={() => toast.success(`Reminder sent to ${selectedRows.length} employees`)}>
             <Bell className="mr-1.5 size-3.5" /> Send reminder
           </Button>
-          <Button size="sm" variant="outline" onClick={() => toast(`Retake scheduled for ${selectedRows.length} managers`)}>
+          <Button size="sm" variant="outline" onClick={() => toast(`Retake scheduled for ${selectedRows.length} employees`)}>
             <RefreshCcw className="mr-1.5 size-3.5" /> Reassign retake
           </Button>
           <Button size="sm" variant="ghost" className="ml-auto" onClick={() => setRowSelection({})}>
@@ -353,7 +353,7 @@ export default function AdminManagers() {
               <TableRow>
                 <TableCell colSpan={columns.length} className="h-32 text-center text-muted-foreground">
                   <Filter className="size-6 mx-auto mb-2 opacity-50" />
-                  No managers match your filters.
+                  No employees match your filters.
                 </TableCell>
               </TableRow>
             )}
