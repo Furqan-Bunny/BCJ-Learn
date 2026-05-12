@@ -97,6 +97,7 @@ function rowToLessonContent(r: LessonContentRow): LessonContent {
     externalUrl: r.external_url ?? undefined,
     fileName: meta.fileName,
     fileSize: meta.fileSize,
+    storagePath: r.storage_path ?? undefined,
   };
 }
 

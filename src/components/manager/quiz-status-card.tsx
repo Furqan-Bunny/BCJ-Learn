@@ -1,6 +1,5 @@
 "use client";
 
-import * as React from "react";
 import Link from "next/link";
 import {
   CheckCircle2, XCircle, AlertTriangle, Clock, Calendar, RefreshCcw,
@@ -11,59 +10,44 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { computeQuizState } from "@/lib/quiz-state";
 import { fmtDate, fmtRelative, fmtPct } from "@/lib/format";
-import { useAttendanceStore } from "@/store/attendance-store";
-import { attempts as allAttempts } from "@/data/attempts";
 import { cn } from "@/lib/utils";
-import type { ModuleDef } from "@/types";
+import type { ModuleDef, Attempt } from "@/types";
 
 interface QuizStatusCardProps {
   managerId: string;
   mod: ModuleDef;
-  /** "compact" used in dashboard / module cards · "full" used in module detail page header */
+  /** All attempts for this manager+module across deliveries (props from server). */
+  myAttempts: Attempt[];
+  /** Whether the manager is checked in to the current delivery. */
+  isCheckedIn: boolean;
+  /** Whether this manager is invited to the current delivery. Default true. */
+  isInvited?: boolean;
+  /** Current delivery's session lifecycle timestamps (null if not started/ended). */
+  sessionStartedAt?: string | null;
+  sessionEndedAt?: string | null;
+  /** Compact variant for sidebar/dashboard cards. */
   variant?: "compact" | "full";
 }
 
-export function QuizStatusCard({ managerId, mod, variant = "full" }: QuizStatusCardProps) {
-  const checkedInMap = useAttendanceStore((s) => s.checkedIn);
-  const deliveryStartMap = useAttendanceStore((s) => s.deliveryStartDate);
-  const managerResetAtMap = useAttendanceStore((s) => s.managerResetAt);
-  const inviteesMap = useAttendanceStore((s) => s.invitees);
-  const sessionEndedAtMap = useAttendanceStore((s) => s.sessionEndedAt);
-  const sessionStartedAtMap = useAttendanceStore((s) => s.sessionStartedAt);
-
-  const isCheckedIn = (checkedInMap[mod.slug] ?? []).includes(managerId);
-  const moduleStart = deliveryStartMap[mod.slug];
-  const personalReset = managerResetAtMap[`${mod.slug}:${managerId}`];
-  const explicitInvitees = inviteesMap[mod.slug];
-  const isInvited = !explicitInvitees || explicitInvitees.includes(managerId);
-  const sessionEndedAt = sessionEndedAtMap[mod.slug];
-  const sessionStartedAt = sessionStartedAtMap[mod.slug];
+export function QuizStatusCard({
+  managerId,
+  mod,
+  myAttempts,
+  isCheckedIn,
+  isInvited = true,
+  sessionStartedAt = null,
+  sessionEndedAt = null,
+  variant = "full",
+}: QuizStatusCardProps) {
+  void managerId; // not used directly; attempts already filtered by host
   const sessionLive = !!sessionStartedAt && !sessionEndedAt;
 
-  // Filter attempts to current delivery only (using same logic as moduleRoster)
-  const moduleResetTs = moduleStart ? new Date(moduleStart).getTime() : null;
-  const personalTs = personalReset ? new Date(personalReset).getTime() : null;
-  const cutoff =
-    moduleResetTs && personalTs ? Math.max(moduleResetTs, personalTs)
-    : moduleResetTs ?? personalTs;
-
-  const myAttempts = allAttempts.filter(
-    (a) => a.managerId === managerId && a.moduleSlug === mod.slug,
-  );
-  const currentAttempts = cutoff
-    ? myAttempts.filter((a) => new Date(a.startedAt).getTime() >= cutoff)
-    : myAttempts;
-
   const state = computeQuizState({
-    currentAttempts,
+    currentAttempts: myAttempts,
     scheduledDate: mod.scheduledDate,
     isCheckedIn,
   });
 
-  // Override for not-invited managers (after re-delivery): if they already passed,
-  // keep showing the "passed" card. Otherwise hide CTAs they can't act on.
-  // Why this matters: when teacher schedules a re-delivery for refresher / new hires,
-  // already-passed managers shouldn't see a check-in or quiz prompt.
   if (!isInvited && state.kind !== "passed") {
     return (
       <StatusContainer
@@ -75,13 +59,12 @@ export function QuizStatusCard({ managerId, mod, variant = "full" }: QuizStatusC
         description="The next delivery is for retakes and new hires. If you think this is wrong, talk to your trainer."
         primaryAction={null}
         meta={[
-          { icon: Calendar, label: "Next delivery", value: moduleStart ? fmtDate(moduleStart) : fmtDate(mod.scheduledDate) },
+          { icon: Calendar, label: "Next delivery", value: mod.scheduledDate ? fmtDate(mod.scheduledDate) : "—" },
         ]}
       />
     );
   }
 
-  // ─── Render per state ───────────────────────────────────────────────
   if (state.kind === "passed") {
     return (
       <StatusContainer
@@ -184,12 +167,7 @@ export function QuizStatusCard({ managerId, mod, variant = "full" }: QuizStatusC
     );
   }
 
-  // state.kind === "ready" — but split based on actual session lifecycle
-  // Three sub-cases:
-  //   (a) Session ended → quiz IS open, show "Start Quiz" button
-  //   (b) Session live (started, not ended) → quiz NOT open yet, show "Sit tight, quiz opens when trainer ends the session"
-  //   (c) Session not started → manager checked in early; quiz waits for session
-
+  // state.kind === "ready"
   if (sessionEndedAt) {
     return (
       <StatusContainer
@@ -234,7 +212,6 @@ export function QuizStatusCard({ managerId, mod, variant = "full" }: QuizStatusC
     );
   }
 
-  // Checked in but session hasn't started yet (early check-in)
   return (
     <StatusContainer
       variant={variant}
@@ -252,13 +229,11 @@ export function QuizStatusCard({ managerId, mod, variant = "full" }: QuizStatusC
       }
       meta={[
         { icon: UserCheck, label: "Checked in", value: "Yes" },
-        { icon: Calendar, label: "Training day", value: fmtDate(mod.scheduledDate) },
+        { icon: Calendar, label: "Training day", value: mod.scheduledDate ? fmtDate(mod.scheduledDate) : "—" },
       ]}
     />
   );
 }
-
-// ─── Visual container ───────────────────────────────────────────────
 
 interface StatusContainerProps {
   variant: "compact" | "full";
@@ -272,41 +247,11 @@ interface StatusContainerProps {
 }
 
 const ACCENT_CLASSES: Record<StatusContainerProps["accent"], { stripe: string; border: string; iconBg: string; iconText: string; bg: string }> = {
-  emerald: {
-    stripe: "bg-emerald-500",
-    border: "border-emerald-500/40",
-    iconBg: "bg-emerald-100 dark:bg-emerald-950/40",
-    iconText: "text-emerald-600 dark:text-emerald-400",
-    bg: "bg-emerald-50/50 dark:bg-emerald-950/15",
-  },
-  amber: {
-    stripe: "bg-amber-500",
-    border: "border-amber-500/40",
-    iconBg: "bg-amber-100 dark:bg-amber-950/40",
-    iconText: "text-amber-600 dark:text-amber-400",
-    bg: "bg-amber-50/50 dark:bg-amber-950/15",
-  },
-  rose: {
-    stripe: "bg-rose-500",
-    border: "border-rose-500/40",
-    iconBg: "bg-rose-100 dark:bg-rose-950/40",
-    iconText: "text-rose-600 dark:text-rose-400",
-    bg: "bg-rose-50/50 dark:bg-rose-950/15",
-  },
-  slate: {
-    stripe: "bg-slate-400",
-    border: "border-slate-400/40",
-    iconBg: "bg-slate-100 dark:bg-slate-800/40",
-    iconText: "text-slate-600 dark:text-slate-400",
-    bg: "bg-slate-50/50 dark:bg-slate-900/30",
-  },
-  brand: {
-    stripe: "bg-primary",
-    border: "border-primary/40",
-    iconBg: "bg-primary/10",
-    iconText: "text-primary",
-    bg: "bg-primary/[0.03]",
-  },
+  emerald: { stripe: "bg-emerald-500", border: "border-emerald-500/40", iconBg: "bg-emerald-100 dark:bg-emerald-950/40", iconText: "text-emerald-600 dark:text-emerald-400", bg: "bg-emerald-50/50 dark:bg-emerald-950/15" },
+  amber:   { stripe: "bg-amber-500",   border: "border-amber-500/40",   iconBg: "bg-amber-100 dark:bg-amber-950/40",     iconText: "text-amber-600 dark:text-amber-400",     bg: "bg-amber-50/50 dark:bg-amber-950/15" },
+  rose:    { stripe: "bg-rose-500",    border: "border-rose-500/40",    iconBg: "bg-rose-100 dark:bg-rose-950/40",       iconText: "text-rose-600 dark:text-rose-400",       bg: "bg-rose-50/50 dark:bg-rose-950/15" },
+  slate:   { stripe: "bg-slate-400",   border: "border-slate-400/40",   iconBg: "bg-slate-100 dark:bg-slate-800/40",     iconText: "text-slate-600 dark:text-slate-400",     bg: "bg-slate-50/50 dark:bg-slate-900/30" },
+  brand:   { stripe: "bg-primary",     border: "border-primary/40",     iconBg: "bg-primary/10",                          iconText: "text-primary",                            bg: "bg-primary/[0.03]" },
 };
 
 function StatusContainer({
@@ -340,7 +285,6 @@ function StatusContainer({
           <div className={cn("size-14 rounded-xl flex items-center justify-center shrink-0", c.iconBg, c.iconText)}>
             <Icon className="size-7" />
           </div>
-
           <div className="min-w-0">
             <Badge variant="outline" className="text-[10px] uppercase tracking-wider mb-2">
               {eyebrow}
@@ -348,7 +292,6 @@ function StatusContainer({
             <h2 className="text-xl md:text-2xl font-bold tracking-tight leading-tight">{title}</h2>
             <p className="text-sm text-muted-foreground mt-2 max-w-2xl">{description}</p>
           </div>
-
           {primaryAction && <div className="shrink-0">{primaryAction}</div>}
         </div>
 

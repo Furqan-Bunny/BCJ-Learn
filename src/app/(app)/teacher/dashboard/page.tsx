@@ -1,119 +1,38 @@
-"use client";
+import { redirect } from "next/navigation";
+import { getCurrentUserForRole } from "@/lib/supabase/current-user";
+import { listModules } from "@/lib/db/modules";
+import { listAttemptsForModule } from "@/lib/db/attempts";
+import { dbClient } from "@/lib/supabase/db-client";
+import { TeacherDashboardView } from "./dashboard-view";
+import type { Attempt } from "@/types";
 
-import * as React from "react";
-import Link from "next/link";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Sparkles, BookOpen, ListChecks, Users, ArrowRight, PresentationIcon, BarChart3, Edit3 } from "lucide-react";
-import { PageHeader } from "@/components/shared/page-header";
-import { StatusBadge } from "@/components/shared/status-badge";
-import { KpiCard } from "@/components/shared/kpi-card";
-import { teachers } from "@/data/users";
-import { modules } from "@/data/modules";
-import { questionsForModule } from "@/data/questions";
-import { attemptsForModule } from "@/data/attempts";
-import { fmtDate, fmtPct } from "@/lib/format";
+export default async function TeacherDashboardPage() {
+  const me = await getCurrentUserForRole("teacher");
+  if (!me) redirect("/login");
 
-export default function TeacherDashboard() {
-  // Demo: logged in as Nancy
-  const me = teachers[0];
-  const myModules = modules.filter((m) => me.ownedModuleSlugs.includes(m.slug));
+  const sb = await dbClient();
+  const { data: ownerRows } = await sb
+    .from("module_owners")
+    .select("module_slug")
+    .eq("teacher_id", me.id);
+  const ownedSlugs = new Set(
+    ((ownerRows ?? []) as { module_slug: string }[]).map((r) => r.module_slug),
+  );
 
-  const totalQuestions = myModules.reduce((s, m) => s + m.questionsTotal, 0);
-  const approvedQuestions = myModules.reduce((s, m) => s + m.questionsApproved, 0);
-  const pendingQuestions = totalQuestions - approvedQuestions;
+  const allModules = await listModules();
+  const myModules = allModules.filter((m) => ownedSlugs.has(m.slug));
 
-  const totalAttempts = myModules.reduce((s, m) => s + attemptsForModule(m.slug).length, 0);
+  const attemptsLists = await Promise.all(myModules.map((m) => listAttemptsForModule(m.slug)));
+  const attemptsByModule: Record<string, Attempt[]> = {};
+  myModules.forEach((m, i) => {
+    attemptsByModule[m.slug] = attemptsLists[i];
+  });
 
   return (
-    <>
-      <PageHeader
-        eyebrow={`Welcome, ${me.name.split(" ")[0]}`}
-        title="Your modules at a glance"
-        description="Approve AI-drafted questions, watch results roll in, and refine for the next cohort."
-      />
-
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-8">
-        <KpiCard label="My modules" value={myModules.length} icon={BookOpen} />
-        <KpiCard label="Questions approved" value={approvedQuestions} icon={ListChecks} accent="success" />
-        <KpiCard label="Pending review" value={pendingQuestions} icon={Sparkles} accent="ai" />
-        <KpiCard label="Quiz attempts" value={totalAttempts} icon={Users} />
-      </div>
-
-      <h3 className="text-lg font-semibold tracking-tight mb-4">Modules you own</h3>
-      <div className="grid lg:grid-cols-2 gap-4">
-        {myModules.map((m) => {
-          const approvedPct = Math.round((m.questionsApproved / m.questionsTotal) * 100);
-          const moduleAttempts = attemptsForModule(m.slug);
-          const passRate = moduleAttempts.length
-            ? Math.round((moduleAttempts.filter((a) => a.status === "passed").length / moduleAttempts.length) * 100)
-            : 0;
-          return (
-            <Card key={m.slug} className="overflow-hidden">
-              <CardHeader className="pb-3">
-                <div className="flex items-start justify-between gap-3">
-                  <div>
-                    <div className="text-xs font-mono text-muted-foreground">M{m.number} · {m.scheduledMonth}</div>
-                    <CardTitle className="text-lg mt-1">{m.title}</CardTitle>
-                  </div>
-                  <StatusBadge variant={m.status} />
-                </div>
-              </CardHeader>
-              <CardContent>
-                <p className="text-sm text-muted-foreground line-clamp-2">{m.description}</p>
-
-                <div className="mt-5">
-                  <div className="flex items-center justify-between text-xs mb-1.5">
-                    <span className="text-muted-foreground">Question bank</span>
-                    <span className="font-mono tabular-nums">{m.questionsApproved} / {m.questionsTotal}</span>
-                  </div>
-                  <div className="h-2 rounded-full bg-muted overflow-hidden">
-                    <div className="h-full bg-primary transition-all" style={{ width: `${approvedPct}%` }} />
-                  </div>
-                </div>
-
-                <div className="mt-5 grid grid-cols-3 gap-2 text-center text-sm">
-                  <div className="rounded-md border p-2.5">
-                    <div className="text-[10px] text-muted-foreground uppercase">Pass rate</div>
-                    <div className="font-bold tabular-nums">{passRate || "—"}{passRate ? "%" : ""}</div>
-                  </div>
-                  <div className="rounded-md border p-2.5">
-                    <div className="text-[10px] text-muted-foreground uppercase">Attempts</div>
-                    <div className="font-bold tabular-nums">{moduleAttempts.length}</div>
-                  </div>
-                  <div className="rounded-md border p-2.5">
-                    <div className="text-[10px] text-muted-foreground uppercase">Training day</div>
-                    <div className="font-bold text-xs">{fmtDate(m.scheduledDate, "MMM d")}</div>
-                  </div>
-                </div>
-
-                <div className="mt-5 grid grid-cols-2 gap-2">
-                  <Button asChild size="sm" className="col-span-2">
-                    <Link href={`/teacher/modules/${m.slug}/present`}>
-                      <PresentationIcon className="mr-1.5 size-3.5" /> Present in seminar
-                    </Link>
-                  </Button>
-                  <Button asChild variant="outline" size="sm">
-                    <Link href={`/teacher/modules/${m.slug}/content`}>
-                      <Edit3 className="mr-1.5 size-3.5" /> Edit content
-                    </Link>
-                  </Button>
-                  <Button asChild variant="outline" size="sm">
-                    <Link href={`/teacher/modules/${m.slug}/questions`}>
-                      <ListChecks className="mr-1.5 size-3.5" /> Questions
-                    </Link>
-                  </Button>
-                  <Button asChild variant="outline" size="sm" className="col-span-2">
-                    <Link href={`/teacher/modules/${m.slug}/results`}>
-                      <BarChart3 className="mr-1.5 size-3.5" /> See results
-                    </Link>
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          );
-        })}
-      </div>
-    </>
+    <TeacherDashboardView
+      me={{ id: me.id, name: me.name }}
+      myModules={myModules}
+      attemptsByModule={attemptsByModule}
+    />
   );
 }

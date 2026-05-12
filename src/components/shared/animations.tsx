@@ -324,5 +324,266 @@ export function PercentCountUp({ value, className }: { value: number; className?
   return <CountUp value={value} suffix="%" decimals={0} className={className} />;
 }
 
+/* ─── MagneticButton ──────────────────────────────────────────────────── */
+// Subtle cursor-following pull. Disabled on coarse pointers (touch) and on
+// reduced-motion. Wrap a <Button> with this on hero CTAs only — too much
+// magnetism across an app feels gimmicky.
+
+export function MagneticButton({
+  children,
+  className,
+  strength = 0.25,
+}: {
+  children: React.ReactNode;
+  className?: string;
+  /** 0..1 — fraction of cursor displacement applied to the element. Default 0.25. */
+  strength?: number;
+}) {
+  const ref = React.useRef<HTMLSpanElement>(null);
+  const reduced = useReducedMotion();
+  const x = useMotionValue(0);
+  const y = useMotionValue(0);
+  const springX = useSpring(x, { stiffness: 220, damping: 18, mass: 0.6 });
+  const springY = useSpring(y, { stiffness: 220, damping: 18, mass: 0.6 });
+
+  React.useEffect(() => {
+    if (reduced) return;
+    if (typeof window === "undefined") return;
+    // Skip on coarse pointers (touch devices) — magnetism is a mouse feature.
+    if (window.matchMedia("(pointer: coarse)").matches) return;
+
+    const el = ref.current;
+    if (!el) return;
+
+    function onMove(e: PointerEvent) {
+      const rect = el!.getBoundingClientRect();
+      const cx = rect.left + rect.width / 2;
+      const cy = rect.top + rect.height / 2;
+      x.set((e.clientX - cx) * strength);
+      y.set((e.clientY - cy) * strength);
+    }
+    function onLeave() {
+      x.set(0);
+      y.set(0);
+    }
+
+    el.addEventListener("pointermove", onMove);
+    el.addEventListener("pointerleave", onLeave);
+    return () => {
+      el.removeEventListener("pointermove", onMove);
+      el.removeEventListener("pointerleave", onLeave);
+    };
+  }, [reduced, strength, x, y]);
+
+  if (reduced) {
+    return <span className={cn("inline-block", className)}>{children}</span>;
+  }
+
+  return (
+    <motion.span
+      ref={ref}
+      className={cn("inline-block", className)}
+      style={{ x: springX, y: springY }}
+    >
+      {children}
+    </motion.span>
+  );
+}
+
+/* ─── TiltCard ────────────────────────────────────────────────────────── */
+// 3D perspective tilt that follows the cursor. Max 4° on either axis.
+// Plus a soft highlight that tracks the cursor across the surface.
+
+export function TiltCard({
+  children,
+  className,
+  maxTiltDeg = 4,
+}: {
+  children: React.ReactNode;
+  className?: string;
+  maxTiltDeg?: number;
+}) {
+  const reduced = useReducedMotion();
+  const mx = useMotionValue(0);
+  const my = useMotionValue(0);
+  const rotateX = useTransform(my, [-1, 1], [maxTiltDeg, -maxTiltDeg]);
+  const rotateY = useTransform(mx, [-1, 1], [-maxTiltDeg, maxTiltDeg]);
+  const springRX = useSpring(rotateX, { stiffness: 200, damping: 20 });
+  const springRY = useSpring(rotateY, { stiffness: 200, damping: 20 });
+
+  function onPointerMove(e: React.PointerEvent<HTMLDivElement>) {
+    if (reduced) return;
+    const rect = e.currentTarget.getBoundingClientRect();
+    const px = (e.clientX - rect.left) / rect.width;
+    const py = (e.clientY - rect.top) / rect.height;
+    mx.set(px * 2 - 1);
+    my.set(py * 2 - 1);
+    // Position the highlight as a CSS variable so the pseudo-/child element can read it.
+    e.currentTarget.style.setProperty("--tilt-mx", `${px * 100}%`);
+    e.currentTarget.style.setProperty("--tilt-my", `${py * 100}%`);
+  }
+  function onPointerLeave(e: React.PointerEvent<HTMLDivElement>) {
+    mx.set(0);
+    my.set(0);
+    e.currentTarget.style.removeProperty("--tilt-mx");
+    e.currentTarget.style.removeProperty("--tilt-my");
+  }
+
+  if (reduced) {
+    return <div className={className}>{children}</div>;
+  }
+
+  return (
+    <motion.div
+      onPointerMove={onPointerMove}
+      onPointerLeave={onPointerLeave}
+      className={cn("relative tilt-card", className)}
+      style={{
+        rotateX: springRX,
+        rotateY: springRY,
+        transformPerspective: 1000,
+        transformStyle: "preserve-3d",
+      }}
+    >
+      {children}
+    </motion.div>
+  );
+}
+
+/* ─── DrawCheck (SVG path-draw checkmark) ─────────────────────────────── */
+// A clean Apple-Pay-style checkmark whose stroke draws in over ~480 ms.
+
+export function DrawCheck({
+  size = 64,
+  className,
+  durationMs = 480,
+}: {
+  size?: number;
+  className?: string;
+  durationMs?: number;
+}) {
+  const reduced = useReducedMotion();
+  return (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 64 64"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="3.5"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+    >
+      <motion.circle
+        cx="32"
+        cy="32"
+        r="29"
+        initial={reduced ? false : { pathLength: 0 }}
+        animate={{ pathLength: 1 }}
+        transition={{ duration: durationMs / 1000, ease: [0.16, 1, 0.3, 1] }}
+      />
+      <motion.path
+        d="M20 33 L29 42 L46 24"
+        initial={reduced ? false : { pathLength: 0 }}
+        animate={{ pathLength: 1 }}
+        transition={{ duration: durationMs / 1000, delay: (durationMs / 1000) * 0.45, ease: [0.16, 1, 0.3, 1] }}
+      />
+    </svg>
+  );
+}
+
+/* ─── RippleButton ────────────────────────────────────────────────────── */
+// Wraps a <button> with a Material-style ripple originating from the click
+// point. Opt-in — applies only where wrapped.
+
+interface Ripple {
+  id: number;
+  x: number;
+  y: number;
+  size: number;
+}
+
+export function RippleButton({
+  children,
+  className,
+  onClick,
+  disabled,
+  type = "button",
+  ...rest
+}: React.ButtonHTMLAttributes<HTMLButtonElement>) {
+  const reduced = useReducedMotion();
+  const [ripples, setRipples] = React.useState<Ripple[]>([]);
+  const idRef = React.useRef(0);
+
+  function handleClick(e: React.MouseEvent<HTMLButtonElement>) {
+    if (!reduced && !disabled) {
+      const rect = e.currentTarget.getBoundingClientRect();
+      const x = e.clientX - rect.left;
+      const y = e.clientY - rect.top;
+      const size = Math.max(rect.width, rect.height) * 1.4;
+      const id = ++idRef.current;
+      setRipples((prev) => [...prev, { id, x, y, size }]);
+      window.setTimeout(() => setRipples((prev) => prev.filter((r) => r.id !== id)), 600);
+    }
+    onClick?.(e);
+  }
+
+  return (
+    <button
+      {...rest}
+      type={type}
+      onClick={handleClick}
+      disabled={disabled}
+      className={cn("relative overflow-hidden", className)}
+    >
+      {children}
+      {ripples.map((r) => (
+        <motion.span
+          key={r.id}
+          aria-hidden
+          className="pointer-events-none absolute rounded-full bg-current opacity-20"
+          initial={{ width: 0, height: 0, x: r.x, y: r.y, opacity: 0.28 }}
+          animate={{ width: r.size, height: r.size, x: r.x - r.size / 2, y: r.y - r.size / 2, opacity: 0 }}
+          transition={{ duration: 0.55, ease: [0.16, 1, 0.3, 1] }}
+        />
+      ))}
+    </button>
+  );
+}
+
+/* ─── AppLoader ───────────────────────────────────────────────────────── */
+// Branded full-page loader. Logo gently pulses; three dots wave in sequence.
+
+export function AppLoader({ label = "Loading BCJ Learn" }: { label?: string }) {
+  const reduced = useReducedMotion();
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-background">
+      <div className="flex flex-col items-center gap-6">
+        <motion.div
+          className="size-14 rounded-2xl bg-primary text-primary-foreground flex items-center justify-center shadow-lg shadow-primary/20"
+          animate={reduced ? undefined : { scale: [1, 1.05, 1], opacity: [0.8, 1, 0.8] }}
+          transition={{ duration: 1.8, repeat: Infinity, ease: "easeInOut" }}
+        >
+          <svg viewBox="0 0 24 24" fill="currentColor" className="size-6">
+            <path d="M12 2l1.9 6.1L20 10l-6.1 1.9L12 18l-1.9-6.1L4 10l6.1-1.9L12 2z" />
+          </svg>
+        </motion.div>
+        <div className="flex items-center gap-1.5">
+          {[0, 1, 2].map((i) => (
+            <motion.span
+              key={i}
+              className="size-1.5 rounded-full bg-primary"
+              animate={reduced ? undefined : { y: [0, -4, 0], opacity: [0.5, 1, 0.5] }}
+              transition={{ duration: 1.1, repeat: Infinity, ease: "easeInOut", delay: i * 0.15 }}
+            />
+          ))}
+        </div>
+        <span className="text-xs text-muted-foreground tracking-wider uppercase">{label}</span>
+      </div>
+    </div>
+  );
+}
+
 /* ─── Re-exports for convenience ─────────────────────────────────────── */
 export { motion, AnimatePresence, useTransform, useMotionValue, useSpring, useReducedMotion };

@@ -4,36 +4,31 @@ import * as React from "react";
 import Link from "next/link";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import {
   History, Calendar, Users, Trophy, AlertTriangle, ChevronDown, ChevronUp,
   ArrowUpRight, Clock,
 } from "lucide-react";
-import { useAttendanceStore } from "@/store/attendance-store";
-import { moduleDeliveries } from "@/data/queries";
-import { managers } from "@/data/users";
-import { attempts } from "@/data/attempts";
 import { fmtDate, fmtPct, initials } from "@/lib/format";
 import { cn } from "@/lib/utils";
+import type { DeliveryRecord } from "@/lib/db/deliveries";
+import type { Manager, Attempt } from "@/types";
 
 interface DeliveryHistoryProps {
   moduleSlug: string;
-  /** Where to link manager rows (defaults to /admin/managers) */
+  deliveries: DeliveryRecord[];
+  managersById: Record<string, Pick<Manager, "id" | "name" | "avatarColor" | "cohort">>;
+  attempts: Attempt[];
   managerLinkBase?: string;
 }
 
-export function DeliveryHistory({ moduleSlug, managerLinkBase = "/admin/managers" }: DeliveryHistoryProps) {
-  // Subscribe to the raw maps (stable references), then derive in useMemo
-  const deliveryHistory = useAttendanceStore((s) => s.deliveryHistory);
-  const deliveryStartDate = useAttendanceStore((s) => s.deliveryStartDate);
-
-  const deliveries = React.useMemo(
-    () => moduleDeliveries(moduleSlug, deliveryHistory[moduleSlug] ?? [], deliveryStartDate[moduleSlug]),
-    [moduleSlug, deliveryHistory, deliveryStartDate],
-  );
-
-  // Default: show current delivery expanded; collapse rest
+export function DeliveryHistory({
+  moduleSlug,
+  deliveries,
+  managersById,
+  attempts,
+  managerLinkBase = "/admin/managers",
+}: DeliveryHistoryProps) {
   const [expandedIdx, setExpandedIdx] = React.useState<Set<number>>(() => {
     const cur = deliveries.find((d) => d.isCurrent);
     return new Set(cur ? [cur.index] : []);
@@ -42,14 +37,13 @@ export function DeliveryHistory({ moduleSlug, managerLinkBase = "/admin/managers
   function toggle(idx: number) {
     setExpandedIdx((prev) => {
       const next = new Set(prev);
-      if (next.has(idx)) next.delete(idx); else next.add(idx);
+      if (next.has(idx)) next.delete(idx);
+      else next.add(idx);
       return next;
     });
   }
 
-  if (deliveries.length === 0) {
-    return null;
-  }
+  if (deliveries.length === 0) return null;
 
   const totalDeliveries = deliveries.length;
   const totalAttempts = deliveries.reduce((s, d) => s + d.attempts, 0);
@@ -57,7 +51,6 @@ export function DeliveryHistory({ moduleSlug, managerLinkBase = "/admin/managers
   return (
     <Card>
       <CardContent className="p-0">
-        {/* Header */}
         <div className="px-5 py-4 border-b flex items-center justify-between gap-3 flex-wrap">
           <div className="flex items-center gap-2">
             <History className="size-4 text-muted-foreground" />
@@ -69,13 +62,12 @@ export function DeliveryHistory({ moduleSlug, managerLinkBase = "/admin/managers
           </div>
         </div>
 
-        {/* Deliveries */}
         <ul className="divide-y">
           {deliveries.map((d) => {
             const expanded = expandedIdx.has(d.index);
             const passRate = d.attempts ? Math.round((d.passed / d.attempts) * 100) : 0;
             const participants = d.participantIds
-              .map((id) => managers.find((m) => m.id === id))
+              .map((id) => managersById[id])
               .filter((m): m is NonNullable<typeof m> => !!m);
 
             return (
@@ -84,7 +76,6 @@ export function DeliveryHistory({ moduleSlug, managerLinkBase = "/admin/managers
                   onClick={() => toggle(d.index)}
                   className="w-full text-left px-5 py-4 flex items-center gap-4 hover:bg-accent/30 transition-colors"
                 >
-                  {/* Index pill */}
                   <div className={cn(
                     "size-10 rounded-md shrink-0 flex flex-col items-center justify-center text-[10px] uppercase tracking-wider",
                     d.isCurrent
@@ -94,7 +85,6 @@ export function DeliveryHistory({ moduleSlug, managerLinkBase = "/admin/managers
                     <span className="font-bold text-base">D{d.index}</span>
                   </div>
 
-                  {/* Date + label */}
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
                       <span className="font-medium">
@@ -120,7 +110,6 @@ export function DeliveryHistory({ moduleSlug, managerLinkBase = "/admin/managers
                     </div>
                   </div>
 
-                  {/* Stats */}
                   <div className="hidden sm:flex items-center gap-4 text-xs shrink-0">
                     <Stat icon={Users} label="Attendees" value={d.participantIds.length} />
                     <Stat icon={Trophy} label="Passed" value={d.passed} tone="success" />
@@ -136,7 +125,6 @@ export function DeliveryHistory({ moduleSlug, managerLinkBase = "/admin/managers
                             : <ChevronDown className="size-4 text-muted-foreground shrink-0" />}
                 </button>
 
-                {/* Expanded body — list of participants */}
                 {expanded && (
                   <div className="px-5 pb-5 -mt-1 border-t bg-muted/20">
                     {participants.length === 0 ? (
@@ -150,7 +138,6 @@ export function DeliveryHistory({ moduleSlug, managerLinkBase = "/admin/managers
                         </div>
                         <ul className="grid sm:grid-cols-2 lg:grid-cols-3 gap-2">
                           {participants.map((m) => {
-                            // Find this manager's best attempt within this delivery's date range
                             const startMs = new Date(d.startDate).getTime();
                             const endMs = d.endDate ? new Date(d.endDate).getTime() : Infinity;
                             const myAttempts = attempts.filter(

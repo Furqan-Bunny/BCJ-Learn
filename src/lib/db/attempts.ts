@@ -51,3 +51,24 @@ export async function listAttemptsForModule(slug: string): Promise<Attempt[]> {
   const { data } = await sb.from("attempts").select("*").eq("module_slug", slug).order("started_at", { ascending: false });
   return (data ?? []).map((r) => rowToAttempt(r as AttemptRow));
 }
+
+export async function getAttempt(id: string): Promise<Attempt | null> {
+  const sb = await dbClient();
+  const [{ data: attemptRow }, { data: answerRows }] = await Promise.all([
+    sb.from("attempts").select("*").eq("id", id).maybeSingle(),
+    sb
+      .from("attempt_answers")
+      .select("question_id, selected_option_id, correct")
+      .eq("attempt_id", id),
+  ]);
+  if (!attemptRow) return null;
+  const attempt = rowToAttempt(attemptRow as AttemptRow);
+  attempt.answers = ((answerRows ?? []) as { question_id: string; selected_option_id: string | null; correct: boolean }[]).map(
+    (a) => ({
+      questionId: a.question_id,
+      selectedOptionId: a.selected_option_id ?? "",
+      correct: a.correct,
+    }),
+  );
+  return attempt;
+}
