@@ -57,6 +57,17 @@ export async function listRecentActivity(limit = 25): Promise<ActivityEvent[]> {
   return (data ?? []).map((r) => rowToActivity(r as ActivityRow));
 }
 
+export async function listActivityForUser(userId: string, limit = 20): Promise<ActivityEvent[]> {
+  const sb = await dbClient();
+  const { data } = await sb
+    .from("activity")
+    .select("*")
+    .or(`actor_id.eq.${userId},target_id.eq.${userId}`)
+    .order("occurred_at", { ascending: false })
+    .limit(limit);
+  return (data ?? []).map((r) => rowToActivity(r as ActivityRow));
+}
+
 export async function listNotificationsForRecipient(recipientId: string): Promise<NotificationItem[]> {
   const sb = await dbClient();
   const { data } = await sb.from("notifications").select("*").eq("recipient_id", recipientId).order("sent_at", { ascending: false });
