@@ -15,21 +15,28 @@ import { notifications } from "@/data/activity";
 import { managers } from "@/data/users";
 import { fmtRelative } from "@/lib/format";
 import { toast } from "sonner";
+import { updateEmailTemplate } from "@/lib/server/email-template-actions";
 
+const DEMO_MODE = process.env.NEXT_PUBLIC_DEMO_MODE === "true";
+
+// Keys match the email_templates rows seeded in migration 0003.
+// Editing saves to the DB; the production email pipeline reads these
+// templates at send time.
 const TEMPLATES = [
-  { id: "invitation", label: "Invitation", subject: "Welcome to BCJ Learn", body: "Hi {{name}},\n\nYour Module {{number}} training is scheduled for {{date}}. Click the link to log in and start studying:\n\n{{login_url}}\n\nSee you there.\n— Nancy" },
-  { id: "reminder",   label: "Reminder",   subject: "Module {{number}} quiz is tomorrow", body: "Hi {{name}},\n\nA quick reminder — your in-person training session is tomorrow ({{date}}). The quiz will run on-site right after the presentation.\n\nLog in here if you'd like to review beforehand:\n{{login_url}}" },
-  { id: "result",     label: "Result",     subject: "Your Module {{number}} result", body: "Hi {{name}},\n\nThanks for completing the Module {{number}} quiz. {{result_message}}\n\n— BCJ Learn" },
-  { id: "alert",      label: "Alert",      subject: "Heads up: {{name}} flagged at-risk", body: "{{name}} ({{cohort}}) has been flagged. Reasons: {{reasons}}.\n\nReview their profile here: {{profile_url}}" },
-  { id: "redelivery", label: "Re-delivery", subject: "Module {{number}} is being delivered again on {{delivery_date}}", body: "Hi {{name}},\n\nGood news — Module {{number}} ({{module_title}}) is being delivered again on {{delivery_date}}. You're invited because you {{reason}}.\n\nSign in on training day and tap \"I'm here\" to check in:\n{{check_in_url}}\n\nSee you in the room.\n— BCJ Learn" },
-  { id: "checkin",    label: "Check-in confirmation", subject: "You're checked in for Module {{number}}", body: "Hi {{name}},\n\nGot it — you're checked in for today's Module {{number}} ({{module_title}}) session.\n\nSit back, listen to your trainer. The quiz will unlock on your device the moment they end the session.\n\n— BCJ Learn" },
-  { id: "pretraining", label: "Pre-training reminder", subject: "Module {{number}} starts in 24 hours", body: "Hi {{name}},\n\nA gentle nudge — Module {{number}} ({{module_title}}) starts tomorrow at {{date}}. If you'd like to skim the materials first, they're optional but available here:\n\n{{materials_url}}\n\nSee you there.\n— BCJ Learn" },
+  { id: "invite",            label: "Invitation",            subject: "Welcome to BCJ Learn", body: "# Hi {{name}},\n\nYou've been invited to join BCJ Learn — our internal training and quiz platform.\n\n[Set up your account]({{invite_link}})\n\nThis link expires in 7 days.\n\n— The BCJ team" },
+  { id: "password_reset",    label: "Password reset",        subject: "Reset your BCJ Learn password", body: "# Hi {{name}},\n\nYou requested a password reset. Click the link below to set a new password:\n\n[Reset password]({{reset_link}})\n\nIf you didn't request this, ignore this email. The link expires in 1 hour." },
+  { id: "welcome",           label: "Welcome",               subject: "You're all set on BCJ Learn", body: "# Welcome, {{name}}!\n\nYour account is ready. Your first training module is scheduled for {{first_module_date}}.\n\n[Open BCJ Learn]({{app_url}})" },
+  { id: "quiz_passed",       label: "Quiz passed",           subject: "You passed {{module_title}} 🎉", body: "# Great work, {{name}}!\n\nYou scored **{{score}}%** on the {{module_title}} quiz — well above the 85% pass threshold.\n\nThe next module unlocks on {{next_module_date}}.\n\n[View your progress]({{progress_link}})" },
+  { id: "quiz_failed",       label: "Quiz failed (retake)",  subject: "Retake scheduled for {{module_title}}", body: "# Hi {{name}},\n\nYou scored **{{score}}%** on the {{module_title}} quiz. Don't worry — a retake is automatically scheduled using an easier question set.\n\nYou can take it any time.\n\n[Take the retake]({{retake_link}})" },
+  { id: "overdue_reminder",  label: "Overdue reminder",      subject: "Reminder: {{module_title}} quiz is overdue", body: "# Hi {{name}},\n\nYou haven't completed the **{{module_title}}** quiz yet. Please complete it by {{due_date}}.\n\n[Take the quiz]({{quiz_link}})" },
+  { id: "at_risk_alert",     label: "At-risk alert (admin)", subject: "BCJ Learn — {{employee_name}} flagged at-risk", body: "# Hi {{admin_name}},\n\n{{employee_name}} ({{cohort}}) has been flagged as at-risk. Reason: {{reason}}.\n\n[Review their profile]({{profile_link}})" },
 ];
 
 export default function AdminNotifications() {
   const [activeTpl, setActiveTpl] = React.useState(TEMPLATES[0].id);
   const [autoReminders, setAutoReminders] = React.useState(true);
   const [overdueDays, setOverdueDays] = React.useState(3);
+  const [saving, setSaving] = React.useState(false);
 
   const tpl = TEMPLATES.find((t) => t.id === activeTpl)!;
   const [subject, setSubject] = React.useState(tpl.subject);
@@ -39,6 +46,25 @@ export default function AdminNotifications() {
     setSubject(tpl.subject);
     setBody(tpl.body);
   }, [tpl]);
+
+  async function handleSaveTemplate(label: string) {
+    if (DEMO_MODE) {
+      toast.success(`${label} template saved (demo)`);
+      return;
+    }
+    setSaving(true);
+    const result = await updateEmailTemplate({
+      key: activeTpl,
+      subject,
+      bodyMarkdown: body,
+    });
+    setSaving(false);
+    if (!result.ok) {
+      toast.error(result.error ?? "Could not save");
+      return;
+    }
+    toast.success(`${label} template saved`);
+  }
 
   return (
     <>
@@ -86,7 +112,9 @@ export default function AdminNotifications() {
                       </div>
                     </div>
                     <div className="flex items-center gap-2">
-                      <Button onClick={() => toast.success(`${t.label} template saved`)}>Save changes</Button>
+                      <Button onClick={() => handleSaveTemplate(t.label)} disabled={saving}>
+                        {saving ? "Saving…" : "Save changes"}
+                      </Button>
                       <Button variant="outline" onClick={() => toast(`Test email sent to nancy@bcj.com`)}>
                         <Send className="size-3.5 mr-1.5" /> Send test
                       </Button>

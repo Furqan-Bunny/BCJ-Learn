@@ -4,6 +4,9 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { PageHeader } from "@/components/shared/page-header";
 import { ProfileForm } from "./profile-form";
+import { ActivityHistory } from "./activity-history";
+import { listActivityForUser } from "@/lib/db/activity";
+import { listAttemptsForManager } from "@/lib/db/attempts";
 import type { Role } from "@/types";
 
 const DEMO_MODE = process.env.NEXT_PUBLIC_DEMO_MODE === "true";
@@ -49,6 +52,11 @@ export default async function ProfilePage() {
     last_active_at: string;
   };
 
+  const [activity, attempts] = await Promise.all([
+    listActivityForUser(p.id, 10),
+    p.role === "manager" ? listAttemptsForManager(p.id) : Promise.resolve([]),
+  ]);
+
   return (
     <>
       <PageHeader
@@ -71,6 +79,7 @@ export default async function ProfilePage() {
           lastActiveAt: p.last_active_at,
         }}
       />
+      <ActivityHistory activity={activity} attempts={attempts} role={p.role} />
     </>
   );
 }
