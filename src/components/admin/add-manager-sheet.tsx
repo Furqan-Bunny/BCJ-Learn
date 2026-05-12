@@ -12,10 +12,15 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Plus, Mail, User, Users, Sparkles } from "lucide-react";
 import type { Cohort } from "@/types";
 import { toast } from "sonner";
+import { inviteUser } from "@/lib/server/admin-actions";
+import { useRouter } from "next/navigation";
+
+const DEMO_MODE = process.env.NEXT_PUBLIC_DEMO_MODE === "true";
 
 const COHORTS: Cohort[] = ["Atlanta", "Dallas", "Phoenix"];
 
 export function AddManagerSheet() {
+  const router = useRouter();
   const [open, setOpen] = React.useState(false);
   const [name, setName] = React.useState("");
   const [email, setEmail] = React.useState("");
@@ -24,20 +29,41 @@ export function AddManagerSheet() {
 
   const canSubmit = name.trim() && email.trim() && cohort;
 
-  function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!canSubmit) return;
     setSubmitting(true);
-    setTimeout(() => {
+
+    if (DEMO_MODE) {
+      await new Promise((r) => setTimeout(r, 400));
+      toast.success(`${name} added to BCJ Learn (demo)`, {
+        description: `Cohort: ${cohort} · Demo mode — no real invite sent.`,
+      });
       setSubmitting(false);
       setOpen(false);
-      toast.success(`${name} added to BCJ Learn`, {
-        description: `Cohort: ${cohort} · Invitation email queued. They'll be invited to the next delivery of any module they haven't passed.`,
-      });
-      setName("");
-      setEmail("");
-      setCohort("");
-    }, 600);
+      setName(""); setEmail(""); setCohort("");
+      return;
+    }
+
+    const result = await inviteUser({
+      name: name.trim(),
+      email: email.trim().toLowerCase(),
+      role: "manager",
+      cohort: cohort as Cohort,
+    });
+    setSubmitting(false);
+
+    if (!result.ok) {
+      toast.error(result.error ?? "Failed to send invite");
+      return;
+    }
+
+    toast.success(`${name} added to BCJ Learn`, {
+      description: `Invitation email sent to ${email}. They have 7 days to set up their account.`,
+    });
+    setOpen(false);
+    setName(""); setEmail(""); setCohort("");
+    router.refresh();
   }
 
   return (

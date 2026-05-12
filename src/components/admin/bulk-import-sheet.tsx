@@ -9,6 +9,10 @@ import { Badge } from "@/components/ui/badge";
 import { Upload, FileSpreadsheet, X, AlertCircle, Download, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { bulkInviteUsers } from "@/lib/server/admin-actions";
+import { useRouter } from "next/navigation";
+
+const DEMO_MODE = process.env.NEXT_PUBLIC_DEMO_MODE === "true";
 
 interface ParsedRow {
   name: string;
@@ -88,18 +92,45 @@ export function BulkImportSheet() {
     URL.revokeObjectURL(url);
   }
 
-  function handleSubmit() {
+  const router = useRouter();
+
+  async function handleSubmit() {
     if (validCount === 0) return;
     setSubmitting(true);
-    setTimeout(() => {
+
+    if (DEMO_MODE) {
+      await new Promise((r) => setTimeout(r, 600));
       setSubmitting(false);
       setOpen(false);
-      toast.success(`Imported ${validCount} manager${validCount === 1 ? "" : "s"}`, {
-        description: invalidCount > 0
-          ? `${invalidCount} row${invalidCount === 1 ? "" : "s"} skipped due to errors. Each new manager gets an invitation email.`
-          : "Each new manager gets an invitation email and is auto-assigned to the 5-module program.",
+      toast.success(`Imported ${validCount} employee${validCount === 1 ? "" : "s"} (demo)`, {
+        description: "Demo mode — no real invites sent.",
       });
-    }, 800);
+      return;
+    }
+
+    const validRows = rows.filter((r) => r.ok).map((r) => ({
+      name: r.name,
+      email: r.email.toLowerCase(),
+      cohort: r.cohort,
+    }));
+
+    const result = await bulkInviteUsers(validRows);
+    setSubmitting(false);
+
+    if (!result.ok) {
+      toast.error(result.error ?? "Bulk import failed");
+      return;
+    }
+
+    const failed = (result.results ?? []).filter((r) => !r.ok).length;
+    setOpen(false);
+    toast.success(`Invited ${result.invited} employee${result.invited === 1 ? "" : "s"}`, {
+      description: failed > 0
+        ? `${failed} row${failed === 1 ? "" : "s"} failed (usually duplicate emails). Each new employee gets an invitation email.`
+        : "Each new employee gets an invitation email with a 7-day link to set up their account.",
+    });
+    router.refresh();
+    return;
   }
 
   return (
