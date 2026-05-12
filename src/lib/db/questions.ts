@@ -26,6 +26,24 @@ interface OptionRow {
   order: number;
 }
 
+function hydrate(qRows: QuestionRow[], optsByQ: Map<string, OptionRow[]>): Question[] {
+  return qRows.map((r) => ({
+    id: r.id,
+    moduleSlug: r.module_slug,
+    pool: r.pool,
+    status: r.status,
+    text: r.text,
+    options: (optsByQ.get(r.id) ?? []).map((o) => ({ id: o.id, text: o.text, correct: o.correct })),
+    explanation: r.explanation ?? undefined,
+    generatedByAI: r.generated_by_ai,
+    createdAt: r.created_at,
+    approvedAt: r.approved_at ?? undefined,
+    approvedBy: r.approved_by ?? undefined,
+    hits: r.hits,
+    missRate: r.miss_rate,
+  }));
+}
+
 export async function listQuestionsForModule(slug: string, pool?: QuestionPool): Promise<Question[]> {
   const sb = await dbClient();
   let q = sb.from("questions").select("*").eq("module_slug", slug);
@@ -48,19 +66,28 @@ export async function listQuestionsForModule(slug: string, pool?: QuestionPool):
     optsByQ.set(o.question_id, list);
   }
 
-  return qRows.map((r) => ({
-    id: r.id,
-    moduleSlug: r.module_slug,
-    pool: r.pool,
-    status: r.status,
-    text: r.text,
-    options: (optsByQ.get(r.id) ?? []).map((o) => ({ id: o.id, text: o.text, correct: o.correct })),
-    explanation: r.explanation ?? undefined,
-    generatedByAI: r.generated_by_ai,
-    createdAt: r.created_at,
-    approvedAt: r.approved_at ?? undefined,
-    approvedBy: r.approved_by ?? undefined,
-    hits: r.hits,
-    missRate: r.miss_rate,
-  }));
+  return hydrate(qRows, optsByQ);
+}
+
+export async function listQuestions(): Promise<Question[]> {
+  const sb = await dbClient();
+  const { data: questions } = await sb.from("questions").select("*");
+  const qRows = (questions ?? []) as QuestionRow[];
+
+  if (qRows.length === 0) return [];
+
+  const { data: options } = await sb
+    .from("question_options")
+    .select("*")
+    .in("question_id", qRows.map((r) => r.id))
+    .order("order");
+
+  const optsByQ = new Map<string, OptionRow[]>();
+  for (const o of (options ?? []) as OptionRow[]) {
+    const list = optsByQ.get(o.question_id) ?? [];
+    list.push(o);
+    optsByQ.set(o.question_id, list);
+  }
+
+  return hydrate(qRows, optsByQ);
 }

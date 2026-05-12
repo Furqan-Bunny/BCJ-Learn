@@ -1,111 +1,48 @@
-"use client";
+import { redirect } from "next/navigation";
+import { getCurrentUserForRole } from "@/lib/supabase/current-user";
+import { listModules } from "@/lib/db/modules";
+import { listTeachers } from "@/lib/db/profiles";
+import { dbClient } from "@/lib/supabase/db-client";
+import { TeacherModulesView } from "./modules-view";
+import type { Teacher } from "@/types";
 
-import * as React from "react";
-import Link from "next/link";
-import { Card, CardContent } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { ArrowRight, Sparkles, PresentationIcon, Edit3, ListChecks, BarChart3 } from "lucide-react";
-import { PageHeader } from "@/components/shared/page-header";
-import { StatusBadge } from "@/components/shared/status-badge";
-import { AddModuleSheet } from "@/components/admin/add-module-sheet";
-import { teachers } from "@/data/users";
-import { modules, moduleTotalMinutes } from "@/data/modules";
-import { fmtDate } from "@/lib/format";
-import { Stagger, StaggerItem } from "@/components/shared/animations";
+export default async function TeacherModulesListPage() {
+  const me = await getCurrentUserForRole("teacher");
+  if (!me) redirect("/login");
 
-export default function TeacherModules() {
-  const me = teachers[0];
-  const myModules = modules.filter((m) => me.ownedModuleSlugs.includes(m.slug));
-  const otherModules = modules.filter((m) => !me.ownedModuleSlugs.includes(m.slug));
+  const sb = await dbClient();
+  const { data: ownerRows } = await sb
+    .from("module_owners")
+    .select("module_slug, teacher_id");
+
+  const allOwnerRows = (ownerRows ?? []) as { module_slug: string; teacher_id: string }[];
+  const ownedSlugs = new Set(allOwnerRows.filter((r) => r.teacher_id === me.id).map((r) => r.module_slug));
+
+  const [allModules, allTeachers] = await Promise.all([listModules(), listTeachers()]);
+  const myModules = allModules.filter((m) => ownedSlugs.has(m.slug));
+  const otherModules = allModules.filter((m) => !ownedSlugs.has(m.slug));
+
+  // Enrich teachers with owned-module counts for the AddModuleSheet picker.
+  const ownedByTeacher = new Map<string, string[]>();
+  for (const o of allOwnerRows) {
+    const list = ownedByTeacher.get(o.teacher_id) ?? [];
+    list.push(o.module_slug);
+    ownedByTeacher.set(o.teacher_id, list);
+  }
+  const enrichedTeachers: Teacher[] = allTeachers.map((t) => ({
+    ...t,
+    ownedModuleSlugs: ownedByTeacher.get(t.id) ?? [],
+  }));
+
+  const defaultNumber = allModules.length > 0 ? Math.max(...allModules.map((m) => m.number)) + 1 : 1;
 
   return (
-    <>
-      <PageHeader
-        eyebrow="My library"
-        title="Your modules"
-        description="Modules you own. Edit content, approve questions, see results."
-        actions={<AddModuleSheet lockedOwnerId={me.id} />}
-      />
-
-      <h3 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground mb-3">
-        You own ({myModules.length})
-      </h3>
-      <Stagger className="grid lg:grid-cols-2 gap-4 mb-10">
-        {myModules.map((m) => (
-          <StaggerItem key={m.slug}>
-            <ModuleCard m={m} ownerView />
-          </StaggerItem>
-        ))}
-      </Stagger>
-
-      <h3 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground mb-3">
-        Other modules in the program
-      </h3>
-      <Stagger className="grid lg:grid-cols-2 gap-4" delay={0.1}>
-        {otherModules.map((m) => (
-          <StaggerItem key={m.slug}>
-            <ModuleCard m={m} />
-          </StaggerItem>
-        ))}
-      </Stagger>
-    </>
-  );
-}
-
-function ModuleCard({ m, ownerView }: { m: typeof modules[number]; ownerView?: boolean }) {
-  return (
-    <Card className={`card-lift ${ownerView ? "border-primary/30" : ""}`}>
-      <CardContent className="p-5">
-        <div className="flex items-start justify-between gap-3 mb-2">
-          <div className="text-xs font-mono text-muted-foreground">
-            M{m.number} · {fmtDate(m.scheduledDate, "MMM yyyy")} · {moduleTotalMinutes(m.slug)} min
-          </div>
-          <StatusBadge variant={m.status} />
-        </div>
-        <div className="font-semibold text-lg">{m.title}</div>
-        <p className="text-sm text-muted-foreground mt-1 line-clamp-2">{m.description}</p>
-        <div className="mt-3 text-xs text-muted-foreground">
-          <span className="font-mono">{m.questionsApproved}/{m.questionsTotal}</span> questions approved
-          {m.questionsApproved < m.questionsTotal && (
-            <span className="ml-2 inline-flex items-center gap-1 text-[var(--gold)]">
-              <Sparkles className="size-3" /> AI ready
-            </span>
-          )}
-        </div>
-
-        {ownerView ? (
-          <div className="mt-4 grid grid-cols-2 gap-2">
-            <Button asChild size="sm" className="col-span-2">
-              <Link href={`/teacher/modules/${m.slug}/present`}>
-                <PresentationIcon className="mr-1.5 size-3.5" /> Present in seminar
-              </Link>
-            </Button>
-            <Button asChild variant="outline" size="sm">
-              <Link href={`/teacher/modules/${m.slug}/content`}>
-                <Edit3 className="mr-1.5 size-3.5" /> Content
-              </Link>
-            </Button>
-            <Button asChild variant="outline" size="sm">
-              <Link href={`/teacher/modules/${m.slug}/questions`}>
-                <ListChecks className="mr-1.5 size-3.5" /> Questions
-              </Link>
-            </Button>
-            <Button asChild variant="outline" size="sm" className="col-span-2">
-              <Link href={`/teacher/modules/${m.slug}/results`}>
-                <BarChart3 className="mr-1.5 size-3.5" /> See results
-              </Link>
-            </Button>
-          </div>
-        ) : (
-          <div className="mt-4 flex items-center justify-end">
-            <Button asChild size="sm" variant="ghost">
-              <Link href={`/teacher/modules/${m.slug}`}>
-                Open <ArrowRight className="ml-1 size-3.5" />
-              </Link>
-            </Button>
-          </div>
-        )}
-      </CardContent>
-    </Card>
+    <TeacherModulesView
+      me={{ id: me.id }}
+      myModules={myModules}
+      otherModules={otherModules}
+      teachers={enrichedTeachers}
+      defaultNumber={defaultNumber}
+    />
   );
 }

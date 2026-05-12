@@ -22,6 +22,7 @@ import {
 import { cn } from "@/lib/utils";
 import { useRoleStore } from "@/store/role-store";
 import type { Role } from "@/types";
+import { motion, useReducedMotion } from "framer-motion";
 
 interface NavItem {
   label: string;
@@ -114,6 +115,7 @@ const ROLE_ICON: Record<Role, React.ComponentType<{ className?: string }>> = {
 export function Sidebar() {
   const role = useRoleStore((s) => s.role);
   const pathname = usePathname();
+  const reduced = useReducedMotion();
   const RoleIcon = ROLE_ICON[role];
   const sections = NAV_BY_ROLE[role];
 
@@ -150,14 +152,31 @@ export function Sidebar() {
                     <Link
                       href={item.href}
                       className={cn(
-                        "group relative flex items-center gap-3 rounded-md px-3 py-2 text-sm transition-all duration-200",
+                        "group relative flex items-center gap-3 rounded-md px-3 py-2 text-sm transition-colors duration-200",
                         active
-                          ? "bg-primary/10 text-primary font-medium"
-                          : "text-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground hover:translate-x-0.5",
+                          ? "text-primary font-medium"
+                          : "text-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
                       )}
                     >
-                      {active && (
-                        <span className="absolute left-0 top-1/2 -translate-y-1/2 h-5 w-0.5 rounded-r-full bg-primary" />
+                      {active && !reduced && (
+                        <motion.span
+                          layoutId="sidebar-active-pill"
+                          className="absolute inset-0 rounded-md bg-primary/10 -z-10"
+                          transition={{ type: "spring", stiffness: 380, damping: 30 }}
+                        />
+                      )}
+                      {active && !reduced && (
+                        <motion.span
+                          layoutId="sidebar-active-rail"
+                          className="absolute left-0 top-1/2 -translate-y-1/2 h-5 w-0.5 rounded-r-full bg-primary"
+                          transition={{ type: "spring", stiffness: 380, damping: 30 }}
+                        />
+                      )}
+                      {active && reduced && (
+                        <>
+                          <span className="absolute inset-0 rounded-md bg-primary/10 -z-10" />
+                          <span className="absolute left-0 top-1/2 -translate-y-1/2 h-5 w-0.5 rounded-r-full bg-primary" />
+                        </>
                       )}
                       <Icon className={cn("size-4 transition-transform", !active && "group-hover:scale-110")} />
                       <span>{item.label}</span>

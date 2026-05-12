@@ -11,6 +11,37 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 
+// Pre-typed wrapper around the View Transitions API. Falls back gracefully on
+// browsers that don't support it (Safari < 18, older Firefox).
+type StartViewTransition = (cb: () => void) => unknown;
+
+function setThemeWithTransition(
+  e: React.MouseEvent | undefined,
+  setTheme: (t: string) => void,
+  next: string,
+) {
+  if (typeof document === "undefined") {
+    setTheme(next);
+    return;
+  }
+  const docAny = document as Document & { startViewTransition?: StartViewTransition };
+  if (typeof docAny.startViewTransition !== "function") {
+    setTheme(next);
+    return;
+  }
+
+  // Anchor the reveal circle to the click point.
+  if (e) {
+    const root = document.documentElement;
+    root.style.setProperty("--click-x", `${e.clientX}px`);
+    root.style.setProperty("--click-y", `${e.clientY}px`);
+  }
+
+  docAny.startViewTransition(() => {
+    setTheme(next);
+  });
+}
+
 export function ThemeToggle() {
   const { setTheme, theme } = useTheme();
   return (
@@ -22,15 +53,24 @@ export function ThemeToggle() {
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-36">
-        <DropdownMenuItem onClick={() => setTheme("light")} className="gap-2">
+        <DropdownMenuItem
+          onClick={(e) => setThemeWithTransition(e, setTheme, "light")}
+          className="gap-2"
+        >
           <Sun className="size-4" /> Light
           {theme === "light" && <span className="ml-auto text-xs text-muted-foreground">·</span>}
         </DropdownMenuItem>
-        <DropdownMenuItem onClick={() => setTheme("dark")} className="gap-2">
+        <DropdownMenuItem
+          onClick={(e) => setThemeWithTransition(e, setTheme, "dark")}
+          className="gap-2"
+        >
           <Moon className="size-4" /> Dark
           {theme === "dark" && <span className="ml-auto text-xs text-muted-foreground">·</span>}
         </DropdownMenuItem>
-        <DropdownMenuItem onClick={() => setTheme("system")} className="gap-2">
+        <DropdownMenuItem
+          onClick={(e) => setThemeWithTransition(e, setTheme, "system")}
+          className="gap-2"
+        >
           <Monitor className="size-4" /> System
           {theme === "system" && <span className="ml-auto text-xs text-muted-foreground">·</span>}
         </DropdownMenuItem>

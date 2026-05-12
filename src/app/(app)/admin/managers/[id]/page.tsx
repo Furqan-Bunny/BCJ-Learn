@@ -1,295 +1,62 @@
-"use client";
-
-import * as React from "react";
-import { use } from "react";
 import { notFound } from "next/navigation";
-import Link from "next/link";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import {
-  ArrowLeft,
-  Bell,
-  RefreshCcw,
-  Trash2,
-  Mail,
-  Calendar,
-  Trophy,
-  AlertTriangle,
-  CheckCircle2,
-  Clock,
-} from "lucide-react";
-import { PageHeader } from "@/components/shared/page-header";
-import { StatusBadge } from "@/components/shared/status-badge";
-import { managers } from "@/data/users";
-import { modules } from "@/data/modules";
-import { attemptsForManager } from "@/data/attempts";
-import { moduleDeliveries } from "@/data/queries";
-import { useAttendanceStore } from "@/store/attendance-store";
-import { initials, fmtDate, fmtRelative, fmtPct, fmtDuration } from "@/lib/format";
-import { toast } from "sonner";
-import { deactivateUser, reactivateUser, forceResetPassword } from "@/lib/server/admin-actions";
-import { useRouter } from "next/navigation";
+import { getProfile } from "@/lib/db/profiles";
+import { listModules } from "@/lib/db/modules";
+import { listAttemptsForManager } from "@/lib/db/attempts";
+import { listDeliveriesForModule, type DeliveryRecord } from "@/lib/db/deliveries";
+import { ManagerDetailView } from "./detail-view";
+import type { Manager } from "@/types";
 
-const DEMO_MODE = process.env.NEXT_PUBLIC_DEMO_MODE === "true";
+export default async function ManagerDetailPage(props: PageProps<"/admin/managers/[id]">) {
+  const { id } = await props.params;
+  const profile = await getProfile(id);
+  if (!profile || profile.role !== "manager") return notFound();
 
-export default function ManagerDetail(props: PageProps<"/admin/managers/[id]">) {
-  const router = useRouter();
-  const { id } = use(props.params);
-  const found = managers.find((x) => x.id === id);
-  if (!found) return notFound();
-  const m = found;  // narrowed binding for closures below
+  const [modules, myAttempts] = await Promise.all([
+    listModules(),
+    listAttemptsForManager(id),
+  ]);
 
-  async function handleSendReset() {
-    if (DEMO_MODE) {
-      toast.success(`Reset link sent to ${m.name} (demo)`);
-      return;
-    }
-    const result = await forceResetPassword(id);
-    if (!result.ok) {
-      toast.error(result.error ?? "Failed to send reset");
-      return;
-    }
-    toast.success(`Password reset email sent to ${result.email}`);
+  // Compute derived stats.
+  const passed = myAttempts.filter((a) => a.status === "passed");
+  const failed = myAttempts.filter((a) => a.status === "failed");
+  const passedSlugs = new Set(passed.map((a) => a.moduleSlug));
+  const modulesCompleted = passedSlugs.size;
+  const averageScore =
+    passed.length === 0 ? 0 : Math.round(passed.reduce((s, a) => s + Number(a.scorePct), 0) / passed.length);
+
+  // Compute flagged reasons (same logic as at-risk page).
+  const failedRetakes = myAttempts.filter((a) => a.status === "failed" && a.pool === "retake").length;
+  const lowFirstAttempts = myAttempts.filter((a) => a.pool === "first-attempt" && a.scorePct > 0 && a.scorePct < 70).length;
+  const flaggedReasons: string[] = [];
+  if (profile.status === "at-risk") {
+    if (failedRetakes > 0) flaggedReasons.push(`Failed retake on ${failedRetakes} module${failedRetakes === 1 ? "" : "s"}`);
+    if (lowFirstAttempts > 0) flaggedReasons.push(`First attempt below 70% on ${lowFirstAttempts} module${lowFirstAttempts === 1 ? "" : "s"}`);
+    if (myAttempts.length === 0) flaggedReasons.push("No quiz attempts logged yet");
+    const lastActiveMs = new Date(profile.lastActiveAt).getTime();
+    if (Date.now() - lastActiveMs > 14 * 24 * 3600 * 1000) flaggedReasons.push("Has not logged in for 14+ days");
   }
 
-  async function handleDeactivate() {
-    const isDeactivated = m.status === "inactive";
-    const verb = isDeactivated ? "reactivate" : "deactivate";
-    if (!confirm(`Are you sure you want to ${verb} ${m.name}?`)) return;
-    if (DEMO_MODE) {
-      toast.success(`${m.name} ${verb}d (demo)`);
-      return;
-    }
-    const result = await (isDeactivated ? reactivateUser(id) : deactivateUser(id));
-    if (!result.ok) {
-      toast.error(result.error ?? `Failed to ${verb}`);
-      return;
-    }
-    toast.success(`${m.name} ${verb}d`);
-    router.refresh();
-  }
+  const m: Manager = {
+    ...profile,
+    modulesCompleted,
+    averageScore,
+    failedAttempts: failed.length,
+    flaggedReasons,
+  };
 
-  const myAttempts = attemptsForManager(m.id).sort(
-    (a, b) => +new Date(b.startedAt) - +new Date(a.startedAt),
-  );
-
-  const deliveryHistoryMap = useAttendanceStore((s) => s.deliveryHistory);
-  const deliveryStartMap = useAttendanceStore((s) => s.deliveryStartDate);
-
-  // For each attempt, figure out which delivery period it fell into so we can label it.
-  function deliveryLabelFor(moduleSlug: string, attemptStartedAt: string): { label: string; index: number; isCurrent: boolean } | null {
-    const deliveries = moduleDeliveries(
-      moduleSlug,
-      deliveryHistoryMap[moduleSlug] ?? [],
-      deliveryStartMap[moduleSlug],
-    );
-    const ts = new Date(attemptStartedAt).getTime();
-    const match = deliveries.find((d) => {
-      const startMs = d.index === 1 ? -Infinity : new Date(d.startDate).getTime();
-      const endMs = d.endDate ? new Date(d.endDate).getTime() : Infinity;
-      return ts >= startMs && ts < endMs;
-    });
-    if (!match) return null;
-    return {
-      label: match.isCurrent ? `Current delivery` : `Delivery ${match.index}`,
-      index: match.index,
-      isCurrent: match.isCurrent,
-    };
-  }
+  // Pre-fetch delivery history for every module the manager has attempted,
+  // so the attempt list can label which delivery each attempt fell into.
+  const attemptedSlugs = Array.from(new Set(myAttempts.map((a) => a.moduleSlug)));
+  const deliveriesLists = await Promise.all(attemptedSlugs.map((s) => listDeliveriesForModule(s)));
+  const deliveriesByModule: Record<string, DeliveryRecord[]> = {};
+  attemptedSlugs.forEach((slug, i) => { deliveriesByModule[slug] = deliveriesLists[i]; });
 
   return (
-    <>
-      <Button asChild variant="ghost" size="sm" className="mb-4 -ml-2">
-        <Link href="/admin/managers"><ArrowLeft className="size-4 mr-1" /> All managers</Link>
-      </Button>
-
-      <PageHeader
-        eyebrow={`${m.cohort} cohort`}
-        title={m.name}
-        description={m.email}
-        actions={
-          <div className="flex items-center gap-2">
-            <Button variant="outline" onClick={() => toast.success(`Reminder sent to ${m.name}`)}>
-              <Bell className="mr-2 size-4" /> Send reminder
-            </Button>
-            <Button variant="outline" onClick={handleSendReset}>
-              <Mail className="mr-2 size-4" /> Send reset link
-            </Button>
-            <Button variant="outline" onClick={() => toast(`Retake scheduled for ${m.name}`)}>
-              <RefreshCcw className="mr-2 size-4" /> Reassign retake
-            </Button>
-            <Button variant="outline" className="text-rose-600" onClick={handleDeactivate}>
-              <Trash2 className="mr-2 size-4" /> {m.status === "inactive" ? "Reactivate" : "Deactivate"}
-            </Button>
-          </div>
-        }
-      />
-
-      <div className="grid lg:grid-cols-[280px_1fr] gap-6">
-        {/* Profile sidebar */}
-        <div className="space-y-4">
-          <Card>
-            <CardContent className="p-5 text-center">
-              <Avatar className="size-20 mx-auto border-2 border-primary/20">
-                <AvatarFallback style={{ background: m.avatarColor, color: "white" }} className="text-2xl font-bold">
-                  {initials(m.name)}
-                </AvatarFallback>
-              </Avatar>
-              <div className="font-semibold text-lg mt-3">{m.name}</div>
-              <div className="text-xs text-muted-foreground mt-0.5">{m.email}</div>
-              <div className="mt-3 flex justify-center">
-                <StatusBadge variant={m.status} />
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardContent className="p-5 space-y-4">
-              <Field icon={Calendar} label="Joined" value={fmtDate(m.joinedAt)} />
-              <Field icon={Clock} label="Last active" value={fmtRelative(m.lastActiveAt)} />
-              <Field icon={Trophy} label="Modules passed" value={`${m.modulesCompleted} of 5`} />
-              <Field icon={Trophy} label="Avg score" value={m.averageScore ? `${m.averageScore}%` : "—"} />
-              {m.failedAttempts > 0 && (
-                <Field icon={AlertTriangle} label="Failed attempts" value={String(m.failedAttempts)} highlight="warning" />
-              )}
-            </CardContent>
-          </Card>
-
-          {m.flaggedReasons.length > 0 && (
-            <Card className="border-amber-500/30 bg-amber-50/50 dark:bg-amber-950/20">
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm flex items-center gap-2">
-                  <AlertTriangle className="size-4 text-amber-500" /> Flagged
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="text-sm text-muted-foreground">
-                <ul className="space-y-1.5">
-                  {m.flaggedReasons.map((r, i) => (
-                    <li key={i} className="flex gap-2">
-                      <span className="text-amber-500">•</span>
-                      <span>{r}</span>
-                    </li>
-                  ))}
-                </ul>
-              </CardContent>
-            </Card>
-          )}
-        </div>
-
-        {/* Main */}
-        <div className="space-y-6">
-          {/* Module-by-module timeline */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base">Program timeline</CardTitle>
-            </CardHeader>
-            <CardContent className="p-0">
-              <ul className="divide-y">
-                {modules.map((mod) => {
-                  const att = myAttempts.filter((a) => a.moduleSlug === mod.slug);
-                  const passed = att.some((a) => a.status === "passed");
-                  const failed = att.some((a) => a.status === "failed") && !passed;
-                  return (
-                    <li key={mod.slug} className="px-5 py-4 flex items-center gap-4">
-                      <div className={`size-10 rounded-md flex items-center justify-center shrink-0
-                        ${passed ? "bg-emerald-100 text-emerald-600 dark:bg-emerald-950/40 dark:text-emerald-400"
-                          : failed ? "bg-rose-100 text-rose-600 dark:bg-rose-950/40 dark:text-rose-400"
-                          : "bg-muted text-muted-foreground"}`}>
-                        {passed ? <CheckCircle2 className="size-5" /> : failed ? <AlertTriangle className="size-5" /> : <Calendar className="size-5" />}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2">
-                          <span className="text-xs font-mono text-muted-foreground">M{mod.number}</span>
-                          <span className="font-medium">{mod.title}</span>
-                        </div>
-                        <div className="text-xs text-muted-foreground mt-0.5">
-                          {att.length === 0 ? `Scheduled ${fmtDate(mod.scheduledDate)}` : `${att.length} attempt${att.length === 1 ? "" : "s"}`}
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-3 shrink-0">
-                        {att.map((a) => (
-                          <Badge key={a.id} variant="outline" className="font-mono text-xs">
-                            {a.pool === "retake" ? "RT" : "FA"}: {fmtPct(a.scorePct)}
-                          </Badge>
-                        ))}
-                        {passed && <StatusBadge variant="passed" />}
-                        {failed && <StatusBadge variant="failed" />}
-                      </div>
-                    </li>
-                  );
-                })}
-              </ul>
-            </CardContent>
-          </Card>
-
-          {/* Attempt history */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base">Attempt history</CardTitle>
-            </CardHeader>
-            <CardContent className="p-0">
-              {myAttempts.length === 0 ? (
-                <div className="p-8 text-center text-muted-foreground">No attempts yet.</div>
-              ) : (
-                <table className="w-full text-sm">
-                  <thead className="border-y bg-muted/30 text-xs uppercase tracking-wider text-muted-foreground">
-                    <tr>
-                      <th className="text-left px-5 py-2.5 font-medium">Module</th>
-                      <th className="text-left px-5 py-2.5 font-medium">Delivery</th>
-                      <th className="text-left px-5 py-2.5 font-medium">Date</th>
-                      <th className="text-left px-5 py-2.5 font-medium">Pool</th>
-                      <th className="text-left px-5 py-2.5 font-medium">Score</th>
-                      <th className="text-left px-5 py-2.5 font-medium">Time</th>
-                      <th className="text-left px-5 py-2.5 font-medium">Status</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y">
-                    {myAttempts.map((a) => {
-                      const mod = modules.find((mm) => mm.slug === a.moduleSlug);
-                      const dl = deliveryLabelFor(a.moduleSlug, a.startedAt);
-                      return (
-                        <tr key={a.id} className="hover:bg-accent/40">
-                          <td className="px-5 py-3 font-medium">{mod?.title ?? a.moduleSlug}</td>
-                          <td className="px-5 py-3">
-                            {dl ? (
-                              <Badge variant={dl.isCurrent ? "default" : "secondary"} className="font-mono text-[10px]">
-                                D{dl.index}{dl.isCurrent ? " · current" : ""}
-                              </Badge>
-                            ) : (
-                              <span className="text-muted-foreground">—</span>
-                            )}
-                          </td>
-                          <td className="px-5 py-3 text-muted-foreground">{fmtRelative(a.startedAt)}</td>
-                          <td className="px-5 py-3"><StatusBadge variant={a.pool} /></td>
-                          <td className="px-5 py-3 font-mono tabular-nums">{fmtPct(a.scorePct)}</td>
-                          <td className="px-5 py-3 text-muted-foreground tabular-nums">{fmtDuration(a.durationSec)}</td>
-                          <td className="px-5 py-3"><StatusBadge variant={a.status as "passed" | "failed"} /></td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              )}
-            </CardContent>
-          </Card>
-        </div>
-      </div>
-    </>
-  );
-}
-
-function Field({ icon: Icon, label, value, highlight }: { icon: React.ComponentType<{ className?: string }>; label: string; value: string; highlight?: "warning" }) {
-  return (
-    <div className="flex items-center gap-3">
-      <div className={`size-8 rounded-md flex items-center justify-center shrink-0 ${highlight === "warning" ? "bg-amber-100 text-amber-600 dark:bg-amber-950/40 dark:text-amber-400" : "bg-muted text-muted-foreground"}`}>
-        <Icon className="size-3.5" />
-      </div>
-      <div>
-        <div className="text-xs text-muted-foreground">{label}</div>
-        <div className="text-sm font-medium">{value}</div>
-      </div>
-    </div>
+    <ManagerDetailView
+      m={m}
+      modules={modules}
+      myAttempts={myAttempts}
+      deliveriesByModule={deliveriesByModule}
+    />
   );
 }

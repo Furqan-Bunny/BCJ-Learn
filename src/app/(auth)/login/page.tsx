@@ -15,6 +15,8 @@ import { cn } from "@/lib/utils";
 import { motion } from "framer-motion";
 import { createClient } from "@/lib/supabase/client";
 import { toast } from "sonner";
+import { MeshGradient } from "@/components/shared/mesh-gradient";
+import { MagneticButton, TiltCard, DrawCheck } from "@/components/shared/animations";
 
 const DEMO_MODE = process.env.NEXT_PUBLIC_DEMO_MODE === "true";
 
@@ -133,22 +135,15 @@ export default function LoginPage() {
     <div className="min-h-screen grid lg:grid-cols-2">
       {/* Left — brand panel */}
       <div className="relative hidden lg:flex flex-col justify-between p-12 bg-primary text-primary-foreground overflow-hidden">
+        <MeshGradient />
         <motion.div
-          className="absolute inset-y-0 left-0 w-[6px] bg-[var(--gold)]"
+          className="absolute inset-y-0 left-0 w-[6px] bg-[var(--gold)] z-10"
           initial={{ scaleY: 0 }}
           animate={{ scaleY: 1 }}
           transition={{ duration: 0.7, ease: [0.16, 1, 0.3, 1] }}
           style={{ originY: 0 }}
         />
-        {/* Subtle radial glow */}
-        <motion.div
-          aria-hidden
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 0.18 }}
-          transition={{ duration: 1.4 }}
-          className="absolute -top-40 -right-40 size-[520px] rounded-full bg-[var(--gold)] blur-3xl pointer-events-none"
-        />
-        <div>
+        <div className="relative z-10">
           <motion.div
             initial={{ opacity: 0, y: -8 }}
             animate={{ opacity: 1, y: 0 }}
@@ -164,7 +159,7 @@ export default function LoginPage() {
             initial={{ opacity: 0, y: 12 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6, delay: 0.2, ease: [0.16, 1, 0.3, 1] }}
-            className="text-4xl font-bold leading-tight tracking-tight max-w-md"
+            className="text-4xl font-bold leading-tight tracking-tight max-w-md text-gradient-shift"
           >
             Train every Employee. Prove they got it.
           </motion.h1>
@@ -178,7 +173,7 @@ export default function LoginPage() {
           </motion.p>
         </div>
 
-        <div className="space-y-3 max-w-md">
+        <div className="space-y-3 max-w-md relative z-10">
           {[
             "85% pass threshold, retakes auto-scheduled",
             "AI-drafted questions, BCJ-approved",
@@ -197,7 +192,7 @@ export default function LoginPage() {
           ))}
         </div>
 
-        <div className="text-xs text-primary-foreground/60">
+        <div className="text-xs text-primary-foreground/60 relative z-10">
           Prepared by Ten80ten · contact@alexnicholson.com
         </div>
       </div>
@@ -271,9 +266,11 @@ export default function LoginPage() {
               </div>
             )}
 
-            <Button type="submit" disabled={submitting} className="w-full h-11 mt-2">
-              {submitting ? "Signing in…" : <>Sign in <ArrowRight className="size-4 ml-1" /></>}
-            </Button>
+            <MagneticButton className="w-full block mt-2" strength={0.18}>
+              <Button type="submit" disabled={submitting} className="w-full h-11">
+                {submitting ? "Signing in…" : <>Sign in <ArrowRight className="size-4 ml-1" /></>}
+              </Button>
+            </MagneticButton>
 
             {!DEMO_MODE && (
               <p className="text-xs text-muted-foreground text-center mt-2">
@@ -299,11 +296,14 @@ export default function LoginPage() {
           </DialogHeader>
 
           {forgotSent ? (
-            <div className="rounded-md border border-emerald-500/30 bg-emerald-50/50 dark:bg-emerald-950/20 px-3 py-3 text-sm text-emerald-700 dark:text-emerald-300">
-              ✓ Done. Check your inbox for the reset link.
-              {DEMO_MODE && (
-                <div className="mt-1 text-xs italic">(Demo mode — no email actually sent.)</div>
-              )}
+            <div className="rounded-md border border-emerald-500/30 bg-emerald-50/50 dark:bg-emerald-950/20 px-3 py-3 text-sm text-emerald-700 dark:text-emerald-300 flex items-start gap-3">
+              <DrawCheck size={28} className="text-emerald-600 dark:text-emerald-400 shrink-0" />
+              <div>
+                Done. Check your inbox for the reset link.
+                {DEMO_MODE && (
+                  <div className="mt-1 text-xs italic opacity-80">(Demo mode — no email actually sent.)</div>
+                )}
+              </div>
             </div>
           ) : (
             <form onSubmit={handleForgotPassword} className="space-y-3">
@@ -347,36 +347,39 @@ export default function LoginPage() {
               const Icon = r.icon;
               const isHover = hovered === r.id;
               return (
-                <motion.button
+                <motion.div
                   key={r.id}
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.35, delay: 0.05 + i * 0.07, ease: [0.16, 1, 0.3, 1] }}
-                  whileHover={{ y: -2 }}
-                  whileTap={{ scale: 0.98 }}
-                  onMouseEnter={() => setHovered(r.id)}
-                  onMouseLeave={() => setHovered(null)}
-                  onClick={() => pickRole(r.id)}
-                  className={cn(
-                    "group flex items-center gap-4 rounded-xl border p-4 text-left transition-colors",
-                    "hover:border-primary hover:bg-primary/5",
-                    isHover && "shadow-md",
-                  )}
                 >
-                  <div
-                    className={cn(
-                      "flex items-center justify-center size-11 rounded-lg shrink-0 transition-colors",
-                      "bg-muted group-hover:bg-primary group-hover:text-primary-foreground",
-                    )}
-                  >
-                    <Icon className="size-5" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="font-semibold">{r.title}</div>
-                    <div className="text-sm text-muted-foreground">{r.subtitle}</div>
-                  </div>
-                  <ArrowRight className="size-4 text-muted-foreground group-hover:text-primary group-hover:translate-x-0.5 transition-all" />
-                </motion.button>
+                  <TiltCard className="rounded-xl">
+                    <button
+                      onMouseEnter={() => setHovered(r.id)}
+                      onMouseLeave={() => setHovered(null)}
+                      onClick={() => pickRole(r.id)}
+                      className={cn(
+                        "group w-full flex items-center gap-4 rounded-xl border bg-card p-4 text-left transition-colors",
+                        "hover:border-primary hover:bg-primary/5",
+                        isHover && "shadow-md",
+                      )}
+                    >
+                      <div
+                        className={cn(
+                          "flex items-center justify-center size-11 rounded-lg shrink-0 transition-colors",
+                          "bg-muted group-hover:bg-primary group-hover:text-primary-foreground",
+                        )}
+                      >
+                        <Icon className="size-5" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="font-semibold">{r.title}</div>
+                        <div className="text-sm text-muted-foreground">{r.subtitle}</div>
+                      </div>
+                      <ArrowRight className="size-4 text-muted-foreground group-hover:text-primary group-hover:translate-x-0.5 transition-all" />
+                    </button>
+                  </TiltCard>
+                </motion.div>
               );
             })}
           </div>

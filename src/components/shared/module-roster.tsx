@@ -2,9 +2,10 @@
 
 import * as React from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import {
   Search, Bell, RefreshCcw, ArrowUpRight, Filter, X as XIcon,
-  CheckCircle2, XCircle, Clock, AlertTriangle, Users, UserCheck,
+  CheckCircle2, XCircle, Clock, AlertTriangle, Users, UserCheck, RotateCcw,
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -14,13 +15,12 @@ import { Badge } from "@/components/ui/badge";
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { moduleRoster, moduleRosterCounts, type RosterStatus } from "@/data/queries";
-import { useAttendanceStore } from "@/store/attendance-store";
-import { moduleBySlug } from "@/data/modules";
 import { fmtPct, fmtRelative, initials } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
-import { RotateCcw } from "lucide-react";
+import type { RosterRow, RosterCounts, RosterStatus } from "@/lib/db/roster";
+import { sendReminder, sendBulkReminders } from "@/lib/server/reminder-actions";
+import { resetManagerForModule } from "@/lib/server/module-actions";
 
 const STATUS_META: Record<RosterStatus, {
   label: string;
@@ -64,45 +64,25 @@ type FilterKey = "all" | RosterStatus;
 
 interface ModuleRosterProps {
   moduleSlug: string;
+  roster: RosterRow[];
+  counts: RosterCounts;
   showCohort?: boolean;
   initialFilter?: FilterKey;
-  managerLinkBase?: string; // default /admin/managers
+  managerLinkBase?: string;
 }
 
 export function ModuleRoster({
   moduleSlug,
+  roster,
+  counts,
   showCohort = true,
   initialFilter = "all",
   managerLinkBase = "/admin/managers",
 }: ModuleRosterProps) {
-  // Subscribe to stable map references; derive per-module values inside useMemo
-  // (avoids Zustand's "result of getServerSnapshot should be cached" warning).
-  const checkedInMap = useAttendanceStore((s) => s.checkedIn);
-  const checkedInAtMap = useAttendanceStore((s) => s.checkedInAt);
-  const deliveryStartMap = useAttendanceStore((s) => s.deliveryStartDate);
-  const managerResetAtMap = useAttendanceStore((s) => s.managerResetAt);
-  const resetManager = useAttendanceStore((s) => s.resetManager);
-
-  // Re-delivery cutoff: ONLY use the explicit override.
-  // No override = no cutoff = D1 captures all historical attempts.
-  // (We avoid silently using the module's scheduledDate as a cutoff because
-  // mock attempts can predate that date, and in real life, attempts before
-  // the official date are still part of the first delivery.)
-  void moduleBySlug; // keep import for type discovery
-  const effectiveDeliveryStart = deliveryStartMap[moduleSlug];
-  const checkedInIds = checkedInMap[moduleSlug] ?? [];
-
-  const roster = React.useMemo(
-    () => moduleRoster(moduleSlug, checkedInIds, checkedInAtMap, effectiveDeliveryStart, managerResetAtMap),
-    [moduleSlug, checkedInIds, checkedInAtMap, effectiveDeliveryStart, managerResetAtMap],
-  );
-  const counts = React.useMemo(
-    () => moduleRosterCounts(moduleSlug, checkedInIds, checkedInAtMap, effectiveDeliveryStart, managerResetAtMap),
-    [moduleSlug, checkedInIds, checkedInAtMap, effectiveDeliveryStart, managerResetAtMap],
-  );
-
+  const router = useRouter();
   const [filter, setFilter] = React.useState<FilterKey>(initialFilter);
   const [search, setSearch] = React.useState("");
+  const [busy, setBusy] = React.useState<string | null>(null);
 
   const filtered = React.useMemo(() => {
     return roster.filter((r) => {
@@ -118,9 +98,48 @@ export function ModuleRoster({
   const tookQuizPct = counts.expected ? Math.round((counts.tookQuiz / counts.expected) * 100) : 0;
   const passedPct = counts.expected ? Math.round((counts.passed / counts.expected) * 100) : 0;
 
+  async function handleRemindAll() {
+    const ids = roster.filter((r) => r.status === "didnt-attempt").map((r) => r.manager.id);
+    if (ids.length === 0) return;
+    setBusy("bulk");
+    const res = await sendBulkReminders(ids, moduleSlug);
+    setBusy(null);
+    if (!res.ok) {
+      toast.error(res.error ?? "Failed to send reminders");
+      return;
+    }
+    toast.success(`Reminder sent to ${res.sent}${res.failed ? ` (${res.failed} failed)` : ""}`);
+    router.refresh();
+  }
+
+  async function handleRemindOne(managerId: string, name: string) {
+    setBusy(managerId);
+    const res = await sendReminder(managerId, moduleSlug);
+    setBusy(null);
+    if (!res.ok) {
+      toast.error(res.error ?? "Failed to send reminder");
+      return;
+    }
+    toast.success(`Reminder sent to ${name}`);
+    router.refresh();
+  }
+
+  async function handleReset(managerId: string, name: string) {
+    setBusy(managerId);
+    const res = await resetManagerForModule(managerId, moduleSlug);
+    setBusy(null);
+    if (!res.ok) {
+      toast.error(res.error ?? "Failed to reset");
+      return;
+    }
+    toast.success(`${name} reset for next delivery`, {
+      description: "Their past attempts stay in history. Status is now Awaiting.",
+    });
+    router.refresh();
+  }
+
   return (
     <div>
-      {/* Counts strip */}
       <Card className="mb-4">
         <CardContent className="p-5">
           <div className="flex items-center justify-between gap-4 flex-wrap mb-3">
@@ -135,50 +154,22 @@ export function ModuleRoster({
             </div>
             <div className="flex items-center gap-2 text-xs flex-wrap">
               <CountChip active={filter === "all"} onClick={() => setFilter("all")} label="All" value={counts.expected} />
-              <CountChip
-                active={filter === "checked-in"}
-                onClick={() => setFilter("checked-in")}
-                label="Checked in"
-                value={counts.checkedIn}
-                tone="info"
-              />
+              <CountChip active={filter === "checked-in"} onClick={() => setFilter("checked-in")} label="Checked in" value={counts.checkedIn} tone="info" />
               <CountChip active={filter === "passed"} onClick={() => setFilter("passed")} label="Passed" value={counts.passed} tone="success" />
               <CountChip active={filter === "failed"} onClick={() => setFilter("failed")} label="Failed" value={counts.failed} tone="rose" />
-              <CountChip
-                active={filter === "didnt-attempt"}
-                onClick={() => setFilter("didnt-attempt")}
-                label="Didn't attempt"
-                value={counts.didntAttempt}
-                tone="warn"
-              />
+              <CountChip active={filter === "didnt-attempt"} onClick={() => setFilter("didnt-attempt")} label="Didn't attempt" value={counts.didntAttempt} tone="warn" />
               {counts.awaiting > 0 && (
                 <CountChip active={filter === "awaiting"} onClick={() => setFilter("awaiting")} label="Awaiting" value={counts.awaiting} />
               )}
             </div>
           </div>
 
-          {/* Funnel: Expected → Checked in → Took quiz → Passed */}
           <div className="space-y-2 mt-3">
             <div className="grid grid-cols-4 gap-1 text-[11px]">
               <FunnelCell label="Expected" value={counts.expected} sub="100%" tone="default" />
-              <FunnelCell
-                label="Checked in / Present"
-                value={counts.totalPresent}
-                sub={counts.expected ? `${Math.round((counts.totalPresent / counts.expected) * 100)}%` : ""}
-                tone="info"
-              />
-              <FunnelCell
-                label="Took quiz"
-                value={counts.tookQuiz}
-                sub={counts.expected ? `${tookQuizPct}%` : ""}
-                tone="info"
-              />
-              <FunnelCell
-                label="Passed"
-                value={counts.passed}
-                sub={counts.expected ? `${passedPct}%` : ""}
-                tone="success"
-              />
+              <FunnelCell label="Checked in / Present" value={counts.totalPresent} sub={counts.expected ? `${Math.round((counts.totalPresent / counts.expected) * 100)}%` : ""} tone="info" />
+              <FunnelCell label="Took quiz" value={counts.tookQuiz} sub={counts.expected ? `${tookQuizPct}%` : ""} tone="info" />
+              <FunnelCell label="Passed" value={counts.passed} sub={counts.expected ? `${passedPct}%` : ""} tone="success" />
             </div>
             <div className="h-2 rounded-full bg-muted overflow-hidden flex">
               <div className="bg-emerald-500" style={{ width: `${passedPct}%` }} title={`Passed: ${counts.passed}`} />
@@ -188,35 +179,24 @@ export function ModuleRoster({
             </div>
           </div>
 
-          {/* Bulk action banner */}
           {filter === "didnt-attempt" && counts.didntAttempt > 0 && (
             <div className="mt-4 rounded-md border border-amber-500/30 bg-amber-50/50 dark:bg-amber-950/20 px-3 py-2 flex items-center gap-3 text-sm">
               <AlertTriangle className="size-4 text-amber-600 dark:text-amber-400 shrink-0" />
               <span className="flex-1">
                 <span className="font-semibold">{counts.didntAttempt}</span> employee{counts.didntAttempt === 1 ? "" : "s"} didn&rsquo;t take the quiz on training day. Consider sending a reminder or scheduling a makeup.
               </span>
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() => toast.success(`Reminder sent to ${counts.didntAttempt} employees`)}
-              >
-                <Bell className="size-3.5 mr-1.5" /> Remind all
+              <Button size="sm" variant="outline" onClick={handleRemindAll} disabled={busy === "bulk"}>
+                <Bell className="size-3.5 mr-1.5" /> {busy === "bulk" ? "Sending…" : "Remind all"}
               </Button>
             </div>
           )}
         </CardContent>
       </Card>
 
-      {/* Toolbar */}
       <div className="flex items-center gap-2 mb-3">
         <div className="relative flex-1 max-w-md">
           <Search className="size-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search by name, email, cohort…"
-            className="pl-9 h-9"
-          />
+          <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search by name, email, cohort…" className="pl-9 h-9" />
         </div>
         {(filter !== "all" || search) && (
           <Button variant="ghost" size="sm" onClick={() => { setFilter("all"); setSearch(""); }}>
@@ -229,7 +209,6 @@ export function ModuleRoster({
         </div>
       </div>
 
-      {/* Roster list */}
       <Card>
         <CardContent className="p-0">
           {filtered.length === 0 ? (
@@ -253,9 +232,7 @@ export function ModuleRoster({
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 flex-wrap">
                         <span className="font-medium text-sm">{r.manager.name}</span>
-                        {showCohort && (
-                          <Badge variant="secondary" className="text-[10px]">{r.manager.cohort}</Badge>
-                        )}
+                        {showCohort && <Badge variant="secondary" className="text-[10px]">{r.manager.cohort}</Badge>}
                       </div>
                       <div className="text-xs text-muted-foreground truncate">
                         {r.manager.email} · last active {fmtRelative(r.manager.lastActiveAt)}
@@ -273,10 +250,7 @@ export function ModuleRoster({
                           Checked in {fmtRelative(r.checkedInAt)}
                         </span>
                       )}
-                      <span className={cn(
-                        "inline-flex items-center gap-1.5 px-2 py-1 rounded border text-[11px] font-medium",
-                        meta.pillClass,
-                      )}>
+                      <span className={cn("inline-flex items-center gap-1.5 px-2 py-1 rounded border text-[11px] font-medium", meta.pillClass)}>
                         <StatusIcon className="size-3" />
                         {meta.label}
                       </span>
@@ -284,7 +258,7 @@ export function ModuleRoster({
 
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="icon" className="size-8 shrink-0">
+                        <Button variant="ghost" size="icon" className="size-8 shrink-0" disabled={busy === r.manager.id}>
                           <ArrowUpRight className="size-4" />
                         </Button>
                       </DropdownMenuTrigger>
@@ -293,29 +267,17 @@ export function ModuleRoster({
                           <Link href={`${managerLinkBase}/${r.manager.id}`}>View profile</Link>
                         </DropdownMenuItem>
                         {r.status === "didnt-attempt" && (
-                          <>
-                            <DropdownMenuItem onClick={() => toast.success(`Reminder sent to ${r.manager.name}`)}>
-                              <Bell className="mr-2 size-4" /> Send reminder
-                            </DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => toast(`Reschedule modal for ${r.manager.name}`)}>
-                              <RefreshCcw className="mr-2 size-4" /> Reschedule
-                            </DropdownMenuItem>
-                          </>
+                          <DropdownMenuItem onClick={() => handleRemindOne(r.manager.id, r.manager.name)}>
+                            <Bell className="mr-2 size-4" /> Send reminder
+                          </DropdownMenuItem>
                         )}
                         {r.status === "failed" && (
-                          <DropdownMenuItem onClick={() => toast(`Retake scheduled for ${r.manager.name}`)}>
+                          <DropdownMenuItem onClick={() => handleReset(r.manager.id, r.manager.name)}>
                             <RefreshCcw className="mr-2 size-4" /> Schedule retake
                           </DropdownMenuItem>
                         )}
                         {(r.status === "passed" || r.status === "failed" || r.status === "didnt-attempt") && (
-                          <DropdownMenuItem
-                            onClick={() => {
-                              resetManager(moduleSlug, r.manager.id);
-                              toast.success(`${r.manager.name} reset for next delivery`, {
-                                description: "Their past attempts stay in history. Status is now Awaiting.",
-                              });
-                            }}
-                          >
+                          <DropdownMenuItem onClick={() => handleReset(r.manager.id, r.manager.name)}>
                             <RotateCcw className="mr-2 size-4" /> Reset for next delivery
                           </DropdownMenuItem>
                         )}
@@ -352,9 +314,7 @@ function CountChip({
       onClick={onClick}
       className={cn(
         "inline-flex items-center gap-1.5 rounded-md border px-2 py-1 text-xs font-medium transition-colors",
-        active
-          ? "bg-primary/10 border-primary/40 text-primary"
-          : "bg-card border-border hover:bg-accent",
+        active ? "bg-primary/10 border-primary/40 text-primary" : "bg-card border-border hover:bg-accent",
       )}
     >
       <span>{label}</span>

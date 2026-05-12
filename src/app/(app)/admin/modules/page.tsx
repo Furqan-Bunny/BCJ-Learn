@@ -1,96 +1,43 @@
-"use client";
+import { listModules } from "@/lib/db/modules";
+import { listAttempts } from "@/lib/db/attempts";
+import { listTeachers } from "@/lib/db/profiles";
+import { dbClient } from "@/lib/supabase/db-client";
+import { AdminModulesView } from "./modules-view";
+import type { Teacher } from "@/types";
 
-import * as React from "react";
-import Link from "next/link";
-import { Card, CardContent } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { ArrowRight, Calendar, BookOpen, Users, Trophy } from "lucide-react";
-import { PageHeader } from "@/components/shared/page-header";
-import { StatusBadge } from "@/components/shared/status-badge";
-import { AddModuleSheet } from "@/components/admin/add-module-sheet";
-import { Stagger, StaggerItem, CountUp } from "@/components/shared/animations";
-import { modules } from "@/data/modules";
-import { teachers } from "@/data/users";
-import { attemptsForModule } from "@/data/attempts";
-import { fmtDate } from "@/lib/format";
+export default async function AdminModulesPage() {
+  const [modules, attempts, teachers] = await Promise.all([
+    listModules(),
+    listAttempts(),
+    listTeachers(),
+  ]);
 
-export default function AdminModules() {
+  // Enrich teachers with owned-module counts so AddModuleSheet shows "X modules owned" hints.
+  const sb = await dbClient();
+  const { data: ownerRows } = await sb.from("module_owners").select("module_slug, teacher_id");
+  const ownedByTeacher = new Map<string, string[]>();
+  for (const o of (ownerRows ?? []) as { module_slug: string; teacher_id: string }[]) {
+    const list = ownedByTeacher.get(o.teacher_id) ?? [];
+    list.push(o.module_slug);
+    ownedByTeacher.set(o.teacher_id, list);
+  }
+  const enrichedTeachers: Teacher[] = teachers.map((t) => ({
+    ...t,
+    ownedModuleSlugs: ownedByTeacher.get(t.id) ?? [],
+  }));
+
+  const teacherNamesById: Record<string, string> = {};
+  for (const t of teachers) teacherNamesById[t.id] = t.name;
+
+  const defaultNumber = modules.length > 0 ? Math.max(...modules.map((m) => m.number)) + 1 : 1;
+
   return (
-    <>
-      <PageHeader
-        eyebrow="Curriculum"
-        title="All modules"
-        description="The five-module Employee training program. Click any to see results, content, and attempts."
-        actions={<AddModuleSheet />}
-      />
-
-      <Stagger className="grid lg:grid-cols-2 gap-4">
-        {modules.map((m) => {
-          const ownerNames = m.ownerTeacherIds.map((id) => teachers.find((t) => t.id === id)?.name).filter(Boolean) as string[];
-          const att = attemptsForModule(m.slug);
-          const passed = att.filter((a) => a.status === "passed").length;
-          const passRate = att.length ? Math.round((passed / att.length) * 100) : 0;
-
-          return (
-            <StaggerItem key={m.slug}>
-              <Link href={`/admin/modules/${m.slug}`} className="block group">
-                <Card className="card-lift group-hover:border-primary/40">
-                  <CardContent className="p-5">
-                    <div className="flex items-start justify-between gap-3 mb-2">
-                      <div className="text-xs font-mono text-muted-foreground">M{m.number} · {m.scheduledMonth}</div>
-                      <StatusBadge variant={m.status} />
-                    </div>
-                    <div className="font-semibold text-lg">{m.title}</div>
-                    <p className="text-sm text-muted-foreground mt-1 line-clamp-2">{m.description}</p>
-
-                    <div className="mt-4 grid grid-cols-3 gap-2 text-sm">
-                      <Stat icon={Calendar} label="Day" value={fmtDate(m.scheduledDate, "MMM d")} animate={false} />
-                      <Stat icon={Users} label="Attempts" value={String(att.length)} animate />
-                      <Stat icon={Trophy} label="Pass rate" value={att.length ? `${passRate}%` : "—"} animate={att.length > 0} suffix="%" rawNumber={passRate} />
-                    </div>
-
-                    <div className="mt-4 flex items-center justify-between text-xs">
-                      <div className="text-muted-foreground">
-                        {ownerNames.length > 1 ? "Co-owned by" : "Owned by"} <span className="text-foreground font-medium">{ownerNames.join(", ") || "—"}</span>
-                      </div>
-                      <ArrowRight className="size-4 text-muted-foreground transition-transform group-hover:translate-x-0.5 group-hover:text-primary" />
-                    </div>
-                  </CardContent>
-                </Card>
-              </Link>
-            </StaggerItem>
-          );
-        })}
-      </Stagger>
-    </>
-  );
-}
-
-function Stat({
-  icon: Icon,
-  label,
-  value,
-  animate,
-  rawNumber,
-  suffix,
-}: {
-  icon: React.ComponentType<{ className?: string }>;
-  label: string;
-  value: string;
-  animate?: boolean;
-  rawNumber?: number;
-  suffix?: string;
-}) {
-  const numeric = rawNumber !== undefined ? rawNumber : Number(value.replace(/[^\d.-]/g, ""));
-  const showCountUp = animate && Number.isFinite(numeric);
-  return (
-    <div className="rounded-md border p-2.5 transition-colors hover:bg-accent/30">
-      <div className="flex items-center gap-1.5 text-[10px] uppercase tracking-wider text-muted-foreground mb-0.5">
-        <Icon className="size-3" /> {label}
-      </div>
-      <div className="font-semibold tabular-nums">
-        {showCountUp ? <CountUp value={numeric} suffix={suffix ?? ""} /> : value}
-      </div>
-    </div>
+    <AdminModulesView
+      modules={modules}
+      attempts={attempts}
+      teacherNamesById={teacherNamesById}
+      teachers={enrichedTeachers}
+      defaultNumber={defaultNumber}
+    />
   );
 }
