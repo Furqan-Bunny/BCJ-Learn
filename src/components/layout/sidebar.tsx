@@ -36,6 +36,7 @@ const NAV_BY_ROLE: Record<Role, { section: string; items: NavItem[] }[]> = {
       items: [
         { label: "Dashboard", href: "/manager/dashboard", icon: LayoutDashboard },
         { label: "Modules", href: "/manager/modules", icon: BookOpen },
+        { label: "Resources", href: "/manager/resources", icon: FileText },
         { label: "My Progress", href: "/manager/progress", icon: PlayCircle },
       ],
     },
@@ -82,6 +83,7 @@ const NAV_BY_ROLE: Record<Role, { section: string; items: NavItem[] }[]> = {
       section: "Content",
       items: [
         { label: "Modules", href: "/admin/modules", icon: BookOpen },
+        { label: "Resources / SOPs", href: "/admin/resources", icon: FileText },
         { label: "Question library", href: "/admin/questions", icon: ListChecks },
       ],
     },
