@@ -59,6 +59,31 @@ export default function LoginPage() {
   const [submitting, setSubmitting] = React.useState(false);
   const [hovered, setHovered] = React.useState<Role | null>(null);
   const [authError, setAuthError] = React.useState<string | null>(null);
+  const [showForgot, setShowForgot] = React.useState(false);
+  const [forgotEmail, setForgotEmail] = React.useState("");
+  const [forgotSubmitting, setForgotSubmitting] = React.useState(false);
+  const [forgotSent, setForgotSent] = React.useState(false);
+
+  async function handleForgotPassword(e: React.FormEvent) {
+    e.preventDefault();
+    if (!forgotEmail) return;
+    setForgotSubmitting(true);
+
+    if (DEMO_MODE) {
+      // Don't hit Supabase in demo mode — just show the confirmation.
+      await new Promise((r) => setTimeout(r, 400));
+      setForgotSent(true);
+      setForgotSubmitting(false);
+      return;
+    }
+
+    const supabase = createClient();
+    const redirectTo = `${window.location.origin}/auth/reset-password`;
+    await supabase.auth.resetPasswordForEmail(forgotEmail, { redirectTo });
+    // Always show success (don't leak whether email exists).
+    setForgotSent(true);
+    setForgotSubmitting(false);
+  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -217,7 +242,15 @@ export default function LoginPage() {
             <div className="space-y-2">
               <div className="flex items-center justify-between">
                 <Label htmlFor="password">Password</Label>
-                <button type="button" className="text-xs text-primary hover:underline">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setForgotEmail(email);
+                    setForgotSent(false);
+                    setShowForgot(true);
+                  }}
+                  className="text-xs text-primary hover:underline"
+                >
                   Forgot password?
                 </button>
               </div>
@@ -254,6 +287,46 @@ export default function LoginPage() {
           </form>
         </motion.div>
       </div>
+
+      {/* Forgot password modal */}
+      <Dialog open={showForgot} onOpenChange={setShowForgot}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Reset your password</DialogTitle>
+            <DialogDescription>
+              Enter your work email. If an account exists, we&rsquo;ll send a reset link.
+            </DialogDescription>
+          </DialogHeader>
+
+          {forgotSent ? (
+            <div className="rounded-md border border-emerald-500/30 bg-emerald-50/50 dark:bg-emerald-950/20 px-3 py-3 text-sm text-emerald-700 dark:text-emerald-300">
+              ✓ Done. Check your inbox for the reset link.
+              {DEMO_MODE && (
+                <div className="mt-1 text-xs italic">(Demo mode — no email actually sent.)</div>
+              )}
+            </div>
+          ) : (
+            <form onSubmit={handleForgotPassword} className="space-y-3">
+              <div className="space-y-1.5">
+                <Label htmlFor="forgot-email">Work email</Label>
+                <Input
+                  id="forgot-email"
+                  type="email"
+                  value={forgotEmail}
+                  onChange={(e) => setForgotEmail(e.target.value)}
+                  placeholder="you@bcj.com"
+                  required
+                  autoFocus
+                  className="h-11"
+                />
+              </div>
+              <Button type="submit" disabled={forgotSubmitting || !forgotEmail} className="w-full h-11">
+                {forgotSubmitting ? "Sending…" : "Send reset link"}
+              </Button>
+            </form>
+          )}
+        </DialogContent>
+      </Dialog>
 
       {/* Role-pick modal */}
       <Dialog open={showRolePick} onOpenChange={setShowRolePick}>

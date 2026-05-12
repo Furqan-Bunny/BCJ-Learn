@@ -1,6 +1,7 @@
 import { Sidebar } from "@/components/layout/sidebar";
 import { Topbar } from "@/components/layout/topbar";
 import { RouteTransition } from "@/components/layout/route-transition";
+import { WelcomeModal } from "@/components/onboarding/welcome-modal";
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   return (
@@ -12,6 +13,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           <RouteTransition>{children}</RouteTransition>
         </main>
       </div>
+      <WelcomeModal />
     </div>
   );
 }
