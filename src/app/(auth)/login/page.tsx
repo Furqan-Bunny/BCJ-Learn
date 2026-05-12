@@ -13,6 +13,10 @@ import { useRoleStore } from "@/store/role-store";
 import type { Role } from "@/types";
 import { cn } from "@/lib/utils";
 import { motion } from "framer-motion";
+import { createClient } from "@/lib/supabase/client";
+import { toast } from "sonner";
+
+const DEMO_MODE = process.env.NEXT_PUBLIC_DEMO_MODE === "true";
 
 const ROLES: { id: Role; title: string; subtitle: string; icon: typeof GraduationCap; route: string }[] = [
   {
@@ -38,30 +42,66 @@ const ROLES: { id: Role; title: string; subtitle: string; icon: typeof Graduatio
   },
 ];
 
+const ROLE_ROUTE: Record<Role, string> = {
+  manager: "/manager/dashboard",
+  teacher: "/teacher/dashboard",
+  admin: "/admin/dashboard",
+};
+
 export default function LoginPage() {
   const router = useRouter();
   const setRole = useRoleStore((s) => s.setRole);
+  const setAuthedUserId = useRoleStore((s) => s.setAuthedUserId);
 
-  const [email, setEmail] = React.useState("nancy@bcj.com");
-  const [password, setPassword] = React.useState("••••••••••");
+  const [email, setEmail] = React.useState(DEMO_MODE ? "nancy@bcj.com" : "");
+  const [password, setPassword] = React.useState(DEMO_MODE ? "••••••••••" : "");
   const [showRolePick, setShowRolePick] = React.useState(false);
   const [submitting, setSubmitting] = React.useState(false);
   const [hovered, setHovered] = React.useState<Role | null>(null);
+  const [authError, setAuthError] = React.useState<string | null>(null);
 
-  function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setSubmitting(true);
-    // Simulate auth
-    setTimeout(() => {
+    setAuthError(null);
+
+    // ─── Demo mode: skip real auth, show role-pick modal ──────────
+    if (DEMO_MODE) {
+      setTimeout(() => {
+        setSubmitting(false);
+        setShowRolePick(true);
+      }, 400);
+      return;
+    }
+
+    // ─── Production mode: real Supabase Auth ──────────────────────
+    const supabase = createClient();
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+
+    if (error || !data.user) {
+      setAuthError(error?.message ?? "Sign-in failed");
       setSubmitting(false);
-      setShowRolePick(true);
-    }, 500);
+      return;
+    }
+
+    // Fetch the profile to determine the role-appropriate landing page.
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("role")
+      .eq("id", data.user.id)
+      .single();
+
+    const userRole: Role = ((profile as { role?: Role } | null)?.role ?? "manager") as Role;
+    setRole(userRole);
+    setAuthedUserId(data.user.id);
+
+    toast.success("Signed in");
+    router.push(ROLE_ROUTE[userRole]);
   }
 
   function pickRole(r: Role) {
     setRole(r);
-    const route = ROLES.find((x) => x.id === r)!.route;
-    router.push(route);
+    router.push(ROLE_ROUTE[r]);
   }
 
   return (
@@ -192,9 +232,21 @@ export default function LoginPage() {
               />
             </div>
 
+            {authError && (
+              <div className="rounded-md border border-rose-500/30 bg-rose-50/50 dark:bg-rose-950/20 px-3 py-2 text-sm text-rose-700 dark:text-rose-300">
+                {authError}
+              </div>
+            )}
+
             <Button type="submit" disabled={submitting} className="w-full h-11 mt-2">
               {submitting ? "Signing in…" : <>Sign in <ArrowRight className="size-4 ml-1" /></>}
             </Button>
+
+            {!DEMO_MODE && (
+              <p className="text-xs text-muted-foreground text-center mt-2">
+                Seed users use password <span className="font-mono">BcjLearnDemo2026!</span>
+              </p>
+            )}
 
             <p className="text-xs text-muted-foreground text-center mt-4">
               By signing in, you agree to BCJ&rsquo;s acceptable-use policy.

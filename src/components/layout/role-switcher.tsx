@@ -16,6 +16,8 @@ import { Badge } from "@/components/ui/badge";
 import { useRoleStore } from "@/store/role-store";
 import type { Role } from "@/types";
 
+const DEMO_MODE = process.env.NEXT_PUBLIC_DEMO_MODE === "true";
+
 const ROLE_META: Record<Role, { label: string; icon: typeof GraduationCap; description: string; route: string }> = {
   manager: {
     label: "Employee",
@@ -42,6 +44,9 @@ export function RoleSwitcher() {
   const role = useRoleStore((s) => s.role);
   const setRole = useRoleStore((s) => s.setRole);
   const Active = ROLE_META[role].icon;
+
+  // Hidden in production — a real user has one role enforced by their profile.
+  if (!DEMO_MODE) return null;
 
   function pick(r: Role) {
     setRole(r);
