@@ -18,15 +18,20 @@ import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Plus, Sparkles, BookOpen, Calendar, Target, Clock, Layers, Lock, Check, Users } from "lucide-react";
-import { teachers } from "@/data/users";
+import { Plus, Sparkles, BookOpen, Calendar, Target, Clock, Layers, Lock, Check, Users, Loader2 } from "lucide-react";
 import { initials } from "@/lib/format";
 import { toast } from "sonner";
+import { useRouter } from "next/navigation";
 import { LessonsBuilder, emptyLesson } from "@/components/admin/lessons-builder";
-import type { Lesson } from "@/types";
+import { createModule } from "@/lib/server/module-actions";
+import type { Lesson, Teacher } from "@/types";
 
 interface AddModuleSheetProps {
   trigger?: React.ReactNode;
+  /** All teachers available to assign as owner — fetched server-side by host page. */
+  teachers: Teacher[];
+  /** Default module number (max+1 from DB). */
+  defaultNumber?: number;
   /**
    * If set, the owner field is locked to this teacher id (can't be changed).
    * Used when a Teacher creates a module — they can only create modules they own.
@@ -35,13 +40,14 @@ interface AddModuleSheetProps {
   lockedOwnerId?: string;
 }
 
-export function AddModuleSheet({ trigger, lockedOwnerId }: AddModuleSheetProps) {
+export function AddModuleSheet({ trigger, teachers, defaultNumber = 6, lockedOwnerId }: AddModuleSheetProps) {
+  const router = useRouter();
   const lockedOwner = lockedOwnerId ? teachers.find((t) => t.id === lockedOwnerId) : null;
   const [open, setOpen] = React.useState(false);
   const [submitting, setSubmitting] = React.useState(false);
 
   // Form state
-  const [number, setNumber] = React.useState<number>(6);
+  const [number, setNumber] = React.useState<number>(defaultNumber);
   const [title, setTitle] = React.useState("");
   const [description, setDescription] = React.useState("");
   const [scheduledDate, setScheduledDate] = React.useState("");
@@ -69,40 +75,54 @@ export function AddModuleSheet({ trigger, lockedOwnerId }: AddModuleSheetProps) 
 
   const canSubmit = !!title.trim() && !!description.trim() && !!scheduledDate && ownerTeacherIds.length > 0 && lessons.length > 0;
 
-  function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!canSubmit) return;
     setSubmitting(true);
-    setTimeout(() => {
-      setSubmitting(false);
-      setOpen(false);
-      const ownerNames = lockedOwner
-        ? [lockedOwner.name]
-        : ownerTeacherIds.map((id) => teachers.find((t) => t.id === id)?.name).filter(Boolean) as string[];
-      const ownerLabel = ownerNames.length === 0
-        ? ""
-        : ownerNames.length === 1
-          ? `${ownerNames[0]} is the owner`
-          : `${ownerNames.slice(0, -1).join(", ")} and ${ownerNames[ownerNames.length - 1]} co-own this module`;
-      toast.success(`Module "${title}" created as draft`, {
-        description: `${lessons.length} lesson${lessons.length === 1 ? "" : "s"} · ${totalLessonMinutes} min total. ${
-          ownerLabel ? `${ownerLabel} — they'll schedule sessions and the system handles invitations. ` : ""
-        }${
-          lockedOwner
-            ? "Add content, approve questions, then publish when ready."
-            : autoGenerate
-              ? "AI is drafting questions in the background. You'll be notified when ready for review."
-              : "Add questions manually whenever you're ready."
-        }`,
-      });
-      // Reset form
-      setNumber(number + 1);
-      setTitle("");
-      setDescription("");
-      setScheduledDate("");
-      setOwnerTeacherIds(lockedOwnerId ? [lockedOwnerId] : []);
-      setLessons([emptyLesson(`m-${number + 1}`, 1)]);
-    }, 800);
+
+    const monthLabel = scheduledDate
+      ? new Date(scheduledDate).toLocaleDateString("en-US", { month: "long", year: "numeric" })
+      : null;
+
+    const res = await createModule({
+      slug: draftSlug,
+      number,
+      title: title.trim(),
+      description: description.trim(),
+      scheduledMonth: monthLabel,
+      scheduledDate: scheduledDate || null,
+      status: "draft",
+      passThreshold: passThreshold / 100,
+      questionCount,
+      timeLimitMinutes: hasTimeLimit ? timeLimitMinutes : null,
+      ownerTeacherIds,
+      lessons,
+    });
+
+    setSubmitting(false);
+    if (!res.ok) {
+      toast.error(res.error ?? "Could not create module");
+      return;
+    }
+
+    setOpen(false);
+    toast.success(`Module "${title}" created as draft`, {
+      description: `${lessons.length} lesson${lessons.length === 1 ? "" : "s"} · ${totalLessonMinutes} min total. ${
+        lockedOwner
+          ? "Add content, approve questions, then publish when ready."
+          : autoGenerate
+            ? "Open the question authoring page to generate the question bank with AI."
+            : "Add questions manually whenever you're ready."
+      }`,
+    });
+    // Reset form
+    setNumber(number + 1);
+    setTitle("");
+    setDescription("");
+    setScheduledDate("");
+    setOwnerTeacherIds(lockedOwnerId ? [lockedOwnerId] : []);
+    setLessons([emptyLesson(`m-${number + 1}`, 1)]);
+    router.refresh();
   }
 
   return (
@@ -236,7 +256,7 @@ export function AddModuleSheet({ trigger, lockedOwnerId }: AddModuleSheetProps) 
               <div className="grid sm:grid-cols-2 gap-2">
                 {teachers.map((t) => {
                   const selected = ownerTeacherIds.includes(t.id);
-                  const moduleCount = t.ownedModuleSlugs.length;
+                  const moduleCount = t.ownedModuleSlugs?.length ?? 0;
                   return (
                     <button
                       key={t.id}
@@ -395,7 +415,11 @@ export function AddModuleSheet({ trigger, lockedOwnerId }: AddModuleSheetProps) 
             onClick={handleSubmit as unknown as React.MouseEventHandler<HTMLButtonElement>}
             disabled={!canSubmit || submitting}
           >
-            {submitting ? "Creating…" : "Create module as draft"}
+            {submitting ? (
+              <><Loader2 className="size-4 animate-spin mr-1.5" /> Creating…</>
+            ) : (
+              "Create module as draft"
+            )}
           </Button>
         </SheetFooter>
       </SheetContent>

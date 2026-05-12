@@ -268,4 +268,197 @@
     }
     .card-lift:hover { transform: none !important; }
   }
+
+  /* ─── Animated mesh gradient (login brand panel) ──────────────────────
+     Three radial-gradient blobs slowly drift around the container. Each
+     blob is one <span>. We only animate `transform` so the GPU handles it. */
+
+  .mesh-blob {
+    position: absolute;
+    width: 60vw;
+    height: 60vw;
+    max-width: 720px;
+    max-height: 720px;
+    border-radius: 9999px;
+    filter: blur(80px);
+    opacity: 0.55;
+    will-change: transform;
+  }
+  .mesh-blob-1 {
+    top: -10%;
+    left: -10%;
+    background: radial-gradient(circle at 50% 50%, var(--gold) 0%, transparent 60%);
+    animation: mesh-drift-1 18s ease-in-out infinite alternate;
+  }
+  .mesh-blob-2 {
+    bottom: -15%;
+    right: -10%;
+    background: radial-gradient(circle at 50% 50%, var(--ai) 0%, transparent 60%);
+    opacity: 0.4;
+    animation: mesh-drift-2 22s ease-in-out infinite alternate;
+  }
+  .mesh-blob-3 {
+    top: 30%;
+    right: 20%;
+    background: radial-gradient(circle at 50% 50%, color-mix(in srgb, var(--primary) 70%, white 30%) 0%, transparent 60%);
+    opacity: 0.35;
+    animation: mesh-drift-3 26s ease-in-out infinite alternate;
+  }
+  @keyframes mesh-drift-1 {
+    0%   { transform: translate3d(0, 0, 0) scale(1); }
+    100% { transform: translate3d(12vw, 8vw, 0) scale(1.15); }
+  }
+  @keyframes mesh-drift-2 {
+    0%   { transform: translate3d(0, 0, 0) scale(1.05); }
+    100% { transform: translate3d(-14vw, -10vw, 0) scale(0.95); }
+  }
+  @keyframes mesh-drift-3 {
+    0%   { transform: translate3d(0, 0, 0) scale(0.95); }
+    100% { transform: translate3d(-8vw, 14vw, 0) scale(1.2); }
+  }
+
+  /* ─── Gradient-shift hero text ────────────────────────────────────────
+     Slow horizontal shimmer across the current color → gold → current color. */
+
+  .text-gradient-shift {
+    background: linear-gradient(
+      120deg,
+      currentColor 0%,
+      currentColor 30%,
+      var(--gold) 50%,
+      currentColor 70%,
+      currentColor 100%
+    );
+    background-size: 220% 100%;
+    background-clip: text;
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    color: transparent;
+    animation: text-shift 9s ease-in-out infinite;
+  }
+  @keyframes text-shift {
+    0%, 100% { background-position: 0% 50%; }
+    50%      { background-position: 100% 50%; }
+  }
+
+  /* ─── Card-glow: conic gradient outline trace on hover ────────────────
+     Outline becomes visible only on hover; a conic gradient rotates around
+     the border. Combine with `card-lift` for the base hover lift. */
+
+  .card-glow {
+    position: relative;
+    isolation: isolate;
+  }
+  .card-glow::before {
+    content: "";
+    position: absolute;
+    inset: -1px;
+    border-radius: inherit;
+    padding: 1px;
+    background: conic-gradient(
+      from var(--card-glow-angle, 0deg),
+      transparent 0deg,
+      color-mix(in srgb, var(--primary) 70%, transparent) 60deg,
+      var(--gold) 90deg,
+      color-mix(in srgb, var(--primary) 70%, transparent) 120deg,
+      transparent 180deg,
+      transparent 360deg
+    );
+    -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+    -webkit-mask-composite: xor;
+            mask-composite: exclude;
+    opacity: 0;
+    transition: opacity 250ms ease-out;
+    pointer-events: none;
+    z-index: 1;
+    animation: card-glow-spin 6s linear infinite;
+  }
+  .card-glow:hover::before {
+    opacity: 1;
+  }
+  @property --card-glow-angle {
+    syntax: "<angle>";
+    inherits: false;
+    initial-value: 0deg;
+  }
+  @keyframes card-glow-spin {
+    to { --card-glow-angle: 360deg; }
+  }
+
+  /* ─── TiltCard cursor highlight ──────────────────────────────────────
+     The .tilt-card class gets a soft radial highlight that follows the
+     pointer via --tilt-mx / --tilt-my CSS variables set by the React component. */
+
+  .tilt-card::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    background: radial-gradient(
+      220px circle at var(--tilt-mx, 50%) var(--tilt-my, 50%),
+      color-mix(in srgb, var(--primary) 14%, transparent),
+      transparent 70%
+    );
+    opacity: 0;
+    transition: opacity 200ms ease-out;
+    pointer-events: none;
+  }
+  .tilt-card:hover::after {
+    opacity: 1;
+  }
+
+  /* ─── Route progress bar gradient + sheen ────────────────────────── */
+
+  .route-progress-bar {
+    background: linear-gradient(90deg, var(--primary) 0%, var(--gold) 50%, var(--primary) 100%);
+    background-size: 200% 100%;
+    animation: route-progress-sheen 1.6s linear infinite;
+  }
+  @keyframes route-progress-sheen {
+    0%   { background-position: 0% 0%; }
+    100% { background-position: -200% 0%; }
+  }
+
+  /* ─── View Transitions: theme toggle circular reveal ─────────────────
+     When the theme is toggled inside `document.startViewTransition(...)`,
+     the new <html> snapshot reveals as a circle expanding from the click
+     point. The position is set on `:root` via the theme-toggle JS as
+     --click-x / --click-y CSS variables. */
+
+  @supports (view-transition-name: a) {
+    ::view-transition-old(root),
+    ::view-transition-new(root) {
+      animation: none;
+      mix-blend-mode: normal;
+    }
+    ::view-transition-old(root) {
+      z-index: 1;
+    }
+    ::view-transition-new(root) {
+      z-index: 2;
+      animation: theme-reveal 520ms cubic-bezier(0.16, 1, 0.3, 1) both;
+      clip-path: circle(0% at var(--click-x, 50%) var(--click-y, 50%));
+    }
+    @keyframes theme-reveal {
+      to { clip-path: circle(150% at var(--click-x, 50%) var(--click-y, 50%)); }
+    }
+  }
+
+  /* Reduced-motion overrides for everything new. */
+  @media (prefers-reduced-motion: reduce) {
+    .mesh-blob,
+    .text-gradient-shift,
+    .route-progress-bar,
+    .card-glow::before {
+      animation: none !important;
+    }
+    .text-gradient-shift {
+      color: currentColor !important;
+      -webkit-text-fill-color: currentColor !important;
+    }
+    ::view-transition-new(root) {
+      animation: none !important;
+      clip-path: none !important;
+    }
+  }
 }

@@ -7,10 +7,11 @@ import {
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
-  PlayCircle, FileText, Layers, Link2, Clock, ExternalLink, X,
+  PlayCircle, FileText, Layers, Link2, Clock, Download, X, Loader2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { LessonContent, ContentType } from "@/types";
+import { signedUrlForContent } from "@/lib/supabase/storage";
 
 const TYPE_META: Record<ContentType, { icon: React.ComponentType<{ className?: string }>; label: string; tint: string }> = {
   video:    { icon: PlayCircle, label: "Video",    tint: "text-rose-600 bg-rose-100 dark:text-rose-300 dark:bg-rose-950/40" },
@@ -65,24 +66,32 @@ export function ContentViewer({ content, onClose }: ContentViewerProps) {
 
         {/* Body */}
         <div className="overflow-y-auto flex-1">
-          {content.type === "video" && content.videoUrl && (
-            <div className="aspect-video bg-black">
-              <iframe
-                src={`${content.videoUrl}${content.videoUrl.includes("?") ? "&" : "?"}rel=0&modestbranding=1`}
-                className="w-full h-full"
-                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                allowFullScreen
-                title={content.title}
-              />
-            </div>
-          )}
+          {/* Uploaded file (any type) — generate a signed URL and render
+             appropriately. Falls back to legacy fields if no storage path. */}
+          {content.storagePath ? (
+            <StoredFileViewer content={content} />
+          ) : (
+            <>
+              {content.type === "video" && content.videoUrl && (
+                <div className="aspect-video bg-black">
+                  <iframe
+                    src={`${content.videoUrl}${content.videoUrl.includes("?") ? "&" : "?"}rel=0&modestbranding=1`}
+                    className="w-full h-full"
+                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                    allowFullScreen
+                    title={content.title}
+                  />
+                </div>
+              )}
 
-          {content.type === "document" && (
-            <DocumentReader pages={content.documentPages ?? []} />
-          )}
+              {content.type === "document" && (
+                <DocumentReader pages={content.documentPages ?? []} />
+              )}
 
-          {content.type === "slides" && (
-            <SlideViewer slides={content.slides ?? []} />
+              {content.type === "slides" && (
+                <SlideViewer slides={content.slides ?? []} />
+              )}
+            </>
           )}
         </div>
 
@@ -92,6 +101,71 @@ export function ContentViewer({ content, onClose }: ContentViewerProps) {
         </div>
       </DialogContent>
     </Dialog>
+  );
+}
+
+/**
+ * Renders a content item that lives in Supabase Storage. Generates a
+ * short-lived signed URL on open. PDFs/MP4s embed inline; binary formats
+ * (Word, PowerPoint) fall back to a download button.
+ */
+function StoredFileViewer({ content }: { content: LessonContent }) {
+  const [url, setUrl] = React.useState<string | null>(null);
+  const [error, setError] = React.useState<string | null>(null);
+
+  React.useEffect(() => {
+    let cancelled = false;
+    if (!content.storagePath) return;
+    signedUrlForContent(content.storagePath)
+      .then((u) => { if (!cancelled) setUrl(u); })
+      .catch((e: Error) => { if (!cancelled) setError(e.message); });
+    return () => { cancelled = true; };
+  }, [content.storagePath]);
+
+  if (error) {
+    return (
+      <div className="p-12 text-center text-sm text-muted-foreground">
+        Could not load this file. {error}
+      </div>
+    );
+  }
+  if (!url) {
+    return (
+      <div className="p-12 text-center text-sm text-muted-foreground flex items-center justify-center gap-2">
+        <Loader2 className="size-4 animate-spin" /> Preparing preview…
+      </div>
+    );
+  }
+
+  const ext = (content.fileName ?? "").toLowerCase().split(".").pop() ?? "";
+  const isPdf = ext === "pdf";
+  const isMp4 = ext === "mp4" || ext === "webm" || ext === "mov";
+
+  if (content.type === "video" && isMp4) {
+    return (
+      <div className="aspect-video bg-black">
+        <video src={url} controls className="w-full h-full" />
+      </div>
+    );
+  }
+  if (isPdf) {
+    return (
+      <iframe src={url} className="w-full h-[70vh] bg-white" title={content.title} />
+    );
+  }
+  // Word / PowerPoint / other — no inline preview; give a download link.
+  return (
+    <div className="p-12 text-center">
+      <FileText className="size-12 mx-auto opacity-40 mb-3" />
+      <div className="text-sm text-muted-foreground mb-4">
+        {content.fileName ?? "Uploaded file"} — preview unavailable for this format.
+      </div>
+      <Button asChild>
+        <a href={url} download={content.fileName ?? undefined} target="_blank" rel="noreferrer">
+          <Download className="size-4 mr-1.5" /> Download to view
+        </a>
+      </Button>
+    </div>
   );
 }
 

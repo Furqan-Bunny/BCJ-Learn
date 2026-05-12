@@ -28,8 +28,7 @@ import {
 } from "lucide-react";
 import { useTheme } from "next-themes";
 import { useRoleStore } from "@/store/role-store";
-import { modules } from "@/data/modules";
-import { managers } from "@/data/users";
+import { createClient } from "@/lib/supabase/client";
 import type { Role } from "@/types";
 
 interface CommandPaletteProps {
@@ -37,11 +36,38 @@ interface CommandPaletteProps {
   onOpenChange: (open: boolean) => void;
 }
 
+interface QuickJumpItem {
+  modules: { slug: string; number: number; title: string }[];
+  managers: { id: string; name: string; cohort: string | null }[];
+}
+
+const EMPTY: QuickJumpItem = { modules: [], managers: [] };
+
 export function CommandPalette({ open, onOpenChange }: CommandPaletteProps) {
   const router = useRouter();
   const role = useRoleStore((s) => s.role);
   const setRole = useRoleStore((s) => s.setRole);
   const { setTheme } = useTheme();
+  const [data, setData] = React.useState<QuickJumpItem>(EMPTY);
+
+  // Lazy-fetch modules + managers from Supabase when the palette opens.
+  React.useEffect(() => {
+    if (!open) return;
+    if (data.modules.length > 0 || data.managers.length > 0) return; // already loaded
+    let cancelled = false;
+    const sb = createClient();
+    void Promise.all([
+      sb.from("modules").select("slug, number, title").order("number"),
+      sb.from("profiles").select("id, name, cohort").eq("role", "manager").order("name").limit(50),
+    ]).then(([modRes, mgrRes]) => {
+      if (cancelled) return;
+      setData({
+        modules: ((modRes.data ?? []) as { slug: string; number: number; title: string }[]),
+        managers: ((mgrRes.data ?? []) as { id: string; name: string; cohort: string | null }[]),
+      });
+    });
+    return () => { cancelled = true; };
+  }, [open, data.modules.length, data.managers.length]);
 
   function go(href: string) {
     router.push(href);
@@ -109,33 +135,36 @@ export function CommandPalette({ open, onOpenChange }: CommandPaletteProps) {
           )}
         </CommandGroup>
 
-        <CommandSeparator />
+        {data.modules.length > 0 && (
+          <>
+            <CommandSeparator />
+            <CommandGroup heading="Modules">
+              {data.modules.map((m) => (
+                <CommandItem
+                  key={m.slug}
+                  onSelect={() => {
+                    const base =
+                      role === "manager" ? "/manager/modules/" : role === "teacher" ? "/teacher/modules/" : "/admin/modules/";
+                    go(base + m.slug);
+                  }}
+                >
+                  <Sparkles className="mr-2 size-4 text-[var(--gold)]" />
+                  <span className="font-mono text-xs text-muted-foreground mr-2">M{m.number}</span>
+                  {m.title}
+                </CommandItem>
+              ))}
+            </CommandGroup>
+          </>
+        )}
 
-        <CommandGroup heading="Modules">
-          {modules.map((m) => (
-            <CommandItem
-              key={m.slug}
-              onSelect={() => {
-                const base =
-                  role === "manager" ? "/manager/modules/" : role === "teacher" ? "/teacher/modules/" : "/admin/modules/";
-                go(base + m.slug);
-              }}
-            >
-              <Sparkles className="mr-2 size-4 text-[var(--gold)]" />
-              <span className="font-mono text-xs text-muted-foreground mr-2">M{m.number}</span>
-              {m.title}
-            </CommandItem>
-          ))}
-        </CommandGroup>
-
-        {role === "admin" && (
+        {role === "admin" && data.managers.length > 0 && (
           <>
             <CommandSeparator />
             <CommandGroup heading="Find an employee">
-              {managers.slice(0, 8).map((m) => (
+              {data.managers.slice(0, 8).map((m) => (
                 <CommandItem key={m.id} onSelect={() => go(`/admin/managers/${m.id}`)}>
                   <Users className="mr-2 size-4" /> {m.name}
-                  <span className="ml-auto text-xs text-muted-foreground">{m.cohort}</span>
+                  <span className="ml-auto text-xs text-muted-foreground">{m.cohort ?? ""}</span>
                 </CommandItem>
               ))}
             </CommandGroup>

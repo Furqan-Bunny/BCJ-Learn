@@ -19,6 +19,11 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
 import type { Lesson, LessonContent, ContentType } from "@/types";
+import { uploadModuleContent } from "@/lib/supabase/storage";
+import { toast } from "sonner";
+import { Loader2 } from "lucide-react";
+
+const DEMO_MODE = process.env.NEXT_PUBLIC_DEMO_MODE === "true";
 
 const CONTENT_META: Record<ContentType, { label: string; icon: React.ComponentType<{ className?: string }>; tint: string; }> = {
   video:    { label: "Video",    icon: PlayCircle, tint: "text-rose-600 bg-rose-100 dark:text-rose-300 dark:bg-rose-950/40" },
@@ -327,6 +332,8 @@ export function LessonsBuilder({ lessons, onChange, moduleSlug }: LessonsBuilder
       <AddContentDialog
         open={!!contentDialogFor}
         type={contentDialogFor?.type ?? null}
+        moduleSlug={moduleSlug}
+        lessonId={contentDialogFor?.lessonId ?? ""}
         onCancel={() => setContentDialogFor(null)}
         onSubmit={(content) => {
           if (contentDialogFor) {
@@ -352,11 +359,15 @@ const ACCEPTED: Record<ContentType, { exts: string; hint: string; mockExt: strin
 function AddContentDialog({
   open,
   type,
+  moduleSlug,
+  lessonId,
   onCancel,
   onSubmit,
 }: {
   open: boolean;
   type: ContentType | null;
+  moduleSlug: string;
+  lessonId: string;
   onCancel: () => void;
   onSubmit: (c: LessonContent) => void;
 }) {
@@ -368,6 +379,7 @@ function AddContentDialog({
   // Multi-file upload
   const [files, setFiles] = React.useState<File[]>([]);
   const [dragOver, setDragOver] = React.useState(false);
+  const [uploading, setUploading] = React.useState(false);
   const inputRef = React.useRef<HTMLInputElement>(null);
 
   React.useEffect(() => {
@@ -413,73 +425,87 @@ function AddContentDialog({
     return `${(bytes / (1024 * 1024 * 1024)).toFixed(2)} GB`;
   }
 
-  function handleSubmit() {
+  // Upload a single file to Supabase Storage (production only). In demo
+  // mode we don't touch the network — the upload is faked so the demo can
+  // still be exercised without storage credentials.
+  async function uploadOne(file: File): Promise<{ path?: string; error?: string }> {
+    if (DEMO_MODE) return { path: undefined };
+    try {
+      const { path } = await uploadModuleContent(moduleSlug, lessonId, file);
+      return { path };
+    } catch (err) {
+      return { error: (err as Error).message };
+    }
+  }
+
+  async function handleSubmit() {
     if (!canSubmit) return;
 
-    // Multiple files → emit one content per file
-    if (canMultiple && source === "upload" && files.length > 1) {
-      files.forEach((f, i) => {
-        const id = newId("content");
-        const t = files.length > 1
-          ? `${title.trim()} (${i + 1})`
-          : title.trim();
-        const base: LessonContent = {
-          id,
-          type: type!,
-          title: t,
-          durationMinutes: duration,
-          fileName: f.name,
-          fileSize: fmtSize(f.size),
-        };
-        if (type === "video") {
-          base.videoUrl = "https://www.youtube.com/embed/dQw4w9WgXcQ"; // mocked playback
-        } else if (type === "document") {
-          base.documentPages = [`# ${t}\n\nDocument uploaded — processing…`];
-        } else if (type === "slides") {
-          base.slides = [{ title: t, bullets: ["Uploaded — processing slide content…"] }];
-        }
-        onSubmit(base);
+    // URL-only types short-circuit immediately.
+    if (type === "link") {
+      const id = newId("content");
+      onSubmit({
+        id,
+        type: "link",
+        title: title.trim(),
+        durationMinutes: duration,
+        externalUrl: url || "https://example.com",
       });
       return;
     }
-
-    // Single file or URL → one content
-    const id = newId("content");
-    const base: LessonContent = {
-      id,
-      type: type!,
-      title: title.trim(),
-      durationMinutes: duration,
-    };
-    const f = files[0];
-    if (type === "video") {
-      if (source === "upload" && f) {
-        base.fileName = f.name;
-        base.fileSize = fmtSize(f.size);
-        base.videoUrl = "https://www.youtube.com/embed/dQw4w9WgXcQ";
-      } else {
+    if (source === "url") {
+      // YouTube/Vimeo URL — no upload needed.
+      const id = newId("content");
+      const base: LessonContent = {
+        id,
+        type: type!,
+        title: title.trim(),
+        durationMinutes: duration,
+      };
+      if (type === "video") {
         base.videoUrl = url || "https://www.youtube.com/embed/dQw4w9WgXcQ";
       }
-    } else if (type === "link") {
-      base.externalUrl = url || "https://example.com";
-    } else if (type === "document") {
-      if (f) {
-        base.fileName = f.name;
-        base.fileSize = fmtSize(f.size);
-      } else {
-        base.fileName = `${title.replace(/\s+/g, "-")}.docx`;
-      }
-      base.documentPages = [`# ${title}\n\nDocument uploaded — processing…`];
-    } else if (type === "slides") {
-      if (f) {
-        base.fileName = f.name;
-        base.fileSize = fmtSize(f.size);
-      } else {
-        base.fileName = `${title.replace(/\s+/g, "-")}.pptx`;
-      }
-      base.slides = [{ title, bullets: ["Uploaded — processing slide content…"] }];
+      onSubmit(base);
+      return;
     }
-    onSubmit(base);
+
+    // Upload path — for each picked file, upload then emit a LessonContent.
+    setUploading(true);
+    const baseTitle = title.trim();
+    for (let i = 0; i < files.length; i++) {
+      const f = files[i];
+      const t = files.length > 1 ? `${baseTitle} (${i + 1})` : baseTitle;
+      const { path, error } = await uploadOne(f);
+      if (error) {
+        toast.error(`Upload failed for ${f.name}: ${error}`);
+        continue;
+      }
+
+      const id = newId("content");
+      const content: LessonContent = {
+        id,
+        type: type!,
+        title: t,
+        durationMinutes: duration,
+        fileName: f.name,
+        fileSize: fmtSize(f.size),
+        storagePath: path,
+      };
+
+      // Type-specific placeholders for the legacy mock-data viewer paths.
+      // The real viewer prefers `storagePath` → signed URL; these fallbacks
+      // only kick in when the file hasn't actually uploaded (demo mode).
+      if (type === "document") {
+        content.documentPages = [`# ${t}\n\nDocument uploaded.`];
+      } else if (type === "slides") {
+        content.slides = [{ title: t, bullets: ["Uploaded slides — preview opens via signed URL."] }];
+      } else if (type === "video" && !path) {
+        content.videoUrl = "https://www.youtube.com/embed/dQw4w9WgXcQ";
+      }
+
+      onSubmit(content);
+    }
+    setUploading(false);
   }
 
   const canSubmit = (() => {
@@ -673,9 +699,11 @@ function AddContentDialog({
         </div>
 
         <DialogFooter>
-          <Button variant="outline" onClick={onCancel}>Cancel</Button>
-          <Button onClick={handleSubmit} disabled={!canSubmit}>
-            {canMultiple && source === "upload" && files.length > 1
+          <Button variant="outline" onClick={onCancel} disabled={uploading}>Cancel</Button>
+          <Button onClick={handleSubmit} disabled={!canSubmit || uploading}>
+            {uploading ? (
+              <><Loader2 className="size-4 animate-spin mr-1.5" /> Uploading…</>
+            ) : canMultiple && source === "upload" && files.length > 1
               ? `Add ${files.length} items to lesson`
               : "Add to lesson"}
           </Button>

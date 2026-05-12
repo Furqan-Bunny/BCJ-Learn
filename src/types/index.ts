@@ -60,6 +60,9 @@ export interface LessonContent {
   // Common metadata
   fileName?: string;
   fileSize?: string;
+  // Storage key in the `module-content` Supabase bucket — used to generate
+  // signed URLs at read time for private file types.
+  storagePath?: string;
 }
 
 export interface Lesson {
