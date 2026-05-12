@@ -162,11 +162,11 @@ export function UserMenu() {
             <Camera className="mr-2 size-4" />
             {uploading ? "Uploading…" : "Change profile photo"}
           </DropdownMenuItem>
-          <DropdownMenuItem onClick={() => toast.info("Profile page (mocked)")}>
+          <DropdownMenuItem onClick={() => router.push("/settings/profile")}>
             <User className="mr-2 size-4" />
             My profile
           </DropdownMenuItem>
-          <DropdownMenuItem onClick={() => router.push("/admin/settings/branding")}>
+          <DropdownMenuItem onClick={() => router.push("/settings/profile")}>
             <Settings className="mr-2 size-4" />
             Settings
           </DropdownMenuItem>
