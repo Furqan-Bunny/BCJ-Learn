@@ -16,6 +16,8 @@ import { attempts } from "@/data/attempts";
 import { initials } from "@/lib/format";
 import type { Role } from "@/types";
 
+const DEMO_MODE = process.env.NEXT_PUBLIC_DEMO_MODE === "true";
+
 interface SampleUser {
   id: string;
   name: string;
@@ -51,6 +53,9 @@ export function UserSwitcher() {
   const userId = useRoleStore((s) => s.authedUserId);
   const setRole = useRoleStore((s) => s.setRole);
   const setAuthedUserId = useRoleStore((s) => s.setAuthedUserId);
+
+  // Hidden in production — switching identity is a demo-only convenience.
+  if (!DEMO_MODE) return null;
 
   // Compute interesting manager samples on the fly
   const managerSamples: SampleUser[] = React.useMemo(() => {

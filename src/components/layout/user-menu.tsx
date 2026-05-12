@@ -10,7 +10,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { UserAvatar } from "@/components/shared/user-avatar";
 import {
   User,
   Settings,
@@ -20,12 +20,15 @@ import {
   ShieldCheck,
   Sparkles,
   HelpCircle,
+  Camera,
 } from "lucide-react";
 import { useRoleStore } from "@/store/role-store";
-import { allUsers } from "@/data/users";
-import { initials } from "@/lib/format";
+import { useCurrentUser } from "@/lib/supabase/use-user";
+import { createClient } from "@/lib/supabase/client";
 import { toast } from "sonner";
 import type { Role } from "@/types";
+
+const DEMO_MODE = process.env.NEXT_PUBLIC_DEMO_MODE === "true";
 
 const ROLE_ICON: Record<Role, React.ComponentType<{ className?: string }>> = {
   manager: GraduationCap,
@@ -41,93 +44,161 @@ const ROLE_LABEL: Record<Role, string> = {
 
 export function UserMenu() {
   const router = useRouter();
-  const role = useRoleStore((s) => s.role);
-  const userId = useRoleStore((s) => s.authedUserId);
   const logout = useRoleStore((s) => s.logout);
-  const user = allUsers.find((u) => u.id === userId) ?? allUsers[0];
-  const RoleIcon = ROLE_ICON[role];
+  const { user } = useCurrentUser();
+  const fileInputRef = React.useRef<HTMLInputElement>(null);
+  const [uploading, setUploading] = React.useState(false);
 
-  function handleSignOut() {
+  if (!user) return null;
+
+  const RoleIcon = ROLE_ICON[user.role];
+
+  async function handleSignOut() {
+    if (!DEMO_MODE) {
+      const supabase = createClient();
+      await supabase.auth.signOut();
+    }
     logout();
     toast.success("Signed out");
-    // Small delay so the toast registers before redirect
     setTimeout(() => router.push("/login"), 200);
   }
 
+  async function handleAvatarUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file || !user) return;
+    if (DEMO_MODE) {
+      toast.info("Profile photo upload is disabled in demo mode");
+      return;
+    }
+
+    setUploading(true);
+    try {
+      const supabase = createClient();
+      const ext = file.name.split(".").pop() ?? "jpg";
+      const path = `${user.id}/avatar.${ext}`;
+
+      const { error: upErr } = await supabase.storage
+        .from("avatars")
+        .upload(path, file, { upsert: true, cacheControl: "3600" });
+
+      if (upErr) throw upErr;
+
+      const { data: pub } = supabase.storage.from("avatars").getPublicUrl(path);
+      // Bust cache by appending the upload timestamp.
+      const url = `${pub.publicUrl}?v=${Date.now()}`;
+
+      const { error: profErr } = await supabase
+        .from("profiles")
+        .update({ avatar_url: url })
+        .eq("id", user.id);
+
+      if (profErr) throw profErr;
+
+      toast.success("Profile photo updated");
+      // Refresh to pick up the new avatar across the UI.
+      router.refresh();
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Upload failed";
+      toast.error(msg);
+    } finally {
+      setUploading(false);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
+  }
+
   return (
-    <DropdownMenu>
-      <DropdownMenuTrigger
-        className="rounded-full ring-offset-background transition-all hover:ring-2 hover:ring-primary/30 hover:ring-offset-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
-        aria-label="Open user menu"
-      >
-        <Avatar className="size-9 border">
-          <AvatarFallback
-            style={{ background: user.avatarColor, color: "white" }}
-            className="text-xs font-semibold"
-          >
-            {initials(user.name)}
-          </AvatarFallback>
-        </Avatar>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-64">
-        {/* User identity card */}
-        <div className="px-2 py-2 flex items-center gap-3">
-          <Avatar className="size-10 border">
-            <AvatarFallback
-              style={{ background: user.avatarColor, color: "white" }}
-              className="text-sm font-semibold"
-            >
-              {initials(user.name)}
-            </AvatarFallback>
-          </Avatar>
-          <div className="flex-1 min-w-0">
-            <div className="font-medium text-sm truncate">{user.name}</div>
-            <div className="text-xs text-muted-foreground truncate">{user.email}</div>
-            <div className="mt-1 inline-flex items-center gap-1 text-[10px] text-primary font-medium">
-              <RoleIcon className="size-3" />
-              {ROLE_LABEL[role]}
-              <span className="ml-1 px-1 py-0.5 rounded bg-muted text-muted-foreground uppercase tracking-wider">Demo</span>
+    <>
+      {/* Hidden file input for avatar upload */}
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="image/*"
+        className="hidden"
+        onChange={handleAvatarUpload}
+      />
+      <DropdownMenu>
+        <DropdownMenuTrigger
+          className="rounded-full ring-offset-background transition-all hover:ring-2 hover:ring-primary/30 hover:ring-offset-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+          aria-label="Open user menu"
+        >
+          <UserAvatar
+            name={user.name}
+            avatarUrl={user.avatarUrl}
+            avatarColor={user.avatarColor}
+            size="default"
+            className="size-9"
+          />
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end" className="w-64">
+          {/* User identity card */}
+          <div className="px-2 py-2 flex items-center gap-3">
+            <UserAvatar
+              name={user.name}
+              avatarUrl={user.avatarUrl}
+              avatarColor={user.avatarColor}
+              size="lg"
+            />
+            <div className="flex-1 min-w-0">
+              <div className="font-medium text-sm truncate">{user.name}</div>
+              <div className="text-xs text-muted-foreground truncate">{user.email}</div>
+              <div className="mt-1 inline-flex items-center gap-1 text-[10px] text-primary font-medium">
+                <RoleIcon className="size-3" />
+                {ROLE_LABEL[user.role]}
+                {DEMO_MODE && (
+                  <span className="ml-1 px-1 py-0.5 rounded bg-muted text-muted-foreground uppercase tracking-wider">Demo</span>
+                )}
+              </div>
             </div>
           </div>
-        </div>
-        <DropdownMenuSeparator />
+          <DropdownMenuSeparator />
 
-        <DropdownMenuLabel className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">
-          Account
-        </DropdownMenuLabel>
-        <DropdownMenuItem onClick={() => toast.info("Profile page (mocked)")}>
-          <User className="mr-2 size-4" />
-          My profile
-        </DropdownMenuItem>
-        <DropdownMenuItem onClick={() => router.push(role === "admin" ? "/admin/settings/branding" : "/admin/settings/branding")}>
-          <Settings className="mr-2 size-4" />
-          Settings
-        </DropdownMenuItem>
-        <DropdownMenuItem onClick={() => toast.info("Help center (mocked)")}>
-          <HelpCircle className="mr-2 size-4" />
-          Help &amp; support
-        </DropdownMenuItem>
+          <DropdownMenuLabel className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">
+            Account
+          </DropdownMenuLabel>
+          <DropdownMenuItem
+            onClick={() => fileInputRef.current?.click()}
+            disabled={uploading}
+          >
+            <Camera className="mr-2 size-4" />
+            {uploading ? "Uploading…" : "Change profile photo"}
+          </DropdownMenuItem>
+          <DropdownMenuItem onClick={() => toast.info("Profile page (mocked)")}>
+            <User className="mr-2 size-4" />
+            My profile
+          </DropdownMenuItem>
+          <DropdownMenuItem onClick={() => router.push("/admin/settings/branding")}>
+            <Settings className="mr-2 size-4" />
+            Settings
+          </DropdownMenuItem>
+          <DropdownMenuItem onClick={() => toast.info("Help center (mocked)")}>
+            <HelpCircle className="mr-2 size-4" />
+            Help &amp; support
+          </DropdownMenuItem>
 
-        <DropdownMenuSeparator />
+          {DEMO_MODE && (
+            <>
+              <DropdownMenuSeparator />
+              <DropdownMenuLabel className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">
+                Demo
+              </DropdownMenuLabel>
+              <DropdownMenuItem onClick={() => toast(`This is a demo. ${user.name} is a sample user.`, { icon: <Sparkles className="size-4 text-[var(--ai)]" /> })}>
+                <Sparkles className="mr-2 size-4 text-[var(--ai)]" />
+                About this demo
+              </DropdownMenuItem>
+            </>
+          )}
 
-        <DropdownMenuLabel className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">
-          Demo
-        </DropdownMenuLabel>
-        <DropdownMenuItem onClick={() => toast(`This is a demo. ${user.name} is a sample user.`, { icon: <Sparkles className="size-4 text-[var(--ai)]" /> })}>
-          <Sparkles className="mr-2 size-4 text-[var(--ai)]" />
-          About this demo
-        </DropdownMenuItem>
+          <DropdownMenuSeparator />
 
-        <DropdownMenuSeparator />
-
-        <DropdownMenuItem
-          onClick={handleSignOut}
-          className="text-rose-600 focus:text-rose-600 focus:bg-rose-50 dark:focus:bg-rose-950/30"
-        >
-          <LogOut className="mr-2 size-4" />
-          Sign out
-        </DropdownMenuItem>
-      </DropdownMenuContent>
-    </DropdownMenu>
+          <DropdownMenuItem
+            onClick={handleSignOut}
+            className="text-rose-600 focus:text-rose-600 focus:bg-rose-50 dark:focus:bg-rose-950/30"
+          >
+            <LogOut className="mr-2 size-4" />
+            Sign out
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+    </>
   );
 }
