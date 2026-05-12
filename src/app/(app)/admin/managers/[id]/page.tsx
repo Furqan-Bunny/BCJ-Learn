@@ -29,11 +29,47 @@ import { moduleDeliveries } from "@/data/queries";
 import { useAttendanceStore } from "@/store/attendance-store";
 import { initials, fmtDate, fmtRelative, fmtPct, fmtDuration } from "@/lib/format";
 import { toast } from "sonner";
+import { deactivateUser, reactivateUser, forceResetPassword } from "@/lib/server/admin-actions";
+import { useRouter } from "next/navigation";
+
+const DEMO_MODE = process.env.NEXT_PUBLIC_DEMO_MODE === "true";
 
 export default function ManagerDetail(props: PageProps<"/admin/managers/[id]">) {
+  const router = useRouter();
   const { id } = use(props.params);
-  const m = managers.find((x) => x.id === id);
-  if (!m) return notFound();
+  const found = managers.find((x) => x.id === id);
+  if (!found) return notFound();
+  const m = found;  // narrowed binding for closures below
+
+  async function handleSendReset() {
+    if (DEMO_MODE) {
+      toast.success(`Reset link sent to ${m.name} (demo)`);
+      return;
+    }
+    const result = await forceResetPassword(id);
+    if (!result.ok) {
+      toast.error(result.error ?? "Failed to send reset");
+      return;
+    }
+    toast.success(`Password reset email sent to ${result.email}`);
+  }
+
+  async function handleDeactivate() {
+    const isDeactivated = m.status === "inactive";
+    const verb = isDeactivated ? "reactivate" : "deactivate";
+    if (!confirm(`Are you sure you want to ${verb} ${m.name}?`)) return;
+    if (DEMO_MODE) {
+      toast.success(`${m.name} ${verb}d (demo)`);
+      return;
+    }
+    const result = await (isDeactivated ? reactivateUser(id) : deactivateUser(id));
+    if (!result.ok) {
+      toast.error(result.error ?? `Failed to ${verb}`);
+      return;
+    }
+    toast.success(`${m.name} ${verb}d`);
+    router.refresh();
+  }
 
   const myAttempts = attemptsForManager(m.id).sort(
     (a, b) => +new Date(b.startedAt) - +new Date(a.startedAt),
@@ -78,11 +114,14 @@ export default function ManagerDetail(props: PageProps<"/admin/managers/[id]">) 
             <Button variant="outline" onClick={() => toast.success(`Reminder sent to ${m.name}`)}>
               <Bell className="mr-2 size-4" /> Send reminder
             </Button>
+            <Button variant="outline" onClick={handleSendReset}>
+              <Mail className="mr-2 size-4" /> Send reset link
+            </Button>
             <Button variant="outline" onClick={() => toast(`Retake scheduled for ${m.name}`)}>
               <RefreshCcw className="mr-2 size-4" /> Reassign retake
             </Button>
-            <Button variant="outline" className="text-rose-600">
-              <Trash2 className="mr-2 size-4" /> Deactivate
+            <Button variant="outline" className="text-rose-600" onClick={handleDeactivate}>
+              <Trash2 className="mr-2 size-4" /> {m.status === "inactive" ? "Reactivate" : "Deactivate"}
             </Button>
           </div>
         }
