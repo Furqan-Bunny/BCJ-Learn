@@ -17,6 +17,7 @@ import {
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 import { deactivateUser } from "@/lib/server/admin-actions";
+import { AddStaffSheet } from "@/components/admin/add-staff-sheet";
 import type { Teacher, ModuleDef } from "@/types";
 
 export interface AdminTeachersViewProps {
@@ -49,11 +50,7 @@ export function AdminTeachersView({ teachers, modules, approvedByModule, totalBy
         eyebrow="People"
         title="Department Leads"
         description={`${teachers.length} module owners. Each Department Lead manages their own module's content and question bank.`}
-        actions={
-          <Button>
-            <Plus className="mr-2 size-4" /> Invite Department Lead
-          </Button>
-        }
+        actions={<AddStaffSheet role="teacher" triggerLabel="Invite Department Lead" />}
       />
 
       <div className="flex items-center gap-3 mb-4 max-w-md">
