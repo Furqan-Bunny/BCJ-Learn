@@ -16,7 +16,15 @@ export async function updateProfile(input: UpdateProfileInput) {
   if (!user) return { ok: false, error: "Not signed in" };
 
   const updates: Record<string, unknown> = {};
-  if (typeof input.name === "string" && input.name.trim()) updates.name = input.name.trim();
+  if (typeof input.name === "string" && input.name.trim()) {
+    const trimmed = input.name.trim();
+    // Reject leading spreadsheet-formula characters so a poisoned name can't be
+    // used for CSV-injection against admins exporting reports.
+    if (/^[=+\-@\t\r]/.test(trimmed)) {
+      return { ok: false, error: "Name can't start with =, +, -, @ or a tab" };
+    }
+    updates.name = trimmed;
+  }
   if (typeof input.bio === "string") updates.bio = input.bio;
   if (typeof input.timezone === "string") updates.timezone = input.timezone;
   if (typeof input.locale === "string") updates.locale = input.locale;
