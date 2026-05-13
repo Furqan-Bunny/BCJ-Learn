@@ -162,7 +162,7 @@ export function UserMenu() {
             <Camera className="mr-2 size-4" />
             {uploading ? "Uploading…" : "Change profile photo"}
           </DropdownMenuItem>
-          <DropdownMenuItem onClick={() => router.push("/settings/profile")}>
+          <DropdownMenuItem onClick={() => router.push("/my-profile")}>
             <User className="mr-2 size-4" />
             My profile
           </DropdownMenuItem>
