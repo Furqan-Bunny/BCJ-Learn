@@ -558,7 +558,7 @@ export function RippleButton({
 export function AppLoader({ label = "Loading BCJ Learn" }: { label?: string }) {
   const reduced = useReducedMotion();
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-background">
+    <div className="flex items-center justify-center min-h-[calc(100vh-12rem)] w-full">
       <div className="flex flex-col items-center gap-6">
         <motion.div
           className="size-14 rounded-2xl bg-primary text-primary-foreground flex items-center justify-center shadow-lg shadow-primary/20"

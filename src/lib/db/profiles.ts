@@ -17,6 +17,7 @@ interface ProfileRow {
   title: string | null;
   joined_at: string;
   last_active_at: string;
+  phone: string | null;
 }
 
 function toManager(r: ProfileRow): Manager {
@@ -29,6 +30,7 @@ function toManager(r: ProfileRow): Manager {
     cohort: (r.cohort ?? "Atlanta") as Cohort,
     joinedAt: r.joined_at,
     lastActiveAt: r.last_active_at,
+    phone: r.phone,
     status: (r.status ?? "active") as ManagerStatus,
     modulesCompleted: 0,   // derived elsewhere from attempts
     averageScore: 0,        // derived elsewhere from attempts
@@ -47,6 +49,7 @@ function toTeacher(r: ProfileRow): Teacher {
     bio: r.bio ?? "",
     joinedAt: r.joined_at,
     lastActiveAt: r.last_active_at,
+    phone: r.phone,
     ownedModuleSlugs: [], // derived from module_owners; filled by joined queries
   };
 }
@@ -61,6 +64,7 @@ function toAdmin(r: ProfileRow): Admin {
     title: r.title ?? "",
     joinedAt: r.joined_at,
     lastActiveAt: r.last_active_at,
+    phone: r.phone,
   };
 }
 
