@@ -125,10 +125,10 @@ export default function AdminReports() {
         </CardContent>
       </Card>
 
-      <div className="grid lg:grid-cols-2 gap-4">
+      <div className="grid lg:grid-cols-2 gap-4 items-stretch">
         {REPORTS.map((r) => (
-          <Card key={r.key}>
-            <CardContent className="p-5">
+          <Card key={r.key} className="h-full">
+            <CardContent className="p-5 h-full">
               <div className="flex items-start gap-4">
                 <div className="size-10 rounded-md bg-primary/10 text-primary flex items-center justify-center shrink-0">
                   <r.icon className="size-5" />

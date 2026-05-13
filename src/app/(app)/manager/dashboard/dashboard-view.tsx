@@ -120,10 +120,10 @@ export function ManagerDashboardView({
             const locked = !passed && !isNext && nextModule != null && m.number > nextModule.number;
             const myAttempt = myAttempts.find((a) => a.moduleSlug === m.slug && a.status === "passed");
             return (
-              <StaggerItem key={m.slug}>
-              <Link href={`/manager/modules/${m.slug}`}>
-                <Card className={`card-lift card-glow ${locked ? "opacity-60" : ""}`}>
-                  <CardContent className="p-4">
+              <StaggerItem key={m.slug} className="h-full">
+              <Link href={`/manager/modules/${m.slug}`} className="block h-full">
+                <Card className={`card-lift card-glow h-full ${locked ? "opacity-60" : ""}`}>
+                  <CardContent className="p-4 h-full">
                     <div className="flex items-center justify-between mb-3">
                       <div className="text-xs font-mono text-muted-foreground">M{m.number}</div>
                       {passed && (

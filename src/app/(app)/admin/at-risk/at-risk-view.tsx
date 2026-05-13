@@ -103,11 +103,11 @@ export function AtRiskView({ list }: { list: Manager[] }) {
         </Card>
       )}
 
-      <Stagger className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+      <Stagger className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4 items-stretch">
         {list.map((m) => (
-          <StaggerItem key={m.id}>
-            <Card className="border-amber-500/30 card-lift">
-              <CardContent className="p-5">
+          <StaggerItem key={m.id} className="h-full">
+            <Card className="border-amber-500/30 card-lift h-full flex flex-col">
+              <CardContent className="p-5 flex flex-col flex-1">
                 <div className="flex items-start gap-3">
                   <Avatar className="size-12 border">
                     <AvatarFallback style={{ background: m.avatarColor, color: "white" }} className="font-semibold">
@@ -139,7 +139,7 @@ export function AtRiskView({ list }: { list: Manager[] }) {
                   Last active {fmtRelative(m.lastActiveAt)}
                 </div>
 
-                <div className="mt-4 flex items-center gap-2">
+                <div className="mt-auto pt-4 flex items-center gap-2">
                   <Button asChild size="sm" className="flex-1">
                     <Link href={`/admin/managers/${m.id}`}>
                       View profile <ArrowRight className="ml-1 size-3.5" />

@@ -168,10 +168,10 @@ export function AdminTeachersView({ teachers, modules, approvedByModule, totalBy
       <h3 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground mt-10 mb-4">
         Department Lead details
       </h3>
-      <div className="grid lg:grid-cols-2 gap-4">
+      <div className="grid lg:grid-cols-2 gap-4 items-stretch">
         {filtered.map(({ teacher: t, ownedMods, totalQs, approvedQs }) => (
-          <Card key={`detail-${t.id}`}>
-            <CardContent className="p-5">
+          <Card key={`detail-${t.id}`} className="h-full">
+            <CardContent className="p-5 h-full">
               <div className="flex items-start gap-4">
                 <Avatar className="size-12 border">
                   <AvatarFallback style={{ background: t.avatarColor, color: "white" }} className="font-semibold">

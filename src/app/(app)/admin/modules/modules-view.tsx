@@ -41,10 +41,10 @@ export function AdminModulesView({ modules, attempts, teacherNamesById, teachers
           const passRate = att.length ? Math.round((passed / att.length) * 100) : 0;
 
           return (
-            <StaggerItem key={m.slug}>
-              <Link href={`/admin/modules/${m.slug}`} className="block group">
-                <Card className="card-lift card-glow group-hover:border-primary/40">
-                  <CardContent className="p-5">
+            <StaggerItem key={m.slug} className="h-full">
+              <Link href={`/admin/modules/${m.slug}`} className="block group h-full">
+                <Card className="card-lift card-glow group-hover:border-primary/40 h-full flex flex-col">
+                  <CardContent className="p-5 flex flex-col flex-1">
                     <div className="flex items-start justify-between gap-3 mb-2">
                       <div className="text-xs font-mono text-muted-foreground">M{m.number} · {m.scheduledMonth}</div>
                       <StatusBadge variant={m.status} />
@@ -58,7 +58,7 @@ export function AdminModulesView({ modules, attempts, teacherNamesById, teachers
                       <Stat icon={Trophy} label="Pass rate" value={att.length ? `${passRate}%` : "—"} animate={att.length > 0} suffix="%" rawNumber={passRate} />
                     </div>
 
-                    <div className="mt-4 flex items-center justify-between text-xs">
+                    <div className="mt-auto pt-4 flex items-center justify-between text-xs">
                       <div className="text-muted-foreground">
                         {ownerNames.length > 1 ? "Co-owned by" : "Owned by"}{" "}
                         <span className="text-foreground font-medium">{ownerNames.join(", ") || "—"}</span>
