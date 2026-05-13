@@ -82,10 +82,10 @@ export function ManagerModulesView({ modules, myAttempts }: ManagerModulesViewPr
           const counts = contentCounts(m);
 
           return (
-            <StaggerItem key={m.slug}>
-              <Card className={`overflow-hidden card-lift card-glow ${locked ? "opacity-60" : ""}`}>
-                <CardContent className="p-0">
-                  <div className="grid grid-cols-[auto_1fr] gap-0">
+            <StaggerItem key={m.slug} className="h-full">
+              <Card className={`overflow-hidden card-lift card-glow h-full ${locked ? "opacity-60" : ""}`}>
+                <CardContent className="p-0 h-full">
+                  <div className="grid grid-cols-[auto_1fr] gap-0 h-full">
                     <div className="bg-primary/5 border-r flex flex-col items-center justify-center p-6 min-w-[100px]">
                       <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Module</div>
                       <div className="text-4xl font-bold tracking-tight text-primary mt-1 tabular-nums">{m.number}</div>
@@ -101,7 +101,7 @@ export function ManagerModulesView({ modules, myAttempts }: ManagerModulesViewPr
                       )}
                       {locked && <Lock className="size-4 text-muted-foreground mt-2" />}
                     </div>
-                    <div className="p-5">
+                    <div className="p-5 flex flex-col">
                       <div className="font-semibold text-lg tracking-tight">{m.title}</div>
                       <p className="text-sm text-muted-foreground mt-1.5 line-clamp-2">{m.description}</p>
                       <div className="mt-4 flex flex-wrap items-center gap-x-5 gap-y-1.5 text-xs text-muted-foreground">
@@ -121,7 +121,7 @@ export function ManagerModulesView({ modules, myAttempts }: ManagerModulesViewPr
                         </span>
                       </div>
 
-                      <div className="mt-4 flex items-center justify-between gap-2">
+                      <div className="mt-auto pt-4 flex items-center justify-between gap-2">
                         <div className="text-xs">
                           {passed && myAttempt && (
                             <span className="text-emerald-600 dark:text-emerald-400 font-medium">

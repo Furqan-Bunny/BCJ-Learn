@@ -152,12 +152,12 @@ export function AdminAdminsView({ admins, activityByActor }: AdminAdminsViewProp
       <h3 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground mt-10 mb-4">
         Recent admin activity
       </h3>
-      <div className="grid lg:grid-cols-3 gap-4">
+      <div className="grid lg:grid-cols-3 gap-4 items-stretch">
         {filtered.map((a) => {
           const myActivity = (activityByActor[a.id] ?? []).slice(0, 5);
           return (
-            <Card key={`activity-${a.id}`}>
-              <CardContent className="p-5">
+            <Card key={`activity-${a.id}`} className="h-full">
+              <CardContent className="p-5 h-full">
                 <div className="flex items-center gap-3 mb-4 pb-4 border-b">
                   <Avatar className="size-10 border">
                     <AvatarFallback style={{ background: a.avatarColor, color: "white" }} className="font-semibold">

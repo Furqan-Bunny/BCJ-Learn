@@ -171,9 +171,9 @@ export function ResourcesAdminView({ initialResources }: { initialResources: Enr
                 ? Math.round((r.ackCount.acked / r.ackCount.total) * 100)
                 : 0;
               return (
-                <StaggerItem key={r.id}>
-                  <Card className="card-lift">
-                    <CardContent className="p-4">
+                <StaggerItem key={r.id} className="h-full">
+                  <Card className="card-lift h-full">
+                    <CardContent className="p-4 h-full">
                       <div className="flex items-start justify-between gap-3">
                         <div className="flex items-start gap-3 flex-1 min-w-0">
                           <div className="size-9 rounded-md bg-primary/10 text-primary flex items-center justify-center shrink-0">
