@@ -172,4 +172,6 @@ export interface NotificationItem {
   preview: string;
   sentAt: string;
   opened: boolean;
+  href?: string | null;
+  body?: string | null;
 }

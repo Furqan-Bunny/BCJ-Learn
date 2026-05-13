@@ -5,6 +5,7 @@
 
 import { createClient, createAdminClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
+import { pushInAppNotification } from "@/lib/notifications/push";
 import type { ContentType, Lesson, LessonContent, ModuleStatus, Role } from "@/types";
 
 const DEMO_MODE = process.env.NEXT_PUBLIC_DEMO_MODE === "true";
@@ -379,6 +380,24 @@ export async function resetManagerForModule(
     actor_id: guard.userId,
     target_id: managerId,
     message: `${guard.userName} reset progress on ${moduleSlug}`,
+  });
+
+  // Look up the module title for a friendlier subject line.
+  const { data: mod } = await admin
+    .from("modules")
+    .select("title")
+    .eq("slug", moduleSlug)
+    .maybeSingle();
+  const moduleTitle = (mod as { title?: string } | null)?.title ?? moduleSlug;
+
+  await pushInAppNotification({
+    recipientId: managerId,
+    kind: "reminder",
+    subject: `Retake scheduled — ${moduleTitle}`,
+    preview: reason
+      ? `Your progress on ${moduleTitle} has been reset so you can retake the quiz. Reason: ${reason}`
+      : `Your progress on ${moduleTitle} has been reset so you can retake the quiz.`,
+    href: `/manager/modules/${moduleSlug}`,
   });
 
   revalidatePath(`/admin/modules/${moduleSlug}`);

@@ -358,6 +358,8 @@ export function ProfileForm({ initial }: ProfileFormProps) {
 
           <p className="text-[11px] text-muted-foreground border-t pt-3">
             Account-critical emails (invitations, password resets) are always sent.
+            These preferences only mute the emails — you&apos;ll still see every
+            activity in the notifications bell.
           </p>
 
           <div className="flex justify-end">
