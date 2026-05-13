@@ -18,9 +18,14 @@ async function requireAdmin(): Promise<{ ok: true } | { ok: false; error: string
   return { ok: true };
 }
 
+// Defang fields whose first character is interpreted as a formula prefix by
+// Excel / LibreOffice / Numbers (=, +, -, @, tab, CR). Prepending a single
+// quote makes spreadsheet apps treat the cell as a literal string.
+// See OWASP "CSV Injection" / formula-injection (CWE-1236).
 function csvEscape(value: unknown): string {
   if (value === null || value === undefined) return "";
-  const s = String(value);
+  let s = String(value);
+  if (/^[=+\-@\t\r]/.test(s)) s = "'" + s;
   if (/[",\n\r]/.test(s)) return `"${s.replace(/"/g, '""')}"`;
   return s;
 }
