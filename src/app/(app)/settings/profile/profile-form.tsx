@@ -9,7 +9,8 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { UserAvatar } from "@/components/shared/user-avatar";
-import { Camera, ShieldCheck, GraduationCap, BookOpen, LogOut, Save, KeyRound } from "lucide-react";
+import { Camera, ShieldCheck, GraduationCap, BookOpen, LogOut, Save, KeyRound, Phone, Bell } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
 import { createClient } from "@/lib/supabase/client";
 import { uploadAvatar } from "@/lib/supabase/storage";
 import { updateProfile, changePassword, signOutEverywhere } from "./actions";
@@ -42,6 +43,12 @@ export interface ProfileFormProps {
     title: string | null;
     joinedAt: string;
     lastActiveAt: string;
+    phone: string | null;
+    notificationPrefs: {
+      quizResults: boolean;
+      trainingReminders: boolean;
+      atRiskAlerts: boolean;
+    };
   };
 }
 
@@ -61,6 +68,21 @@ export function ProfileForm({ initial }: ProfileFormProps) {
   const [newPassword, setNewPassword] = React.useState("");
   const [confirmPassword, setConfirmPassword] = React.useState("");
   const [changingPassword, setChangingPassword] = React.useState(false);
+
+  // Contact (phone)
+  const [phone, setPhone] = React.useState(initial.phone ?? "");
+  const [savingPhone, setSavingPhone] = React.useState(false);
+  const phoneChanged = phone !== (initial.phone ?? "");
+
+  // Notification preferences
+  const [quizResults, setQuizResults] = React.useState(initial.notificationPrefs.quizResults);
+  const [trainingReminders, setTrainingReminders] = React.useState(initial.notificationPrefs.trainingReminders);
+  const [atRiskAlerts, setAtRiskAlerts] = React.useState(initial.notificationPrefs.atRiskAlerts);
+  const [savingPrefs, setSavingPrefs] = React.useState(false);
+  const prefsChanged =
+    quizResults !== initial.notificationPrefs.quizResults ||
+    trainingReminders !== initial.notificationPrefs.trainingReminders ||
+    atRiskAlerts !== initial.notificationPrefs.atRiskAlerts;
 
   // Danger
   const [signingOutEverywhere, setSigningOutEverywhere] = React.useState(false);
@@ -120,6 +142,32 @@ export function ProfileForm({ initial }: ProfileFormProps) {
     setCurrentPassword("");
     setNewPassword("");
     setConfirmPassword("");
+  }
+
+  async function handleSavePhone() {
+    setSavingPhone(true);
+    const result = await updateProfile({ phone: phone.trim() === "" ? null : phone });
+    setSavingPhone(false);
+    if (!result.ok) {
+      toast.error(result.error ?? "Failed to save phone");
+      return;
+    }
+    toast.success("Phone saved");
+    router.refresh();
+  }
+
+  async function handleSavePrefs() {
+    setSavingPrefs(true);
+    const result = await updateProfile({
+      notificationPrefs: { quizResults, trainingReminders, atRiskAlerts },
+    });
+    setSavingPrefs(false);
+    if (!result.ok) {
+      toast.error(result.error ?? "Failed to save preferences");
+      return;
+    }
+    toast.success("Notification preferences saved");
+    router.refresh();
   }
 
   async function handleSignOutEverywhere() {
@@ -242,6 +290,85 @@ export function ProfileForm({ initial }: ProfileFormProps) {
         </CardContent>
       </Card>
 
+      {/* Contact — phone number */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Phone className="size-4" /> Contact
+          </CardTitle>
+          <CardDescription>How BCJ Learn can reach you outside email.</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <div className="space-y-2">
+            <Label htmlFor="prof-phone">Phone number</Label>
+            <Input
+              id="prof-phone"
+              type="tel"
+              value={phone}
+              onChange={(e) => setPhone(e.target.value)}
+              placeholder="+1 (415) 555-2671"
+              autoComplete="tel"
+              className="h-10"
+            />
+            <p className="text-[11px] text-muted-foreground">
+              Optional. Used for emergency contact and future SMS reminders. We don&rsquo;t share it.
+            </p>
+          </div>
+          <div className="flex justify-end">
+            <Button onClick={handleSavePhone} disabled={!phoneChanged || savingPhone} size="sm">
+              <Save className="size-3.5 mr-1.5" />
+              {savingPhone ? "Saving…" : "Save phone"}
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Notification preferences */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Bell className="size-4" /> Notification preferences
+          </CardTitle>
+          <CardDescription>Pick which BCJ Learn emails land in your inbox.</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-5">
+          <PrefToggle
+            id="pref-quiz-results"
+            checked={quizResults}
+            onChange={setQuizResults}
+            label="Quiz result emails"
+            description="Get an email when you pass or are scheduled for a retake."
+          />
+          <PrefToggle
+            id="pref-training-reminders"
+            checked={trainingReminders}
+            onChange={setTrainingReminders}
+            label="Training reminders"
+            description="Reminder emails for modules you haven't completed."
+          />
+          {initial.role === "admin" && (
+            <PrefToggle
+              id="pref-at-risk-alerts"
+              checked={atRiskAlerts}
+              onChange={setAtRiskAlerts}
+              label="At-risk alerts"
+              description="Get an alert when an employee is flagged at-risk."
+            />
+          )}
+
+          <p className="text-[11px] text-muted-foreground border-t pt-3">
+            Account-critical emails (invitations, password resets) are always sent.
+          </p>
+
+          <div className="flex justify-end">
+            <Button onClick={handleSavePrefs} disabled={!prefsChanged || savingPrefs} size="sm">
+              <Save className="size-3.5 mr-1.5" />
+              {savingPrefs ? "Saving…" : "Save preferences"}
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+
       {/* Account context (read-only) */}
       <Card>
         <CardHeader>
@@ -348,6 +475,30 @@ export function ProfileForm({ initial }: ProfileFormProps) {
           </Button>
         </CardContent>
       </Card>
+    </div>
+  );
+}
+
+function PrefToggle({
+  id,
+  checked,
+  onChange,
+  label,
+  description,
+}: {
+  id: string;
+  checked: boolean;
+  onChange: (next: boolean) => void;
+  label: string;
+  description: string;
+}) {
+  return (
+    <div className="flex items-start justify-between gap-4">
+      <div className="flex-1 min-w-0">
+        <Label htmlFor={id} className="font-medium">{label}</Label>
+        <p className="text-xs text-muted-foreground mt-0.5">{description}</p>
+      </div>
+      <Switch id={id} checked={checked} onCheckedChange={onChange} />
     </div>
   );
 }

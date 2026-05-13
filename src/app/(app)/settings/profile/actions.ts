@@ -3,12 +3,24 @@
 import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
 
+export interface NotificationPrefsInput {
+  quizResults?: boolean;
+  trainingReminders?: boolean;
+  atRiskAlerts?: boolean;
+}
+
 export interface UpdateProfileInput {
   name?: string;
   bio?: string;
   timezone?: string;
   locale?: string;
+  /** Pass `null` or empty string to clear. */
+  phone?: string | null;
+  notificationPrefs?: NotificationPrefsInput;
 }
+
+const FORMULA_PREFIX = /^[=+\-@\t\r]/;
+const PHONE_PATTERN = /^[+\d][\d\s()\-]{6,19}$/;
 
 export async function updateProfile(input: UpdateProfileInput) {
   const sb = await createClient();
@@ -16,11 +28,10 @@ export async function updateProfile(input: UpdateProfileInput) {
   if (!user) return { ok: false, error: "Not signed in" };
 
   const updates: Record<string, unknown> = {};
+
   if (typeof input.name === "string" && input.name.trim()) {
     const trimmed = input.name.trim();
-    // Reject leading spreadsheet-formula characters so a poisoned name can't be
-    // used for CSV-injection against admins exporting reports.
-    if (/^[=+\-@\t\r]/.test(trimmed)) {
+    if (FORMULA_PREFIX.test(trimmed)) {
       return { ok: false, error: "Name can't start with =, +, -, @ or a tab" };
     }
     updates.name = trimmed;
@@ -28,6 +39,42 @@ export async function updateProfile(input: UpdateProfileInput) {
   if (typeof input.bio === "string") updates.bio = input.bio;
   if (typeof input.timezone === "string") updates.timezone = input.timezone;
   if (typeof input.locale === "string") updates.locale = input.locale;
+
+  // Phone — null/empty clears; otherwise trim, defang, regex-validate.
+  if (input.phone !== undefined) {
+    if (input.phone === null || input.phone.trim() === "") {
+      updates.phone = null;
+    } else {
+      const trimmed = input.phone.trim();
+      if (FORMULA_PREFIX.test(trimmed)) {
+        return { ok: false, error: "Phone can't start with =, +, -, @ or a tab. Use + only with a country code (e.g. +1...)." };
+      }
+      if (!PHONE_PATTERN.test(trimmed)) {
+        return { ok: false, error: "Phone format looks off. Try +14155552671 or (415) 555-2671." };
+      }
+      updates.phone = trimmed;
+    }
+  }
+
+  // Notification prefs — merge incoming keys into existing row.
+  if (input.notificationPrefs) {
+    const { data: row } = await sb
+      .from("profiles")
+      .select("notification_prefs")
+      .eq("id", user.id)
+      .maybeSingle();
+    const current = ((row as { notification_prefs?: Record<string, boolean> } | null)?.notification_prefs ?? {
+      quiz_results: true,
+      training_reminders: true,
+      at_risk_alerts: true,
+    }) as Record<string, boolean>;
+
+    const next = { ...current };
+    if (typeof input.notificationPrefs.quizResults === "boolean") next.quiz_results = input.notificationPrefs.quizResults;
+    if (typeof input.notificationPrefs.trainingReminders === "boolean") next.training_reminders = input.notificationPrefs.trainingReminders;
+    if (typeof input.notificationPrefs.atRiskAlerts === "boolean") next.at_risk_alerts = input.notificationPrefs.atRiskAlerts;
+    updates.notification_prefs = next;
+  }
 
   if (Object.keys(updates).length === 0) return { ok: true };
 

@@ -50,6 +50,8 @@ export default async function ProfilePage() {
     title: string | null;
     joined_at: string;
     last_active_at: string;
+    phone: string | null;
+    notification_prefs: { quiz_results?: boolean; training_reminders?: boolean; at_risk_alerts?: boolean } | null;
   };
 
   const [activity, attempts] = await Promise.all([
@@ -77,6 +79,12 @@ export default async function ProfilePage() {
           title: p.title,
           joinedAt: p.joined_at,
           lastActiveAt: p.last_active_at,
+          phone: p.phone,
+          notificationPrefs: {
+            quizResults: p.notification_prefs?.quiz_results ?? true,
+            trainingReminders: p.notification_prefs?.training_reminders ?? true,
+            atRiskAlerts: p.notification_prefs?.at_risk_alerts ?? true,
+          },
         }}
       />
       <ActivityHistory activity={activity} attempts={attempts} role={p.role} />

@@ -12,7 +12,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSepara
 import { PageHeader } from "@/components/shared/page-header";
 import { initials, fmtRelative, fmtDate } from "@/lib/format";
 import {
-  Search, Plus, MoreHorizontal, Mail, Edit3, Trash2, BookOpen, ListChecks, ArrowRight,
+  Search, Plus, MoreHorizontal, Mail, Edit3, Trash2, BookOpen, ListChecks, ArrowRight, Phone,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
@@ -181,6 +181,11 @@ export function AdminTeachersView({ teachers, modules, approvedByModule, totalBy
                 <div className="flex-1 min-w-0">
                   <div className="font-semibold">{t.name}</div>
                   <div className="text-xs text-muted-foreground">{t.email}</div>
+                  {t.phone && (
+                    <div className="text-xs text-muted-foreground flex items-center gap-1 mt-0.5">
+                      <Phone className="size-3" /> {t.phone}
+                    </div>
+                  )}
                   <p className="text-sm text-foreground/80 mt-2">{t.bio}</p>
                 </div>
               </div>
