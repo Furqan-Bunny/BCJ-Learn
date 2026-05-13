@@ -47,7 +47,7 @@ export function TeacherDashboardView({ me, myModules, attemptsByModule }: Teache
             ? Math.round((moduleAttempts.filter((a) => a.status === "passed").length / moduleAttempts.length) * 100)
             : 0;
           return (
-            <Card key={m.slug} className="overflow-hidden">
+            <Card key={m.slug} className="overflow-hidden h-full flex flex-col">
               <CardHeader className="pb-3">
                 <div className="flex items-start justify-between gap-3">
                   <div>
@@ -57,7 +57,7 @@ export function TeacherDashboardView({ me, myModules, attemptsByModule }: Teache
                   <StatusBadge variant={m.status} />
                 </div>
               </CardHeader>
-              <CardContent>
+              <CardContent className="flex flex-col flex-1">
                 <p className="text-sm text-muted-foreground line-clamp-2">{m.description}</p>
 
                 <div className="mt-5">
@@ -85,7 +85,7 @@ export function TeacherDashboardView({ me, myModules, attemptsByModule }: Teache
                   </div>
                 </div>
 
-                <div className="mt-5 grid grid-cols-2 gap-2">
+                <div className="mt-auto pt-5 grid grid-cols-2 gap-2">
                   <Button asChild size="sm" className="col-span-2">
                     <Link href={`/teacher/modules/${m.slug}/present`}>
                       <PresentationIcon className="mr-1.5 size-3.5" /> Present in seminar

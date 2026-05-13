@@ -38,7 +38,7 @@ export function TeacherModulesView({ me, myModules, otherModules, teachers, defa
       </h3>
       <Stagger className="grid lg:grid-cols-2 gap-4 mb-10">
         {myModules.map((m) => (
-          <StaggerItem key={m.slug}>
+          <StaggerItem key={m.slug} className="h-full">
             <ModuleCard m={m} ownerView />
           </StaggerItem>
         ))}
@@ -60,8 +60,8 @@ export function TeacherModulesView({ me, myModules, otherModules, teachers, defa
 
 function ModuleCard({ m, ownerView }: { m: ModuleDef; ownerView?: boolean }) {
   return (
-    <Card className={`card-lift card-glow ${ownerView ? "border-primary/30" : ""}`}>
-      <CardContent className="p-5">
+    <Card className={`card-lift card-glow h-full flex flex-col ${ownerView ? "border-primary/30" : ""}`}>
+      <CardContent className="p-5 flex flex-col flex-1">
         <div className="flex items-start justify-between gap-3 mb-2">
           <div className="text-xs font-mono text-muted-foreground">
             M{m.number}
@@ -82,7 +82,7 @@ function ModuleCard({ m, ownerView }: { m: ModuleDef; ownerView?: boolean }) {
         </div>
 
         {ownerView ? (
-          <div className="mt-4 grid grid-cols-2 gap-2">
+          <div className="mt-auto pt-4 grid grid-cols-2 gap-2">
             <Button asChild size="sm" className="col-span-2">
               <Link href={`/teacher/modules/${m.slug}/present`}>
                 <PresentationIcon className="mr-1.5 size-3.5" /> Present in seminar
@@ -105,7 +105,7 @@ function ModuleCard({ m, ownerView }: { m: ModuleDef; ownerView?: boolean }) {
             </Button>
           </div>
         ) : (
-          <div className="mt-4 flex items-center justify-end">
+          <div className="mt-auto pt-4 flex items-center justify-end">
             <Button asChild size="sm" variant="ghost">
               <Link href={`/teacher/modules/${m.slug}`}>
                 Open <ArrowRight className="ml-1 size-3.5" />

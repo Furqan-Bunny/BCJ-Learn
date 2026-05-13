@@ -76,13 +76,13 @@ export function ResourcesEmployeeView({ initialResources }: { initialResources: 
           <h3 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground mb-3">{cat}</h3>
           <Stagger className="grid lg:grid-cols-2 gap-3">
             {list.map((r) => (
-              <StaggerItem key={r.id}>
+              <StaggerItem key={r.id} className="h-full">
                 <button
                   onClick={() => setViewing(r)}
-                  className="w-full text-left"
+                  className="w-full text-left h-full"
                 >
-                  <Card className={`card-lift ${r.ackStatus === "new" ? "border-amber-500/40" : r.ackStatus === "updated" ? "border-rose-500/40" : ""}`}>
-                    <CardContent className="p-4">
+                  <Card className={`card-lift h-full ${r.ackStatus === "new" ? "border-amber-500/40" : r.ackStatus === "updated" ? "border-rose-500/40" : ""}`}>
+                    <CardContent className="p-4 h-full">
                       <div className="flex items-start gap-3">
                         <div className="size-9 rounded-md bg-primary/10 text-primary flex items-center justify-center shrink-0">
                           <FileText className="size-4" />
