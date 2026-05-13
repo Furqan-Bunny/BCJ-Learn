@@ -14,6 +14,7 @@ import { initials, fmtRelative, fmtDate } from "@/lib/format";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 import { updateUserAsAdmin } from "@/lib/server/admin-actions";
+import { AddStaffSheet } from "@/components/admin/add-staff-sheet";
 import type { Admin, ActivityEvent } from "@/types";
 
 const PERMISSIONS = [
@@ -46,11 +47,7 @@ export function AdminAdminsView({ admins, activityByActor }: AdminAdminsViewProp
         eyebrow="People"
         title="Administrators"
         description={`${admins.length} BCJ leadership members with full platform access. Be careful who you grant this role to.`}
-        actions={
-          <Button>
-            <Plus className="mr-2 size-4" /> Invite admin
-          </Button>
-        }
+        actions={<AddStaffSheet role="admin" />}
       />
 
       <div className="flex items-center gap-3 mb-4 max-w-md">
