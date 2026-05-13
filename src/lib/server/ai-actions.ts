@@ -13,6 +13,7 @@
 // authorisation explicitly so errors are user-friendly.
 
 import { createClient, createAdminClient } from "@/lib/supabase/server";
+import { pushInAppNotification } from "@/lib/notifications/push";
 import { claudeClient, DEFAULT_MODEL } from "@/lib/ai/claude";
 import {
   QUESTION_GEN_SYSTEM,
@@ -312,6 +313,33 @@ export async function approveQuestion(questionId: string): Promise<{ ok: boolean
     target_id: null,
     message: `Approved a question for module ${slug}`,
   });
+
+  // Notify the module's owning teacher(s) — skip the actor (they already know).
+  const { data: ownerRows } = await admin
+    .from("module_owners")
+    .select("teacher_id")
+    .eq("module_slug", slug);
+  const { data: modRow } = await admin
+    .from("modules")
+    .select("title")
+    .eq("slug", slug)
+    .maybeSingle();
+  const moduleTitle = (modRow as { title?: string } | null)?.title ?? slug;
+  const ownerIds = ((ownerRows ?? []) as { teacher_id: string }[])
+    .map((r) => r.teacher_id)
+    .filter((id) => id !== user.id);
+
+  await Promise.all(
+    ownerIds.map((teacherId) =>
+      pushInAppNotification({
+        recipientId: teacherId,
+        kind: "result",
+        subject: `Question approved — ${moduleTitle}`,
+        preview: `A question in your ${moduleTitle} bank was approved.`,
+        href: `/teacher/modules/${slug}/questions`,
+      }),
+    ),
+  );
 
   revalidatePath(`/teacher/modules/${slug}/questions`);
   revalidatePath(`/admin/questions`);

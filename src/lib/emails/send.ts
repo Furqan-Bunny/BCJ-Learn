@@ -36,6 +36,8 @@ export interface SendEmailInput {
   variables: Record<string, string>;
   /** Optional override; if omitted we look up by templateKey from `email_templates`. */
   recipientUserId?: string;
+  /** Optional deep link persisted on the notification row for in-app click-through. */
+  href?: string | null;
 }
 
 export interface SendEmailResult {
@@ -90,7 +92,8 @@ export async function sendEmail(input: SendEmailInput): Promise<SendEmailResult>
   const bodyHtml = renderMarkdown(bodyMd);
   const preview = bodyMd.replace(/[#*_>`-]/g, "").trim().slice(0, 140);
 
-  // 3. Log to notifications table so it shows up in the admin Recent sends UI.
+  // 3. Log to notifications table so it shows up in the admin Recent sends UI
+  //    and in the recipient's in-app bell.
   const recipients = Array.isArray(input.to) ? input.to : [input.to];
   if (input.recipientUserId) {
     await admin.from("notifications").insert({
@@ -99,6 +102,7 @@ export async function sendEmail(input: SendEmailInput): Promise<SendEmailResult>
       subject,
       preview,
       body: bodyHtml,
+      href: input.href ?? null,
     });
   }
 

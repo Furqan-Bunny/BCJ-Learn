@@ -2,6 +2,7 @@
 
 import { createClient, createAdminClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
+import { pushInAppNotification } from "@/lib/notifications/push";
 import type { Cohort, ManagerStatus, Role } from "@/types";
 
 // ─── Guard ────────────────────────────────────────────────
@@ -198,6 +199,14 @@ export async function deactivateUser(userId: string) {
 
   await logActivity("user_deactivated", guard.userId, `${guard.userName} deactivated ${targetName}`, userId);
 
+  await pushInAppNotification({
+    recipientId: userId,
+    kind: "alert",
+    subject: "Your account has been deactivated",
+    preview: `Your BCJ Learn access was deactivated by ${guard.userName}. Contact an admin if this is unexpected.`,
+    href: null,
+  });
+
   revalidatePath("/admin/managers");
   revalidatePath(`/admin/managers/${userId}`);
   return { ok: true as const };
@@ -219,6 +228,14 @@ export async function reactivateUser(userId: string) {
   const targetName = (profile as { name?: string } | null)?.name ?? "user";
 
   await logActivity("user_added", guard.userId, `${guard.userName} reactivated ${targetName}`, userId);
+
+  await pushInAppNotification({
+    recipientId: userId,
+    kind: "alert",
+    subject: "Welcome back — your account has been reactivated",
+    preview: `Your BCJ Learn access was restored by ${guard.userName}. Sign in to pick up where you left off.`,
+    href: "/login",
+  });
 
   revalidatePath("/admin/managers");
   revalidatePath(`/admin/managers/${userId}`);

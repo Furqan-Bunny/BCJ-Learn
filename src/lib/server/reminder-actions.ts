@@ -68,6 +68,7 @@ export async function sendReminder(managerId: string, moduleSlug?: string): Prom
     to: email,
     templateKey: "overdue_reminder",
     recipientUserId: managerId,
+    href: moduleSlug ? `/manager/modules/${moduleSlug}` : "/manager/dashboard",
     variables: { name, module_title: moduleTitle, due_date: dueDate, quiz_link: quizLink },
   });
   if (!res.ok) return { ok: false, error: res.error };

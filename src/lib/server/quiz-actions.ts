@@ -189,6 +189,7 @@ async function sendQuizResultEmail(
       to: email,
       templateKey: "quiz_passed",
       recipientUserId: userId,
+      href: "/manager/progress",
       variables: {
         name,
         module_title: title,
@@ -202,6 +203,7 @@ async function sendQuizResultEmail(
       to: email,
       templateKey: "quiz_failed",
       recipientUserId: userId,
+      href: `/manager/modules/${moduleSlug}`,
       variables: {
         name,
         module_title: title,
