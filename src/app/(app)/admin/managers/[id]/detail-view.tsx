@@ -16,6 +16,7 @@ import {
   AlertTriangle,
   CheckCircle2,
   Clock,
+  Phone,
 } from "lucide-react";
 import { PageHeader } from "@/components/shared/page-header";
 import { StatusBadge } from "@/components/shared/status-badge";
@@ -168,6 +169,7 @@ export function ManagerDetailView({ m, modules, myAttempts, deliveriesByModule }
             <CardContent className="p-5 space-y-4">
               <Field icon={Calendar} label="Joined" value={fmtDate(m.joinedAt)} />
               <Field icon={Clock} label="Last active" value={fmtRelative(m.lastActiveAt)} />
+              <Field icon={Phone} label="Phone" value={m.phone ?? "—"} />
               <Field icon={Trophy} label="Modules passed" value={`${m.modulesCompleted} of 5`} />
               <Field icon={Trophy} label="Avg score" value={m.averageScore ? `${m.averageScore}%` : "—"} />
               {m.failedAttempts > 0 && (

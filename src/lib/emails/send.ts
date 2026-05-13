@@ -44,8 +44,33 @@ export interface SendEmailResult {
   messageId?: string;
 }
 
+// Map opt-outable templates to a key in `profiles.notification_prefs`.
+// Transactional templates (invite, password_reset, welcome) are absent — the
+// gate is a no-op for them, so they always send.
+const PREF_KEY_BY_TEMPLATE: Partial<Record<TemplateKey, "quiz_results" | "training_reminders" | "at_risk_alerts">> = {
+  quiz_passed:      "quiz_results",
+  quiz_failed:      "quiz_results",
+  overdue_reminder: "training_reminders",
+  at_risk_alert:    "at_risk_alerts",
+};
+
 export async function sendEmail(input: SendEmailInput): Promise<SendEmailResult> {
   const admin = createAdminClient();
+
+  // 0. Respect recipient notification preferences for opt-outable templates.
+  //    Missing key → opted-in. Explicit `false` → skip send + skip log.
+  const prefKey = PREF_KEY_BY_TEMPLATE[input.templateKey];
+  if (prefKey && input.recipientUserId) {
+    const { data: prefRow } = await admin
+      .from("profiles")
+      .select("notification_prefs")
+      .eq("id", input.recipientUserId)
+      .maybeSingle();
+    const prefs = ((prefRow as { notification_prefs?: Record<string, boolean> } | null)?.notification_prefs ?? {}) as Record<string, boolean>;
+    if (prefs[prefKey] === false) {
+      return { ok: true, messageId: "opted_out" };
+    }
+  }
 
   // 1. Look up the editable template.
   const { data: templateRow, error: templateErr } = await admin

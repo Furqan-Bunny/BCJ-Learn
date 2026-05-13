@@ -18,6 +18,7 @@ export interface User {
   cohort?: Cohort;
   joinedAt: string; // ISO
   lastActiveAt: string; // ISO
+  phone?: string | null;
 }
 
 export interface Manager extends User {
