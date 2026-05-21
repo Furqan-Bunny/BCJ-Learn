@@ -81,8 +81,12 @@ export function NotificationsInboxView({ items: initial, initialUnreadCount }: N
 
   return (
     <div className="space-y-4">
+      {/* Visually-hidden live region — announces unread-count changes to screen readers. */}
+      <span className="sr-only" role="status" aria-live="polite" aria-atomic="true">
+        {unreadCount > 0 ? `${unreadCount} unread notifications` : "No unread notifications"}
+      </span>
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex flex-wrap gap-1.5">
+        <div className="flex flex-wrap gap-1.5" role="group" aria-label="Filter notifications">
           {FILTERS.map((f) => {
             const active = filter === f.id;
             return (
@@ -91,11 +95,12 @@ export function NotificationsInboxView({ items: initial, initialUnreadCount }: N
                 variant={active ? "default" : "outline"}
                 size="sm"
                 className="h-8 text-xs"
+                aria-pressed={active}
                 onClick={() => setFilter(f.id)}
               >
                 {f.label}
                 {f.id === "unread" && unreadCount > 0 && (
-                  <Badge variant="secondary" className="ml-1.5 text-[10px] font-mono">
+                  <Badge aria-hidden="true" variant="secondary" className="ml-1.5 text-[10px] font-mono">
                     {unreadCount}
                   </Badge>
                 )}
@@ -104,7 +109,7 @@ export function NotificationsInboxView({ items: initial, initialUnreadCount }: N
           })}
         </div>
         <Button variant="outline" size="sm" onClick={handleMarkAllRead} disabled={unreadCount === 0}>
-          <CheckCheck className="size-4 mr-1.5" /> Mark all read
+          <CheckCheck aria-hidden="true" className="size-4 mr-1.5" /> Mark all read
         </Button>
       </div>
 
@@ -131,12 +136,14 @@ export function NotificationsInboxView({ items: initial, initialUnreadCount }: N
                 <button
                   type="button"
                   onClick={() => handleClickItem(item)}
+                  aria-label={`${item.subject}, ${item.kind}, ${fmtRelative(item.sentAt)}${item.opened ? "" : ", unread"}`}
                   className={cn(
                     "w-full text-left rounded-lg border bg-card hover:bg-accent/50 transition-colors px-4 py-3 flex gap-3",
                     !item.opened && "bg-primary/[0.04] border-primary/30",
                   )}
                 >
                   <div
+                    aria-hidden="true"
                     className={cn(
                       "size-10 rounded-md flex items-center justify-center shrink-0",
                       KIND_TONE[item.kind],
@@ -154,11 +161,11 @@ export function NotificationsInboxView({ items: initial, initialUnreadCount }: N
                       >
                         {item.subject}
                       </p>
-                      <Badge variant="outline" className="text-[10px] capitalize font-mono">
+                      <Badge aria-hidden="true" variant="outline" className="text-[10px] capitalize font-mono">
                         {item.kind}
                       </Badge>
                       {!item.opened && (
-                        <span className="size-1.5 rounded-full bg-primary" />
+                        <span aria-hidden="true" className="size-1.5 rounded-full bg-primary" />
                       )}
                     </div>
                     <p className="text-sm text-muted-foreground mt-1 line-clamp-2">
@@ -169,7 +176,7 @@ export function NotificationsInboxView({ items: initial, initialUnreadCount }: N
                     </p>
                   </div>
                   {item.href && (
-                    <ArrowRight className="size-4 text-muted-foreground shrink-0 mt-1" />
+                    <ArrowRight aria-hidden="true" className="size-4 text-muted-foreground shrink-0 mt-1" />
                   )}
                 </button>
               </li>

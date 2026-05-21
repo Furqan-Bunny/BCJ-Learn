@@ -131,7 +131,12 @@ function isActive(pathname: string, href: string): boolean {
   return pathname.startsWith(href);
 }
 
-export function Sidebar() {
+interface SidebarProps {
+  logoUrl?: string | null;
+  brandName?: string;
+}
+
+export function Sidebar({ logoUrl, brandName = "BCJ Learn" }: SidebarProps) {
   const role = useRoleStore((s) => s.role);
   const pathname = usePathname();
   const reduced = !!useReducedMotion();
@@ -227,14 +232,25 @@ export function Sidebar() {
           collapsed && "justify-center px-2",
         )}
       >
-        <div className="flex items-center justify-center size-9 rounded-lg bg-primary text-primary-foreground shrink-0">
-          <Sparkles className="size-4" />
-        </div>
-        {!collapsed && (
-          <div className="flex flex-col min-w-0 flex-1">
-            <span className="font-semibold tracking-tight truncate">BCJ Learn</span>
-            <span className="text-[11px] text-muted-foreground -mt-0.5">Academy v1</span>
-          </div>
+        {logoUrl ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={logoUrl}
+            alt={brandName}
+            className={cn("w-auto object-contain", collapsed ? "h-7 mx-auto" : "h-9")}
+          />
+        ) : (
+          <>
+            <div className="flex items-center justify-center size-9 rounded-lg bg-primary text-primary-foreground shrink-0">
+              <Sparkles className="size-4" />
+            </div>
+            {!collapsed && (
+              <div className="flex flex-col min-w-0 flex-1">
+                <span className="font-semibold tracking-tight truncate">{brandName}</span>
+                <span className="text-[11px] text-muted-foreground -mt-0.5">Academy v1</span>
+              </div>
+            )}
+          </>
         )}
       </div>
 

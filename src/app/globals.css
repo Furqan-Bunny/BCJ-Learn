@@ -69,14 +69,14 @@
   --popover-foreground: #0F172A;
 
   /* Brand: BCJ navy */
-  --primary: #1F3A5F;
+  --primary: #041D39;
   --primary-foreground: #FFFFFF;
-  --brand: #1F3A5F;
+  --brand: #041D39;
   --brand-foreground: #FFFFFF;
 
   /* Gold accent */
-  --gold: #C89B5C;
-  --gold-foreground: #1F3A5F;
+  --gold: #49FFAA;
+  --gold-foreground: #041D39;
 
   /* Status colors */
   --success: #10B981;
@@ -99,11 +99,11 @@
 
   --border: #E2E8F0;
   --input: #E2E8F0;
-  --ring: #1F3A5F;
+  --ring: #041D39;
 
   /* Charts: brand-aligned */
-  --chart-1: #1F3A5F;
-  --chart-2: #C89B5C;
+  --chart-1: #041D39;
+  --chart-2: #49FFAA;
   --chart-3: #10B981;
   --chart-4: #F59E0B;
   --chart-5: #8B5CF6;
@@ -112,12 +112,12 @@
 
   --sidebar: #FFFFFF;
   --sidebar-foreground: #0F172A;
-  --sidebar-primary: #1F3A5F;
+  --sidebar-primary: #041D39;
   --sidebar-primary-foreground: #FFFFFF;
   --sidebar-accent: #F1F5F9;
   --sidebar-accent-foreground: #0F172A;
   --sidebar-border: #E2E8F0;
-  --sidebar-ring: #1F3A5F;
+  --sidebar-ring: #041D39;
 }
 
 .dark {
@@ -133,7 +133,7 @@
   --brand: #5B83B5;
   --brand-foreground: #FFFFFF;
 
-  --gold: #D4AF74;
+  --gold: #49FFAA;
   --gold-foreground: #0F172A;
 
   --success: #34D399;
@@ -158,7 +158,7 @@
   --ring: #5B83B5;
 
   --chart-1: #5B83B5;
-  --chart-2: #D4AF74;
+  --chart-2: #49FFAA;
   --chart-3: #34D399;
   --chart-4: #FBBF24;
   --chart-5: #A78BFA;

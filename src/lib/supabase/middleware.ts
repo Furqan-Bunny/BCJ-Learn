@@ -8,8 +8,9 @@ import type { Database } from "./types";
 
 const DEMO_MODE = process.env.NEXT_PUBLIC_DEMO_MODE === "true";
 
-// Paths that don't need authentication.
-const PUBLIC_PATHS = ["/login", "/auth/callback", "/auth/confirm"];
+// Paths that don't need the session gate. API routes authenticate themselves
+// (e.g. /api/cron/* checks CRON_SECRET), so they must not be redirected to /login.
+const PUBLIC_PATHS = ["/login", "/auth/callback", "/auth/confirm", "/api"];
 
 function isPublic(pathname: string): boolean {
   return PUBLIC_PATHS.some((p) => pathname === p || pathname.startsWith(p + "/"));

@@ -25,7 +25,7 @@ export default function AcceptInvitePage() {
   const [email, setEmail] = React.useState("");
   const [name, setName] = React.useState("");
   const [avatarUrl, setAvatarUrl] = React.useState<string | null>(null);
-  const [avatarColor, setAvatarColor] = React.useState("#1F3A5F");
+  const [avatarColor, setAvatarColor] = React.useState("#041D39");
   const [password, setPassword] = React.useState("");
   const [confirm, setConfirm] = React.useState("");
   const [uploading, setUploading] = React.useState(false);

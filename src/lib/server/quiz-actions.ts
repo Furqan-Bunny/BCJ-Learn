@@ -13,6 +13,7 @@
 import { createClient, createAdminClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
 import { sendEmail } from "@/lib/emails/send";
+import { decideQuizPool } from "@/lib/quiz-pool";
 import type { QuestionPool } from "@/types";
 
 export interface QuizQuestion {
@@ -51,14 +52,11 @@ export async function startQuiz(moduleSlug: string): Promise<StartQuizResult> {
 
   const rows = (priorAttempts ?? []) as { pool: QuestionPool; status: string; started_at: string }[];
 
-  if (rows.some((a) => a.status === "passed")) {
+  const decision = decideQuizPool(rows);
+  if (decision.kind === "passed") {
     return { ok: false, error: "You have already passed this module." };
   }
-
-  // Pool decision: if there's a prior failed first-attempt and no later pass,
-  // serve the retake pool. Otherwise serve first-attempt.
-  const failedFirst = rows.some((a) => a.pool === "first-attempt" && a.status === "failed");
-  const pool: QuestionPool = failedFirst ? "retake" : "first-attempt";
+  const pool: QuestionPool = decision.pool;
 
   const { data, error } = await sb.rpc("start_quiz_attempt", {
     p_module_slug: moduleSlug,

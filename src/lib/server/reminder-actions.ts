@@ -6,6 +6,7 @@
 import { createClient, createAdminClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
 import { sendEmail, type TemplateKey } from "@/lib/emails/send";
+import { buildSampleVars } from "@/lib/emails/sample-vars";
 import type { Role } from "@/types";
 
 const DEMO_MODE = process.env.NEXT_PUBLIC_DEMO_MODE === "true";
@@ -110,25 +111,10 @@ export async function sendTestEmail(templateKey: TemplateKey): Promise<{ ok: boo
     to: guard.userEmail,
     templateKey,
     recipientUserId: guard.userId,
-    variables: {
+    variables: buildSampleVars({
       name: guard.userName,
-      module_title: "Sample Module",
-      score: "92",
-      next_module_date: "next month",
-      due_date: "Friday",
-      invite_link: `${process.env.NEXT_PUBLIC_APP_URL ?? ""}/auth/accept-invite`,
-      reset_link: `${process.env.NEXT_PUBLIC_APP_URL ?? ""}/auth/reset-password`,
-      app_url: process.env.NEXT_PUBLIC_APP_URL ?? "",
-      progress_link: `${process.env.NEXT_PUBLIC_APP_URL ?? ""}/manager/progress`,
-      retake_link: `${process.env.NEXT_PUBLIC_APP_URL ?? ""}/manager/dashboard`,
-      quiz_link: `${process.env.NEXT_PUBLIC_APP_URL ?? ""}/manager/dashboard`,
-      first_module_date: "next month",
-      employee_name: "Sample Employee",
-      admin_name: guard.userName,
-      cohort: "Atlanta",
-      reason: "two failed retakes",
-      profile_link: `${process.env.NEXT_PUBLIC_APP_URL ?? ""}/admin/managers`,
-    },
+      appUrl: process.env.NEXT_PUBLIC_APP_URL,
+    }),
   });
   if (!res.ok) return { ok: false, error: res.error };
   return { ok: true, to: guard.userEmail };

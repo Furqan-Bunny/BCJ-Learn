@@ -5,9 +5,13 @@ import { RouteProgress } from "@/components/layout/route-progress";
 import { WelcomeModal } from "@/components/onboarding/welcome-modal";
 import { getCurrentUser } from "@/lib/supabase/current-user";
 import { listMyNotifications, getMyUnreadCount } from "@/lib/db/notifications";
+import { getBrandingSettings } from "@/lib/db/settings";
+import { resolveBrandingLogoUrl } from "@/lib/branding";
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const user = await getCurrentUser();
+  const branding = await getBrandingSettings();
+  const logoUrl = resolveBrandingLogoUrl(branding.logoPath);
   const [items, unreadCount] = user
     ? await Promise.all([listMyNotifications(20), getMyUnreadCount()])
     : [[], 0];
@@ -15,7 +19,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   return (
     <div className="flex min-h-screen">
       <RouteProgress />
-      <Sidebar />
+      <Sidebar logoUrl={logoUrl} brandName={branding.name} />
       <div className="flex-1 flex flex-col min-w-0">
         <Topbar
           userId={user?.id ?? null}
