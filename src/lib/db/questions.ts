@@ -69,6 +69,54 @@ export async function listQuestionsForModule(slug: string, pool?: QuestionPool):
   return hydrate(qRows, optsByQ);
 }
 
+// ─── Version history ───────────────────────────────────────────────────
+
+export interface QuestionVersion {
+  id: string;
+  versionNumber: number;
+  text: string;
+  explanation: string | null;
+  options: { text: string; correct: boolean; order: number }[];
+  status: QuestionStatus;
+  changeReason: string;
+  changedBy: string | null;
+  createdAt: string;
+}
+
+interface QuestionVersionRow {
+  id: string;
+  question_id: string;
+  version_number: number;
+  text: string;
+  explanation: string | null;
+  options: { text: string; correct: boolean; order: number }[] | null;
+  status: QuestionStatus;
+  change_reason: string;
+  changed_by: string | null;
+  created_at: string;
+}
+
+export async function listQuestionVersions(questionId: string): Promise<QuestionVersion[]> {
+  const sb = await dbClient();
+  const { data } = await sb
+    .from("question_versions")
+    .select("*")
+    .eq("question_id", questionId)
+    .order("version_number", { ascending: false });
+
+  return ((data ?? []) as QuestionVersionRow[]).map((r) => ({
+    id: r.id,
+    versionNumber: r.version_number,
+    text: r.text,
+    explanation: r.explanation,
+    options: r.options ?? [],
+    status: r.status,
+    changeReason: r.change_reason,
+    changedBy: r.changed_by,
+    createdAt: r.created_at,
+  }));
+}
+
 export async function listQuestions(): Promise<Question[]> {
   const sb = await dbClient();
   const { data: questions } = await sb.from("questions").select("*");

@@ -66,6 +66,10 @@ export default function LoginPage() {
   const [forgotSubmitting, setForgotSubmitting] = React.useState(false);
   const [forgotSent, setForgotSent] = React.useState(false);
 
+  // Brand logo (public branding bucket). Falls back to the icon mark on error.
+  const logoUrl = `${process.env.NEXT_PUBLIC_SUPABASE_URL ?? ""}/storage/v1/object/public/branding/bcj-logo.png`;
+  const [logoOk, setLogoOk] = React.useState(true);
+
   async function handleForgotPassword(e: React.FormEvent) {
     e.preventDefault();
     if (!forgotEmail) return;
@@ -150,10 +154,22 @@ export default function LoginPage() {
             transition={{ duration: 0.5, delay: 0.1 }}
             className="flex items-center gap-2 mb-12"
           >
-            <div className="flex items-center justify-center size-10 rounded-lg bg-primary-foreground/10">
-              <Sparkles className="size-5" />
-            </div>
-            <div className="font-semibold text-lg tracking-tight">BCJ Learn</div>
+            {logoOk ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={logoUrl}
+                alt="BCJ Building Services"
+                onError={() => setLogoOk(false)}
+                className="h-11 w-auto object-contain rounded-md bg-white px-3 py-1.5"
+              />
+            ) : (
+              <>
+                <div className="flex items-center justify-center size-10 rounded-lg bg-primary-foreground/10">
+                  <Sparkles className="size-5" />
+                </div>
+                <div className="font-semibold text-lg tracking-tight">BCJ Learn</div>
+              </>
+            )}
           </motion.div>
           <motion.h1
             initial={{ opacity: 0, y: 12 }}
@@ -206,10 +222,22 @@ export default function LoginPage() {
           className="w-full max-w-md"
         >
           <div className="lg:hidden flex items-center gap-2 mb-10">
-            <div className="flex items-center justify-center size-9 rounded-lg bg-primary text-primary-foreground">
-              <Sparkles className="size-4" />
-            </div>
-            <div className="font-semibold tracking-tight">BCJ Learn</div>
+            {logoOk ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={logoUrl}
+                alt="BCJ Building Services"
+                onError={() => setLogoOk(false)}
+                className="h-9 w-auto object-contain"
+              />
+            ) : (
+              <>
+                <div className="flex items-center justify-center size-9 rounded-lg bg-primary text-primary-foreground">
+                  <Sparkles className="size-4" />
+                </div>
+                <div className="font-semibold tracking-tight">BCJ Learn</div>
+              </>
+            )}
           </div>
 
           <Badge variant="outline" className="mb-3 text-[10px] uppercase tracking-wider">

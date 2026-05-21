@@ -27,7 +27,7 @@ interface UserAvatarProps {
 export function UserAvatar({
   name,
   avatarUrl,
-  avatarColor = "#1F3A5F",
+  avatarColor = "#041D39",
   size = "default",
   className,
 }: UserAvatarProps) {

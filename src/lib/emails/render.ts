@@ -11,6 +11,9 @@ marked.use({
   breaks: true,
 });
 
+// Brand logo (public branding bucket) shown at the top of every email.
+const LOGO_URL = `${process.env.NEXT_PUBLIC_SUPABASE_URL ?? ""}/storage/v1/object/public/branding/bcj-logo.png`;
+
 export function renderMarkdown(md: string): string {
   // marked.parse with async:false returns a string synchronously.
   const html = marked.parse(md) as string;
@@ -24,9 +27,12 @@ export function renderMarkdown(md: string): string {
   </head>
   <body style="margin:0;padding:24px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif;color:#1f2937;background:#ffffff;line-height:1.5">
     <div style="max-width:560px;margin:0 auto">
+      <div style="text-align:center;padding-bottom:20px">
+        <img src="${LOGO_URL}" alt="BCJ Building Services" style="height:40px;width:auto" />
+      </div>
       ${html}
       <hr style="border:none;border-top:1px solid #e5e7eb;margin:32px 0 16px" />
-      <p style="font-size:12px;color:#9ca3af;margin:0">BCJ Learn — internal training platform.</p>
+      <p style="font-size:12px;color:#9ca3af;margin:0">BCJ Building Services — internal training platform.</p>
     </div>
   </body>
 </html>`;

@@ -16,6 +16,7 @@ import { fmtRelative } from "@/lib/format";
 import { toast } from "sonner";
 import { updateEmailTemplate } from "@/lib/server/email-template-actions";
 import { sendTestEmail } from "@/lib/server/reminder-actions";
+import { EmailPreviewDialog } from "@/components/admin/email-preview-dialog";
 import { updateReminderRules } from "@/lib/server/settings-actions";
 import type { NotificationItem } from "@/types";
 import type { ReminderRules } from "@/lib/db/settings";
@@ -142,6 +143,7 @@ export function NotificationsView({ recent, initialRules, profilesById }: Notifi
                       <Button onClick={() => handleSaveTemplate(t.label)} disabled={saving}>
                         {saving ? "Saving…" : "Save changes"}
                       </Button>
+                      <EmailPreviewDialog subject={subject} bodyMarkdown={body} />
                       <Button variant="outline" onClick={handleSendTest} disabled={testing}>
                         {testing ? (
                           <><Loader2 className="size-3.5 mr-1.5 animate-spin" /> Sending…</>

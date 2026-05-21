@@ -12,6 +12,7 @@ import {
 import { cn } from "@/lib/utils";
 import type { LessonContent, ContentType } from "@/types";
 import { signedUrlForContent } from "@/lib/supabase/storage";
+import { saveVideoProgress, getVideoProgress } from "@/lib/server/progress-actions";
 
 const TYPE_META: Record<ContentType, { icon: React.ComponentType<{ className?: string }>; label: string; tint: string }> = {
   video:    { icon: PlayCircle, label: "Video",    tint: "text-rose-600 bg-rose-100 dark:text-rose-300 dark:bg-rose-950/40" },
@@ -23,10 +24,11 @@ const TYPE_META: Record<ContentType, { icon: React.ComponentType<{ className?: s
 interface ContentViewerProps {
   content: LessonContent | null;
   onClose: () => void;
+  moduleSlug?: string;
 }
 
 /** Read-only viewer used by managers for OPTIONAL pre-study (per scope §5.1.3). */
-export function ContentViewer({ content, onClose }: ContentViewerProps) {
+export function ContentViewer({ content, onClose, moduleSlug }: ContentViewerProps) {
   // External links open in a new tab — no need for a modal
   React.useEffect(() => {
     if (content && content.type === "link" && content.externalUrl) {
@@ -69,7 +71,7 @@ export function ContentViewer({ content, onClose }: ContentViewerProps) {
           {/* Uploaded file (any type) — generate a signed URL and render
              appropriately. Falls back to legacy fields if no storage path. */}
           {content.storagePath ? (
-            <StoredFileViewer content={content} />
+            <StoredFileViewer content={content} moduleSlug={moduleSlug} />
           ) : (
             <>
               {content.type === "video" && content.videoUrl && (
@@ -77,6 +79,7 @@ export function ContentViewer({ content, onClose }: ContentViewerProps) {
                   <iframe
                     src={`${content.videoUrl}${content.videoUrl.includes("?") ? "&" : "?"}rel=0&modestbranding=1`}
                     className="w-full h-full"
+                    loading="lazy"
                     allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                     allowFullScreen
                     title={content.title}
@@ -109,7 +112,7 @@ export function ContentViewer({ content, onClose }: ContentViewerProps) {
  * short-lived signed URL on open. PDFs/MP4s embed inline; binary formats
  * (Word, PowerPoint) fall back to a download button.
  */
-function StoredFileViewer({ content }: { content: LessonContent }) {
+function StoredFileViewer({ content, moduleSlug }: { content: LessonContent; moduleSlug?: string }) {
   const [url, setUrl] = React.useState<string | null>(null);
   const [error, setError] = React.useState<string | null>(null);
 
@@ -142,15 +145,11 @@ function StoredFileViewer({ content }: { content: LessonContent }) {
   const isMp4 = ext === "mp4" || ext === "webm" || ext === "mov";
 
   if (content.type === "video" && isMp4) {
-    return (
-      <div className="aspect-video bg-black">
-        <video src={url} controls className="w-full h-full" />
-      </div>
-    );
+    return <VideoPlayer url={url} contentId={content.id} moduleSlug={moduleSlug} />;
   }
   if (isPdf) {
     return (
-      <iframe src={url} className="w-full h-[70vh] bg-white" title={content.title} />
+      <iframe src={url} loading="lazy" className="w-full h-[70vh] bg-white" title={content.title} />
     );
   }
   // Word / PowerPoint / other — no inline preview; give a download link.
@@ -165,6 +164,63 @@ function StoredFileViewer({ content }: { content: LessonContent }) {
           <Download className="size-4 mr-1.5" /> Download to view
         </a>
       </Button>
+    </div>
+  );
+}
+
+/**
+ * Native video player that records watch progress: resumes from the last
+ * position, saves throttled (~10s) while playing, and on pause/end. Marks
+ * the video complete at 90%+ server-side. No-ops in demo mode.
+ */
+function VideoPlayer({ url, contentId, moduleSlug }: { url: string; contentId: string; moduleSlug?: string }) {
+  const ref = React.useRef<HTMLVideoElement>(null);
+  const lastSaved = React.useRef(0);
+  const resumeRef = React.useRef(0);
+  const metaReady = React.useRef(false);
+
+  const trySeek = React.useCallback(() => {
+    const v = ref.current;
+    if (v && metaReady.current && resumeRef.current > 1 && resumeRef.current < (v.duration || Infinity) - 2) {
+      v.currentTime = resumeRef.current;
+      resumeRef.current = 0; // resume only once
+    }
+  }, []);
+
+  React.useEffect(() => {
+    let cancelled = false;
+    getVideoProgress(contentId).then((p) => {
+      if (cancelled || !p || p.completed) return;
+      resumeRef.current = p.positionSec;
+      trySeek();
+    });
+    return () => { cancelled = true; };
+  }, [contentId, trySeek]);
+
+  function persist() {
+    const v = ref.current;
+    if (!v || !v.duration || Number.isNaN(v.duration)) return;
+    lastSaved.current = Date.now();
+    void saveVideoProgress({
+      lessonContentId: contentId,
+      moduleSlug: moduleSlug ?? null,
+      positionSec: v.currentTime,
+      durationSec: v.duration,
+    });
+  }
+
+  return (
+    <div className="aspect-video bg-black">
+      <video
+        ref={ref}
+        src={url}
+        controls
+        className="w-full h-full"
+        onLoadedMetadata={() => { metaReady.current = true; trySeek(); }}
+        onTimeUpdate={() => { if (Date.now() - lastSaved.current > 10000) persist(); }}
+        onPause={persist}
+        onEnded={persist}
+      />
     </div>
   );
 }

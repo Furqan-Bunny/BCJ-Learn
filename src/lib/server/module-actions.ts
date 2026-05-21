@@ -6,6 +6,7 @@
 import { createClient, createAdminClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
 import { pushInAppNotification } from "@/lib/notifications/push";
+import { getModule, listModuleContentVersions } from "@/lib/db/modules";
 import type { ContentType, Lesson, LessonContent, ModuleStatus, Role } from "@/types";
 
 const DEMO_MODE = process.env.NEXT_PUBLIC_DEMO_MODE === "true";
@@ -178,25 +179,49 @@ export async function createModule(input: CreateModuleInput): Promise<{ ok: bool
   return { ok: true, slug: input.slug };
 }
 
-// ─── updateModuleLessons ───────────────────────────────────────────────
-// Replaces all lessons + lesson_contents for a module. Simpler than a
-// per-lesson diff; lesson_contents cascade on lesson delete.
+// ─── content versioning helpers ────────────────────────────────────────
 
-export async function updateModuleLessons(
+// Snapshot a module's current lessons+contents tree before it's overwritten,
+// so it can be reviewed and restored. Module-level (not per-row) because saving
+// deletes + re-inserts every lesson/content with new IDs. Best-effort.
+async function snapshotModuleContent(
+  admin: ReturnType<typeof createAdminClient>,
+  moduleSlug: string,
+  changeReason: string,
+  userId: string | null,
+): Promise<void> {
+  try {
+    const mod = await getModule(moduleSlug);
+    if (!mod || mod.lessons.length === 0) return;
+    const { data: maxRow } = await admin
+      .from("module_content_versions")
+      .select("version_number")
+      .eq("module_slug", moduleSlug)
+      .order("version_number", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    const nextVersion = ((maxRow as { version_number?: number } | null)?.version_number ?? 0) + 1;
+    await admin.from("module_content_versions").insert({
+      module_slug: moduleSlug,
+      version_number: nextVersion,
+      snapshot: mod.lessons,
+      change_reason: changeReason,
+      changed_by: userId,
+    });
+  } catch {
+    // Non-fatal: versioning is additive; never block the save/restore.
+  }
+}
+
+// Replace all lessons + lesson_contents for a module (delete + re-insert in
+// order). Shared by updateModuleLessons and restoreModuleContentVersion.
+async function replaceLessons(
+  admin: ReturnType<typeof createAdminClient>,
   moduleSlug: string,
   lessons: Lesson[],
 ): Promise<{ ok: boolean; error?: string }> {
-  const guard = await requireAdminOrModuleOwner(moduleSlug);
-  if (!guard.ok) return { ok: false, error: guard.error };
-
-  if (DEMO_MODE) return { ok: true };
-
-  const admin = createAdminClient();
-
-  // Delete existing lessons (cascades to contents).
   await admin.from("lessons").delete().eq("module_slug", moduleSlug);
 
-  // Re-insert in order.
   for (const lesson of lessons) {
     const { data: lessonRow, error: lErr } = await admin
       .from("lessons")
@@ -234,6 +259,70 @@ export async function updateModuleLessons(
       if (cErr) return { ok: false, error: cErr.message };
     }
   }
+  return { ok: true };
+}
+
+// ─── updateModuleLessons ───────────────────────────────────────────────
+// Replaces all lessons + lesson_contents for a module, snapshotting the prior
+// version first. lesson_contents cascade on lesson delete.
+
+export async function updateModuleLessons(
+  moduleSlug: string,
+  lessons: Lesson[],
+): Promise<{ ok: boolean; error?: string }> {
+  const guard = await requireAdminOrModuleOwner(moduleSlug);
+  if (!guard.ok) return { ok: false, error: guard.error };
+
+  if (DEMO_MODE) return { ok: true };
+
+  const admin = createAdminClient();
+
+  // Preserve the current content as a version before overwriting.
+  await snapshotModuleContent(admin, moduleSlug, "edited", guard.userId);
+
+  const res = await replaceLessons(admin, moduleSlug, lessons);
+  if (!res.ok) return res;
+
+  revalidatePath(`/teacher/modules/${moduleSlug}`);
+  revalidatePath(`/teacher/modules/${moduleSlug}/content`);
+  revalidatePath(`/admin/modules/${moduleSlug}`);
+  revalidatePath(`/manager/modules/${moduleSlug}`);
+  return { ok: true };
+}
+
+// ─── content version history: list + restore ───────────────────────────
+
+export async function getModuleContentVersions(moduleSlug: string) {
+  const guard = await requireAdminOrModuleOwner(moduleSlug);
+  if (!guard.ok) return { ok: false as const, error: guard.error };
+  const versions = await listModuleContentVersions(moduleSlug);
+  return { ok: true as const, versions };
+}
+
+export async function restoreModuleContentVersion(
+  moduleSlug: string,
+  versionNumber: number,
+): Promise<{ ok: boolean; error?: string }> {
+  const guard = await requireAdminOrModuleOwner(moduleSlug);
+  if (!guard.ok) return { ok: false, error: guard.error };
+
+  if (DEMO_MODE) return { ok: true };
+
+  const admin = createAdminClient();
+  const { data: verRow } = await admin
+    .from("module_content_versions")
+    .select("snapshot")
+    .eq("module_slug", moduleSlug)
+    .eq("version_number", versionNumber)
+    .maybeSingle();
+  if (!verRow) return { ok: false, error: "Version not found" };
+  const lessons = ((verRow as { snapshot?: Lesson[] }).snapshot ?? []) as Lesson[];
+
+  // Snapshot the current state before reverting, so a restore is reversible.
+  await snapshotModuleContent(admin, moduleSlug, "restored", guard.userId);
+
+  const res = await replaceLessons(admin, moduleSlug, lessons);
+  if (!res.ok) return res;
 
   revalidatePath(`/teacher/modules/${moduleSlug}`);
   revalidatePath(`/teacher/modules/${moduleSlug}/content`);

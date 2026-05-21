@@ -5,6 +5,14 @@ import { listManagers } from "@/lib/db/profiles";
 import { listDeliveriesForModule, getCurrentDelivery } from "@/lib/db/deliveries";
 import { getModuleRoster, getModuleRosterCounts } from "@/lib/db/roster";
 import { TeacherModuleView } from "./module-view";
+import type { Metadata } from "next";
+
+export async function generateMetadata(props: PageProps<"/teacher/modules/[slug]">): Promise<Metadata> {
+  const { slug } = await props.params;
+  const mod = await getModule(slug);
+  if (!mod) return { title: "Module" };
+  return { title: `${mod.title} — Module ${mod.number}`, description: mod.description };
+}
 
 export default async function TeacherModulePage(props: PageProps<"/teacher/modules/[slug]">) {
   const { slug } = await props.params;
