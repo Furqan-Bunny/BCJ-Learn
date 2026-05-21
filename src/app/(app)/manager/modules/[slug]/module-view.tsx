@@ -183,7 +183,7 @@ export function ManagerModuleView({
         </span>
       </div>
 
-      <ContentViewer content={previewing} onClose={() => setPreviewing(null)} />
+      <ContentViewer content={previewing} onClose={() => setPreviewing(null)} moduleSlug={mod.slug} />
     </>
   );
 }

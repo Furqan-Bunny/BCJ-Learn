@@ -280,7 +280,7 @@ export function ConfettiBurst({ active, count = 36 }: { active: boolean; count?:
         rot: Math.random() * 540,
         scale: 0.6 + Math.random() * 0.8,
         delay: Math.random() * 0.18,
-        color: ["#1F3A5F", "#C89B5C", "#10b981", "#8b5cf6", "#f59e0b"][i % 5],
+        color: ["#041D39", "#49FFAA", "#10b981", "#8b5cf6", "#f59e0b"][i % 5],
       })),
     [count],
   );

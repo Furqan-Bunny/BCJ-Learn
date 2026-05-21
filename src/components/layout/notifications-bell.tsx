@@ -144,6 +144,11 @@ export function NotificationsBell({
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
+      {/* Visually-hidden live region so screen readers hear count changes
+          (realtime inserts + optimistic mark-read) without a refresh. */}
+      <span className="sr-only" role="status" aria-live="polite" aria-atomic="true">
+        {showBadge ? `${unreadCount} unread notifications` : "No unread notifications"}
+      </span>
       <PopoverTrigger asChild>
         <Button
           variant="ghost"
@@ -151,10 +156,11 @@ export function NotificationsBell({
           className="size-9 relative group"
           aria-label={`Notifications${showBadge ? ` — ${unreadCount} unread` : ""}`}
         >
-          <Bell className="size-4 transition-transform group-hover:rotate-12" />
+          <Bell aria-hidden="true" className="size-4 transition-transform group-hover:rotate-12" />
           {showBadge && (
             <motion.span
               key={badgeText}
+              aria-hidden="true"
               initial={reduced ? false : { scale: 0.6, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               transition={{ type: "spring", stiffness: 500, damping: 22 }}
@@ -168,11 +174,12 @@ export function NotificationsBell({
       <PopoverContent
         align="end"
         sideOffset={6}
+        aria-labelledby="notifications-bell-heading"
         className="w-[380px] p-0 max-h-[480px] overflow-hidden flex flex-col"
       >
         <div className="flex items-center justify-between px-4 py-3 border-b">
           <div className="flex items-center gap-2">
-            <h3 className="font-semibold text-sm">Notifications</h3>
+            <h3 id="notifications-bell-heading" className="font-semibold text-sm">Notifications</h3>
             {unreadCount > 0 && (
               <Badge variant="secondary" className="text-[10px] font-mono">
                 {unreadCount} new
@@ -186,7 +193,7 @@ export function NotificationsBell({
             onClick={handleMarkAllRead}
             disabled={unreadCount === 0}
           >
-            <CheckCheck className="size-3.5 mr-1" /> Mark all read
+            <CheckCheck aria-hidden="true" className="size-3.5 mr-1" /> Mark all read
           </Button>
         </div>
 
@@ -216,12 +223,14 @@ export function NotificationsBell({
                       <button
                         type="button"
                         onClick={() => handleClickItem(item)}
+                        aria-label={`${item.subject}, ${fmtRelative(item.sentAt)}${item.opened ? "" : ", unread"}`}
                         className={cn(
                           "w-full text-left px-4 py-3 flex gap-3 hover:bg-accent/60 transition-colors",
                           !item.opened && "bg-primary/[0.04]",
                         )}
                       >
                         <div
+                          aria-hidden="true"
                           className={cn(
                             "size-8 rounded-md flex items-center justify-center shrink-0",
                             KIND_TONE[item.kind],
@@ -240,7 +249,7 @@ export function NotificationsBell({
                               {item.subject}
                             </p>
                             {!item.opened && (
-                              <span className="size-1.5 rounded-full bg-primary shrink-0 mt-1.5" />
+                              <span aria-hidden="true" className="size-1.5 rounded-full bg-primary shrink-0 mt-1.5" />
                             )}
                           </div>
                           <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">
@@ -268,7 +277,7 @@ export function NotificationsBell({
             onClick={() => setOpen(false)}
           >
             <Link href="/notifications">
-              View all <ArrowRight className="size-3.5 ml-1.5" />
+              View all <ArrowRight aria-hidden="true" className="size-3.5 ml-1.5" />
             </Link>
           </Button>
         </div>

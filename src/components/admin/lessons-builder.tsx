@@ -19,11 +19,30 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
 import type { Lesson, LessonContent, ContentType } from "@/types";
-import { uploadModuleContent } from "@/lib/supabase/storage";
+import { uploadModuleContentResumable } from "@/lib/supabase/storage";
 import { toast } from "sonner";
-import { Loader2 } from "lucide-react";
+import { Loader2, RotateCcw } from "lucide-react";
 
 const DEMO_MODE = process.env.NEXT_PUBLIC_DEMO_MODE === "true";
+
+// Per-type upload size ceilings. Videos can be large; documents/slides should not.
+const SIZE_LIMITS: Record<ContentType, number> = {
+  video: 2 * 1024 * 1024 * 1024, // 2 GB
+  document: 50 * 1024 * 1024, // 50 MB
+  slides: 50 * 1024 * 1024, // 50 MB
+  link: 0,
+};
+
+type UploadStatus = "idle" | "uploading" | "done" | "error";
+interface FileUploadState {
+  status: UploadStatus;
+  pct: number;
+  error?: string;
+}
+
+function sleep(ms: number) {
+  return new Promise((r) => setTimeout(r, ms));
+}
 
 const CONTENT_META: Record<ContentType, { label: string; icon: React.ComponentType<{ className?: string }>; tint: string; }> = {
   video:    { label: "Video",    icon: PlayCircle, tint: "text-rose-600 bg-rose-100 dark:text-rose-300 dark:bg-rose-950/40" },
@@ -380,6 +399,8 @@ function AddContentDialog({
   const [files, setFiles] = React.useState<File[]>([]);
   const [dragOver, setDragOver] = React.useState(false);
   const [uploading, setUploading] = React.useState(false);
+  const [uploadStates, setUploadStates] = React.useState<Map<File, FileUploadState>>(new Map());
+  const pathByFile = React.useRef<Map<File, string | undefined>>(new Map());
   const inputRef = React.useRef<HTMLInputElement>(null);
 
   React.useEffect(() => {
@@ -388,6 +409,8 @@ function AddContentDialog({
       setDuration(type === "video" ? 5 : type === "document" ? 6 : type === "slides" ? 8 : 2);
       setUrl("");
       setFiles([]);
+      setUploadStates(new Map());
+      pathByFile.current = new Map();
       // Default source: upload for files, url for link
       setSource(type === "link" ? "url" : "upload");
     }
@@ -404,20 +427,6 @@ function AddContentDialog({
     inputRef.current?.click();
   }
 
-  function handleFileList(list: FileList | null) {
-    if (!list) return;
-    const arr = Array.from(list);
-    setFiles((prev) => (canMultiple ? [...prev, ...arr] : arr.slice(0, 1)));
-    if (!title && arr[0]) {
-      const base = arr[0].name.replace(/\.[^/.]+$/, "");
-      setTitle(base.replace(/[-_]+/g, " "));
-    }
-  }
-
-  function removeFile(idx: number) {
-    setFiles((arr) => arr.filter((_, i) => i !== idx));
-  }
-
   function fmtSize(bytes: number) {
     if (bytes < 1024) return `${bytes} B`;
     if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
@@ -425,17 +434,111 @@ function AddContentDialog({
     return `${(bytes / (1024 * 1024 * 1024)).toFixed(2)} GB`;
   }
 
-  // Upload a single file to Supabase Storage (production only). In demo
-  // mode we don't touch the network — the upload is faked so the demo can
-  // still be exercised without storage credentials.
-  async function uploadOne(file: File): Promise<{ path?: string; error?: string }> {
-    if (DEMO_MODE) return { path: undefined };
-    try {
-      const { path } = await uploadModuleContent(moduleSlug, lessonId, file);
-      return { path };
-    } catch (err) {
-      return { error: (err as Error).message };
+  // Reject files that are too big or the wrong type before they're queued.
+  function validateFile(f: File): string | null {
+    const limit = SIZE_LIMITS[type!];
+    if (limit && f.size > limit) {
+      return `${f.name} is too large (max ${fmtSize(limit)}).`;
     }
+    const exts = accept.exts
+      .split(",")
+      .map((s) => s.trim().toLowerCase())
+      .filter(Boolean);
+    if (exts.length > 0) {
+      const lower = f.name.toLowerCase();
+      if (!exts.some((ext) => lower.endsWith(ext))) {
+        return `${f.name} isn't an accepted file type (${accept.hint}).`;
+      }
+    }
+    return null;
+  }
+
+  function handleFileList(list: FileList | null) {
+    if (!list) return;
+    const incoming = Array.from(list);
+    const valid: File[] = [];
+    for (const f of incoming) {
+      const err = validateFile(f);
+      if (err) {
+        toast.error(err);
+        continue;
+      }
+      valid.push(f);
+    }
+    if (valid.length === 0) return;
+    setFiles((prev) => (canMultiple ? [...prev, ...valid] : valid.slice(0, 1)));
+    if (!title && valid[0]) {
+      const base = valid[0].name.replace(/\.[^/.]+$/, "");
+      setTitle(base.replace(/[-_]+/g, " "));
+    }
+  }
+
+  function removeFile(idx: number) {
+    setFiles((arr) => {
+      const target = arr[idx];
+      if (target) {
+        setUploadStates((prev) => {
+          const next = new Map(prev);
+          next.delete(target);
+          return next;
+        });
+        pathByFile.current.delete(target);
+      }
+      return arr.filter((_, i) => i !== idx);
+    });
+  }
+
+  function setFileState(f: File, state: FileUploadState) {
+    setUploadStates((prev) => new Map(prev).set(f, state));
+  }
+
+  // Upload one file with real progress + retry. Demo mode simulates progress so
+  // the UX can be exercised without storage credentials.
+  async function uploadFile(f: File): Promise<{ ok: boolean; path?: string }> {
+    setFileState(f, { status: "uploading", pct: 0 });
+    if (DEMO_MODE) {
+      for (const p of [25, 55, 80, 100]) {
+        await sleep(140);
+        setFileState(f, { status: "uploading", pct: p });
+      }
+      setFileState(f, { status: "done", pct: 100 });
+      pathByFile.current.set(f, undefined);
+      return { ok: true, path: undefined };
+    }
+    try {
+      const { path } = await uploadModuleContentResumable(moduleSlug, lessonId, f, {
+        onProgress: (pct) => setFileState(f, { status: "uploading", pct }),
+      });
+      setFileState(f, { status: "done", pct: 100 });
+      pathByFile.current.set(f, path);
+      return { ok: true, path };
+    } catch (err) {
+      setFileState(f, { status: "error", pct: 0, error: (err as Error).message });
+      return { ok: false };
+    }
+  }
+
+  function buildContent(f: File, index: number): LessonContent {
+    const baseTitle = title.trim();
+    const t = files.length > 1 ? `${baseTitle} (${index + 1})` : baseTitle;
+    const path = pathByFile.current.get(f);
+    const content: LessonContent = {
+      id: newId("content"),
+      type: type!,
+      title: t,
+      durationMinutes: duration,
+      fileName: f.name,
+      fileSize: fmtSize(f.size),
+      storagePath: path,
+    };
+    if (type === "document") {
+      content.documentPages = [`# ${t}\n\nDocument uploaded.`];
+    } else if (type === "slides") {
+      content.slides = [{ title: t, bullets: ["Uploaded slides — preview opens via signed URL."] }];
+    } else if (type === "video" && !path) {
+      content.videoUrl = "https://www.youtube.com/embed/dQw4w9WgXcQ";
+    }
+    return content;
   }
 
   async function handleSubmit() {
@@ -469,44 +572,27 @@ function AddContentDialog({
       return;
     }
 
-    // Upload path — for each picked file, upload then emit a LessonContent.
+    // Upload path — upload each not-yet-done file (skip ones already uploaded
+    // on a previous attempt), then emit a LessonContent for every file.
     setUploading(true);
-    const baseTitle = title.trim();
-    for (let i = 0; i < files.length; i++) {
-      const f = files[i];
-      const t = files.length > 1 ? `${baseTitle} (${i + 1})` : baseTitle;
-      const { path, error } = await uploadOne(f);
-      if (error) {
-        toast.error(`Upload failed for ${f.name}: ${error}`);
-        continue;
-      }
-
-      const id = newId("content");
-      const content: LessonContent = {
-        id,
-        type: type!,
-        title: t,
-        durationMinutes: duration,
-        fileName: f.name,
-        fileSize: fmtSize(f.size),
-        storagePath: path,
-      };
-
-      // Type-specific placeholders for the legacy mock-data viewer paths.
-      // The real viewer prefers `storagePath` → signed URL; these fallbacks
-      // only kick in when the file hasn't actually uploaded (demo mode).
-      if (type === "document") {
-        content.documentPages = [`# ${t}\n\nDocument uploaded.`];
-      } else if (type === "slides") {
-        content.slides = [{ title: t, bullets: ["Uploaded slides — preview opens via signed URL."] }];
-      } else if (type === "video" && !path) {
-        content.videoUrl = "https://www.youtube.com/embed/dQw4w9WgXcQ";
-      }
-
-      onSubmit(content);
+    let allOk = true;
+    for (const f of files) {
+      if (uploadStates.get(f)?.status === "done") continue;
+      const r = await uploadFile(f);
+      if (!r.ok) allOk = false;
     }
     setUploading(false);
+
+    if (!allOk) {
+      toast.error("Some files didn't upload. Retry them or remove them, then add again.");
+      return;
+    }
+
+    files.forEach((f, i) => onSubmit(buildContent(f, i)));
   }
+
+  const anyUploading =
+    uploading || Array.from(uploadStates.values()).some((s) => s.status === "uploading");
 
   const canSubmit = (() => {
     if (!title.trim()) return false;
@@ -594,27 +680,56 @@ function AddContentDialog({
                 {/* File list */}
                 {files.length > 0 && (
                   <div className="space-y-1.5">
-                    {files.map((f, i) => (
-                      <div key={i} className="flex items-center gap-2 px-3 py-2 rounded-md border bg-card">
-                        <div className={cn("size-8 rounded flex items-center justify-center shrink-0", meta.tint)}>
-                          {type === "video" ? <FileVideo className="size-3.5" /> : <FileIcon className="size-3.5" />}
+                    {files.map((f, i) => {
+                      const st = uploadStates.get(f);
+                      return (
+                        <div key={i} className="px-3 py-2 rounded-md border bg-card">
+                          <div className="flex items-center gap-2">
+                            <div className={cn("size-8 rounded flex items-center justify-center shrink-0", meta.tint)}>
+                              {type === "video" ? <FileVideo className="size-3.5" /> : <FileIcon className="size-3.5" />}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <div className="text-sm font-medium truncate">{f.name}</div>
+                              <div className="text-[11px] text-muted-foreground">
+                                {fmtSize(f.size)}
+                                {st?.status === "done" && <span className="text-emerald-600 dark:text-emerald-400"> · Uploaded</span>}
+                                {st?.status === "uploading" && <span> · {st.pct}%</span>}
+                              </div>
+                            </div>
+                            {st?.status === "error" && (
+                              <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                className="h-7 gap-1.5 text-xs"
+                                onClick={() => uploadFile(f)}
+                              >
+                                <RotateCcw className="size-3.5" /> Retry
+                              </Button>
+                            )}
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon"
+                              className="size-7"
+                              onClick={() => removeFile(i)}
+                              disabled={st?.status === "uploading"}
+                              aria-label="Remove file"
+                            >
+                              <X className="size-3.5" />
+                            </Button>
+                          </div>
+                          {st?.status === "uploading" && (
+                            <div className="mt-2 h-1.5 rounded-full bg-muted overflow-hidden" role="progressbar" aria-valuenow={st.pct} aria-valuemin={0} aria-valuemax={100}>
+                              <div className="h-full bg-primary transition-all duration-200" style={{ width: `${st.pct}%` }} />
+                            </div>
+                          )}
+                          {st?.status === "error" && (
+                            <p className="mt-1.5 text-[11px] text-rose-600 dark:text-rose-400">{st.error ?? "Upload failed."}</p>
+                          )}
                         </div>
-                        <div className="flex-1 min-w-0">
-                          <div className="text-sm font-medium truncate">{f.name}</div>
-                          <div className="text-[11px] text-muted-foreground">{fmtSize(f.size)}</div>
-                        </div>
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="icon"
-                          className="size-7"
-                          onClick={() => removeFile(i)}
-                          aria-label="Remove file"
-                        >
-                          <X className="size-3.5" />
-                        </Button>
-                      </div>
-                    ))}
+                      );
+                    })}
                     {canMultiple && files.length > 1 && (
                       <p className="text-[11px] text-muted-foreground px-1">
                         {files.length} files will be added to the lesson as {files.length} separate items.
@@ -699,9 +814,9 @@ function AddContentDialog({
         </div>
 
         <DialogFooter>
-          <Button variant="outline" onClick={onCancel} disabled={uploading}>Cancel</Button>
-          <Button onClick={handleSubmit} disabled={!canSubmit || uploading}>
-            {uploading ? (
+          <Button variant="outline" onClick={onCancel} disabled={anyUploading}>Cancel</Button>
+          <Button onClick={handleSubmit} disabled={!canSubmit || anyUploading}>
+            {anyUploading ? (
               <><Loader2 className="size-4 animate-spin mr-1.5" /> Uploading…</>
             ) : canMultiple && source === "upload" && files.length > 1
               ? `Add ${files.length} items to lesson`

@@ -11,11 +11,13 @@ import {
   Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
 } from "@/components/ui/dialog";
 import {
-  Check, X, RefreshCw, Edit3, Sparkles, Search, Filter, CheckCircle2, AlertCircle, Loader2,
+  Check, X, RefreshCw, Edit3, Sparkles, Search, Filter, CheckCircle2, AlertCircle, Loader2, History, RotateCcw,
 } from "lucide-react";
 import { PageHeader } from "@/components/shared/page-header";
 import { StatusBadge } from "@/components/shared/status-badge";
+import { fmtRelative } from "@/lib/format";
 import type { ModuleDef, Question, QuestionPool, QuestionStatus } from "@/types";
+import type { QuestionVersion } from "@/lib/db/questions";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { useRouter } from "next/navigation";
@@ -25,6 +27,8 @@ import {
   rejectQuestion,
   regenerateQuestion,
   editQuestion,
+  getQuestionVersions,
+  restoreQuestionVersion,
 } from "@/lib/server/ai-actions";
 import { publishModule } from "@/lib/server/module-actions";
 
@@ -46,6 +50,7 @@ export function TeacherQuestionsView({ mod, initialQuestions }: TeacherQuestions
   const [generating, setGenerating] = React.useState(false);
   const [busyId, setBusyId] = React.useState<string | null>(null);
   const [editOpen, setEditOpen] = React.useState(false);
+  const [historyOpen, setHistoryOpen] = React.useState(false);
 
   // Keep local state in sync if server data refreshes.
   React.useEffect(() => {
@@ -332,6 +337,14 @@ export function TeacherQuestionsView({ mod, initialQuestions }: TeacherQuestions
                   </Button>
                   <Button
                     variant="outline"
+                    onClick={() => setHistoryOpen(true)}
+                    disabled={busyId === current.id}
+                    className="gap-2"
+                  >
+                    <History className="size-4" /> History
+                  </Button>
+                  <Button
+                    variant="outline"
                     onClick={() => handleReject(current.id)}
                     disabled={current.status === "rejected" || busyId === current.id}
                     className="gap-2 ml-auto text-rose-600 hover:text-rose-700"
@@ -358,6 +371,18 @@ export function TeacherQuestionsView({ mod, initialQuestions }: TeacherQuestions
           }}
         />
       )}
+
+      {current && (
+        <HistoryDialog
+          open={historyOpen}
+          onOpenChange={setHistoryOpen}
+          question={current}
+          onRestored={() => {
+            setHistoryOpen(false);
+            router.refresh();
+          }}
+        />
+      )}
     </>
   );
 }
@@ -370,6 +395,133 @@ function PoolBadge({ label, count, tone }: { label: string; count: number; tone:
       <span className="text-muted-foreground">{label}:</span>
       <span className="font-mono tabular-nums font-semibold">{count}</span>
     </div>
+  );
+}
+
+const REASON_LABEL: Record<string, string> = {
+  initial: "Initial draft",
+  edited: "Manual edit",
+  regenerated: "Regenerated",
+  approved: "Approved",
+  restored: "Restored",
+};
+
+function HistoryDialog({
+  open,
+  onOpenChange,
+  question,
+  onRestored,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  question: Question;
+  onRestored: () => void;
+}) {
+  const [loading, setLoading] = React.useState(false);
+  const [versions, setVersions] = React.useState<QuestionVersion[]>([]);
+  const [restoringVersion, setRestoringVersion] = React.useState<number | null>(null);
+
+  React.useEffect(() => {
+    if (!open) return;
+    let cancelled = false;
+    setLoading(true);
+    getQuestionVersions(question.id).then((res) => {
+      if (cancelled) return;
+      setLoading(false);
+      if (!res.ok) {
+        toast.error(res.error ?? "Could not load history");
+        return;
+      }
+      setVersions(res.versions);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [open, question.id]);
+
+  async function handleRestore(versionNumber: number) {
+    if (!window.confirm(`Restore version ${versionNumber}? The current content is saved to history first, so this is reversible.`)) {
+      return;
+    }
+    setRestoringVersion(versionNumber);
+    const res = await restoreQuestionVersion(question.id, versionNumber);
+    setRestoringVersion(null);
+    if (!res.ok) {
+      toast.error(res.error ?? "Restore failed");
+      return;
+    }
+    toast.success(`Restored version ${versionNumber}`);
+    onRestored();
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-2xl">
+        <DialogHeader>
+          <DialogTitle>Version history</DialogTitle>
+          <DialogDescription>
+            Every edit, regeneration, and approval is saved here. Restore any earlier version — the current one is snapshotted first.
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="max-h-[460px] overflow-y-auto space-y-3">
+          {loading ? (
+            <div className="py-10 text-center text-sm text-muted-foreground">
+              <Loader2 className="size-5 mx-auto mb-2 animate-spin" /> Loading history…
+            </div>
+          ) : versions.length === 0 ? (
+            <div className="py-10 text-center text-sm text-muted-foreground">
+              No history yet. Versions are recorded the next time this question is edited, regenerated, or approved.
+            </div>
+          ) : (
+            versions.map((v) => (
+              <div key={v.id} className="rounded-lg border p-3">
+                <div className="flex items-center justify-between gap-2 mb-1.5">
+                  <div className="flex items-center gap-2">
+                    <Badge variant="outline" className="font-mono text-[10px]">v{v.versionNumber}</Badge>
+                    <span className="text-xs font-medium">{REASON_LABEL[v.changeReason] ?? v.changeReason}</span>
+                    <span className="text-xs text-muted-foreground">· {fmtRelative(v.createdAt)}</span>
+                  </div>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="h-7 gap-1.5 text-xs"
+                    onClick={() => handleRestore(v.versionNumber)}
+                    disabled={restoringVersion !== null}
+                  >
+                    {restoringVersion === v.versionNumber ? (
+                      <Loader2 className="size-3.5 animate-spin" />
+                    ) : (
+                      <RotateCcw className="size-3.5" />
+                    )}
+                    Restore
+                  </Button>
+                </div>
+                <p className="text-sm leading-snug">{v.text}</p>
+                <ul className="mt-2 space-y-1">
+                  {v.options.map((o, i) => (
+                    <li
+                      key={i}
+                      className={cn(
+                        "text-xs flex items-center gap-1.5",
+                        o.correct ? "text-emerald-600 dark:text-emerald-400 font-medium" : "text-muted-foreground",
+                      )}
+                    >
+                      {o.correct ? <Check className="size-3 shrink-0" /> : <span className="size-3 shrink-0" />}
+                      {o.text}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ))
+          )}
+        </div>
+
+        <DialogFooter>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>Close</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
 

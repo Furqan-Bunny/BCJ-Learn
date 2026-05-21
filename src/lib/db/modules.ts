@@ -166,3 +166,37 @@ export async function moduleContentCounts(slug: string): Promise<{ videos: numbe
     links: all.filter((c) => c.type === "link").length,
   };
 }
+
+// ─── Content version history ────────────────────────────────────────────
+
+export interface ModuleContentVersion {
+  versionNumber: number;
+  changeReason: string;
+  changedBy: string | null;
+  createdAt: string;
+  lessons: Lesson[];
+}
+
+interface ModuleContentVersionRow {
+  version_number: number;
+  change_reason: string;
+  changed_by: string | null;
+  created_at: string;
+  snapshot: Lesson[] | null;
+}
+
+export async function listModuleContentVersions(slug: string): Promise<ModuleContentVersion[]> {
+  const sb = await dbClient();
+  const { data } = await sb
+    .from("module_content_versions")
+    .select("version_number, change_reason, changed_by, created_at, snapshot")
+    .eq("module_slug", slug)
+    .order("version_number", { ascending: false });
+  return ((data ?? []) as ModuleContentVersionRow[]).map((r) => ({
+    versionNumber: r.version_number,
+    changeReason: r.change_reason,
+    changedBy: r.changed_by,
+    createdAt: r.created_at,
+    lessons: r.snapshot ?? [],
+  }));
+}

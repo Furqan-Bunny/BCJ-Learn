@@ -71,7 +71,7 @@ export function useCurrentUser(): UseCurrentUserResult {
         email,
         role: (row.role as Role) ?? "manager",
         cohort: (row.cohort as string | null) ?? null,
-        avatarColor: (row.avatar_color as string) ?? "#1F3A5F",
+        avatarColor: (row.avatar_color as string) ?? "#041D39",
         avatarUrl: (row.avatar_url as string | null) ?? null,
         status: (row.status as string | null) ?? null,
         bio: (row.bio as string | null) ?? null,

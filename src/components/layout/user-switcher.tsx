@@ -89,7 +89,7 @@ export function UserSwitcher() {
 
   const colorFor = (name: string) => {
     const m = [...managers, ...teachers, ...admins].find((u) => u.name === name || u.id === currentUser?.id);
-    return m?.avatarColor ?? "#1F3A5F";
+    return m?.avatarColor ?? "#041D39";
   };
 
   return (

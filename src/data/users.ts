@@ -7,7 +7,7 @@ const COHORTS: Cohort[] = ["Atlanta", "Dallas", "Phoenix"];
 
 function avatarColor(seed: string): string {
   const palette = [
-    "#1F3A5F", "#3B5F86", "#557AAA", "#2A8C82", "#8C5A2A",
+    "#041D39", "#3B5F86", "#557AAA", "#2A8C82", "#8C5A2A",
     "#7A3F8C", "#3F8C5A", "#8C3F3F", "#5A8C3F", "#3F5A8C",
   ];
   let h = 0;

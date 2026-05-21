@@ -22,11 +22,61 @@ import {
   questionRegenUserPrompt,
 } from "@/lib/ai/prompts";
 import { revalidatePath } from "next/cache";
+import { listQuestionVersions, type QuestionVersion } from "@/lib/db/questions";
 import type { QuestionPool, Role } from "@/types";
 
 const DEMO_MODE = process.env.NEXT_PUBLIC_DEMO_MODE === "true";
 const FIRST_ATTEMPT_COUNT = 50;
 const RETAKE_COUNT = 30;
+
+// Snapshot a question's current text + options into question_versions before it
+// changes, so prior versions can be reviewed and restored. Best-effort: never
+// blocks the calling action (e.g. if migration 0007 hasn't been applied yet).
+async function snapshotQuestion(
+  admin: ReturnType<typeof createAdminClient>,
+  questionId: string,
+  changeReason: string,
+  userId: string | null,
+): Promise<void> {
+  try {
+    const { data: qRow } = await admin
+      .from("questions")
+      .select("text, explanation, status")
+      .eq("id", questionId)
+      .maybeSingle();
+    if (!qRow) return;
+    const q = qRow as { text: string; explanation: string | null; status: string };
+
+    const { data: optRows } = await admin
+      .from("question_options")
+      .select("text, correct, order")
+      .eq("question_id", questionId)
+      .order("order");
+    const options = (optRows ?? []) as { text: string; correct: boolean; order: number }[];
+
+    const { data: maxRow } = await admin
+      .from("question_versions")
+      .select("version_number")
+      .eq("question_id", questionId)
+      .order("version_number", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    const nextVersion = ((maxRow as { version_number?: number } | null)?.version_number ?? 0) + 1;
+
+    await admin.from("question_versions").insert({
+      question_id: questionId,
+      version_number: nextVersion,
+      text: q.text,
+      explanation: q.explanation,
+      options,
+      status: q.status,
+      change_reason: changeReason,
+      changed_by: userId,
+    });
+  } catch {
+    // Non-fatal: versioning is additive; never break the primary edit/approve.
+  }
+}
 
 interface AuthInfo {
   ok: true;
@@ -257,6 +307,9 @@ export async function generateQuestions(moduleSlug: string): Promise<
       continue;
     }
 
+    // Baseline version snapshot.
+    await snapshotQuestion(admin, qId, "initial", guard.userId);
+
     created++;
   }
 
@@ -298,6 +351,9 @@ export async function approveQuestion(questionId: string): Promise<{ ok: boolean
     .update({ status: "approved", approved_at: new Date().toISOString(), approved_by: user.id })
     .eq("id", questionId);
   if (error) return { ok: false, error: error.message };
+
+  // Record the approved content as a version milestone.
+  await snapshotQuestion(admin, questionId, "approved", user.id);
 
   // Refresh approved count on module row.
   const { count: approvedCount } = await admin
@@ -383,6 +439,7 @@ export async function regenerateQuestion(questionId: string): Promise<{ ok: bool
 
   if (DEMO_MODE) {
     const admin = createAdminClient();
+    await snapshotQuestion(admin, questionId, "regenerated", guard.userId);
     await admin
       .from("questions")
       .update({ text: `Re-drafted: ${originalText}`, status: "pending" })
@@ -410,6 +467,8 @@ export async function regenerateQuestion(questionId: string): Promise<{ ok: bool
   }
 
   const admin = createAdminClient();
+  // Preserve the pre-regeneration version before overwriting.
+  await snapshotQuestion(admin, questionId, "regenerated", guard.userId);
   await admin
     .from("questions")
     .update({
@@ -465,6 +524,8 @@ export async function editQuestion(input: EditQuestionInput): Promise<{ ok: bool
   }
 
   const admin = createAdminClient();
+  // Preserve the pre-edit version before overwriting.
+  await snapshotQuestion(admin, input.questionId, "edited", user.id);
   await admin
     .from("questions")
     .update({
@@ -485,6 +546,82 @@ export async function editQuestion(input: EditQuestionInput): Promise<{ ok: bool
     order: i,
   }));
   await admin.from("question_options").insert(optionRows);
+
+  revalidatePath(`/teacher/modules/${slug}/questions`);
+  revalidatePath(`/admin/questions`);
+  return { ok: true };
+}
+
+// ─── Version history: list + restore ───────────────────────────────────
+
+export async function getQuestionVersions(
+  questionId: string,
+): Promise<{ ok: true; versions: QuestionVersion[] } | { ok: false; error: string }> {
+  const sb = await createClient();
+  const { data: q } = await sb.from("questions").select("module_slug").eq("id", questionId).single();
+  if (!q) return { ok: false, error: "Question not found" };
+  const slug = (q as { module_slug: string }).module_slug;
+
+  const guard = await requireAdminOrModuleOwner(slug);
+  if (!guard.ok) return { ok: false, error: guard.error };
+
+  const versions = await listQuestionVersions(questionId);
+  return { ok: true, versions };
+}
+
+export async function restoreQuestionVersion(
+  questionId: string,
+  versionNumber: number,
+): Promise<{ ok: boolean; error?: string }> {
+  const sb = await createClient();
+  const { data: { user } } = await sb.auth.getUser();
+  if (!user) return { ok: false, error: "Not signed in" };
+
+  const { data: q } = await sb.from("questions").select("module_slug").eq("id", questionId).single();
+  if (!q) return { ok: false, error: "Question not found" };
+  const slug = (q as { module_slug: string }).module_slug;
+
+  const guard = await requireAdminOrModuleOwner(slug);
+  if (!guard.ok) return { ok: false, error: guard.error };
+
+  const admin = createAdminClient();
+  const { data: verRow } = await admin
+    .from("question_versions")
+    .select("text, explanation, options")
+    .eq("question_id", questionId)
+    .eq("version_number", versionNumber)
+    .maybeSingle();
+  if (!verRow) return { ok: false, error: "Version not found" };
+  const ver = verRow as {
+    text: string;
+    explanation: string | null;
+    options: { text: string; correct: boolean; order: number }[] | null;
+  };
+
+  // Snapshot the current state before reverting, so a restore is itself undoable.
+  await snapshotQuestion(admin, questionId, "restored", user.id);
+
+  await admin
+    .from("questions")
+    .update({
+      text: ver.text,
+      explanation: ver.explanation,
+      status: "edited",
+      approved_at: new Date().toISOString(),
+      approved_by: user.id,
+    })
+    .eq("id", questionId);
+
+  await admin.from("question_options").delete().eq("question_id", questionId);
+  const optionRows = (ver.options ?? []).map((o, i) => ({
+    question_id: questionId,
+    text: o.text,
+    correct: !!o.correct,
+    order: typeof o.order === "number" ? o.order : i,
+  }));
+  if (optionRows.length > 0) {
+    await admin.from("question_options").insert(optionRows);
+  }
 
   revalidatePath(`/teacher/modules/${slug}/questions`);
   revalidatePath(`/admin/questions`);

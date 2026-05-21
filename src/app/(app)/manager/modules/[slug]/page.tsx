@@ -5,6 +5,14 @@ import { getProfile } from "@/lib/db/profiles";
 import { listAttemptsForManager } from "@/lib/db/attempts";
 import { getCheckedInStatus, getCurrentDelivery } from "@/lib/db/deliveries";
 import { ManagerModuleView } from "./module-view";
+import type { Metadata } from "next";
+
+export async function generateMetadata(props: PageProps<"/manager/modules/[slug]">): Promise<Metadata> {
+  const { slug } = await props.params;
+  const mod = await getModule(slug);
+  if (!mod) return { title: "Module" };
+  return { title: `${mod.title} — Module ${mod.number}`, description: mod.description };
+}
 
 export default async function ManagerModulePage(props: PageProps<"/manager/modules/[slug]">) {
   const { slug } = await props.params;
