@@ -8,9 +8,9 @@ loadEnv({ path: ".env.local" });
 
 import { Resend } from "resend";
 
-const TO = "furqan@ten80ten.com";
-// Hardcode the Resend sandbox sender — works without a verified domain.
-const FROM = "onboarding@resend.dev";
+const TO = "furqansaify21@gmail.com";
+// Use the verified BCJ sending domain configured in RESEND_FROM_EMAIL.
+const FROM = process.env.RESEND_FROM_EMAIL ?? "onboarding@resend.dev";
 const KEY = process.env.RESEND_API_KEY;
 
 if (!KEY) {

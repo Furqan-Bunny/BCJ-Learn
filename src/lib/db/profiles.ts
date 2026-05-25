@@ -18,6 +18,8 @@ interface ProfileRow {
   joined_at: string;
   last_active_at: string;
   phone: string | null;
+  invite_sent_at: string | null;
+  invite_expires_at: string | null;
 }
 
 function toManager(r: ProfileRow): Manager {
@@ -32,6 +34,8 @@ function toManager(r: ProfileRow): Manager {
     lastActiveAt: r.last_active_at,
     phone: r.phone,
     status: (r.status ?? "active") as ManagerStatus,
+    inviteSentAt: r.invite_sent_at ?? null,
+    inviteExpiresAt: r.invite_expires_at ?? null,
     modulesCompleted: 0,   // derived elsewhere from attempts
     averageScore: 0,        // derived elsewhere from attempts
     failedAttempts: 0,      // derived elsewhere from attempts

@@ -3,7 +3,7 @@
 export type Role = "manager" | "teacher" | "admin";
 
 export type Cohort = "Atlanta" | "Dallas" | "Phoenix";
-export type ManagerStatus = "active" | "at-risk" | "inactive" | "completed";
+export type ManagerStatus = "pending" | "active" | "at-risk" | "inactive" | "completed";
 export type ModuleStatus = "draft" | "published" | "archived";
 export type AttemptStatus = "passed" | "failed" | "in-progress" | "scheduled";
 export type QuestionStatus = "pending" | "approved" | "rejected" | "edited";
@@ -29,6 +29,9 @@ export interface Manager extends User {
   averageScore: number;
   failedAttempts: number;
   flaggedReasons: string[];
+  // Invite lifecycle (set when status is "pending"; null once accepted/seeded).
+  inviteSentAt?: string | null;
+  inviteExpiresAt?: string | null;
 }
 
 export interface Teacher extends User {

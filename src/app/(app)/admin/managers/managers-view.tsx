@@ -23,6 +23,7 @@ import {
   RefreshCcw,
   Trash2,
   Filter,
+  Send,
   X as XIcon,
   ChevronLeft,
   ChevronRight,
@@ -64,10 +65,10 @@ import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 import { SearchLoadingBar, motion } from "@/components/shared/animations";
 import { sendReminder, sendBulkReminders } from "@/lib/server/reminder-actions";
-import { deactivateUser } from "@/lib/server/admin-actions";
+import { deactivateUser, resendInvite } from "@/lib/server/admin-actions";
 
 const COHORTS: Cohort[] = ["Atlanta", "Dallas", "Phoenix"];
-const STATUSES: ManagerStatus[] = ["active", "at-risk", "completed", "inactive"];
+const STATUSES: ManagerStatus[] = ["pending", "active", "at-risk", "completed", "inactive"];
 
 export function AdminManagersView({ managers }: { managers: Manager[] }) {
   const router = useRouter();
@@ -127,7 +128,21 @@ export function AdminManagersView({ managers }: { managers: Manager[] }) {
       {
         accessorKey: "status",
         header: "Status",
-        cell: ({ row }) => <StatusBadge variant={row.original.status} />,
+        cell: ({ row }) => {
+          const m = row.original;
+          if (m.status === "pending") {
+            return (
+              <div className="space-y-1">
+                <StatusBadge variant="pending" />
+                <div className="text-[11px] text-muted-foreground">
+                  {m.inviteSentAt ? `Invited ${fmtRelative(m.inviteSentAt)}` : "Invite sent"}
+                  {m.inviteExpiresAt ? ` · expires ${fmtRelative(m.inviteExpiresAt)}` : ""}
+                </div>
+              </div>
+            );
+          }
+          return <StatusBadge variant={m.status} />;
+        },
         filterFn: (row, _id, value) =>
           (value as ManagerStatus[]).length === 0 || (value as ManagerStatus[]).includes(row.original.status),
       },
@@ -178,6 +193,18 @@ export function AdminManagersView({ managers }: { managers: Manager[] }) {
                 <DropdownMenuItem asChild>
                   <Link href={`/admin/managers/${m.id}`}>View profile</Link>
                 </DropdownMenuItem>
+                {m.status === "pending" && (
+                  <DropdownMenuItem
+                    onClick={async () => {
+                      const res = await resendInvite(m.id);
+                      if (!res.ok) { toast.error(res.error ?? "Could not resend invite"); return; }
+                      toast.success(`Invite resent to ${m.name}`);
+                      router.refresh();
+                    }}
+                  >
+                    <Send className="mr-2 size-4" /> Resend invite
+                  </DropdownMenuItem>
+                )}
                 <DropdownMenuItem
                   onClick={async () => {
                     const res = await sendReminder(m.id);

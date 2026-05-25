@@ -3,7 +3,12 @@
 import { createClient, createAdminClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
 import { pushInAppNotification } from "@/lib/notifications/push";
+import { sendEmail } from "@/lib/emails/send";
 import type { Cohort, ManagerStatus, Role } from "@/types";
+
+// Invites expire after 7 days (keep in sync with the Supabase Auth OTP/invite
+// expiry and the wording in the invite email + Add-Employee toast).
+const INVITE_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 
 // ─── Guard ────────────────────────────────────────────────
 // All admin actions are server-side and gated by this check. RLS would also
@@ -61,12 +66,18 @@ export async function inviteUser(input: InviteUserInput) {
   }
 
   // The handle_new_user trigger created the profile with role from metadata.
-  // Update cohort + name if profile didn't pick up correctly.
+  // Update cohort + name, and mark the invite as pending with its 7-day window.
+  // Status flips to 'active' when the user accepts (accept-invite page + the
+  // track_last_active trigger on first sign-in).
+  const invitedAt = new Date();
   await admin
     .from("profiles")
     .update({
       name: input.name,
       cohort: input.role === "manager" ? input.cohort ?? null : null,
+      status: "pending",
+      invite_sent_at: invitedAt.toISOString(),
+      invite_expires_at: new Date(invitedAt.getTime() + INVITE_TTL_MS).toISOString(),
     })
     .eq("id", data.user.id);
 
@@ -113,7 +124,14 @@ export async function bulkInviteUsers(rows: BulkInviteRow[]) {
       continue;
     }
 
-    await admin.from("profiles").update({ name: row.name, cohort: row.cohort as Cohort }).eq("id", data.user.id);
+    const invitedAt = new Date();
+    await admin.from("profiles").update({
+      name: row.name,
+      cohort: row.cohort as Cohort,
+      status: "pending",
+      invite_sent_at: invitedAt.toISOString(),
+      invite_expires_at: new Date(invitedAt.getTime() + INVITE_TTL_MS).toISOString(),
+    }).eq("id", data.user.id);
     results.push({ email: row.email, ok: true });
     invited++;
   }
@@ -264,5 +282,59 @@ export async function forceResetPassword(userId: string) {
     userId,
   );
 
+  return { ok: true as const, email: p.email };
+}
+
+// ─── B.6 resend invite ────────────────────────────────────
+// Re-issues a fresh invite link for a still-pending user and emails it via our
+// own branded `invite` template (Resend), then resets the 7-day window.
+
+export async function resendInvite(userId: string) {
+  const guard = await requireAdmin();
+  if (!guard.ok) return { ok: false as const, error: guard.error };
+
+  const admin = createAdminClient();
+  const { data: profile } = await admin.from("profiles").select("email, name").eq("id", userId).single();
+  const p = profile as { email?: string; name?: string } | null;
+  if (!p?.email) return { ok: false as const, error: "User not found" };
+
+  const redirectTo = `${process.env.NEXT_PUBLIC_APP_URL ?? ""}/auth/accept-invite`;
+
+  // Generate a fresh action link. Try an invite link first; if the user already
+  // exists and that's rejected, fall back to a magic sign-in link.
+  function linkFrom(d: unknown): string | undefined {
+    return (d as { properties?: { action_link?: string } } | null)?.properties?.action_link;
+  }
+  let actionLink: string | undefined;
+  const invite = await admin.auth.admin.generateLink({ type: "invite", email: p.email, options: { redirectTo } });
+  actionLink = linkFrom(invite.data);
+  if (invite.error || !actionLink) {
+    const magic = await admin.auth.admin.generateLink({ type: "magiclink", email: p.email, options: { redirectTo } });
+    actionLink = linkFrom(magic.data);
+    if (magic.error || !actionLink) {
+      return { ok: false as const, error: invite.error?.message ?? magic.error?.message ?? "Could not generate invite link" };
+    }
+  }
+
+  const res = await sendEmail({
+    to: p.email,
+    templateKey: "invite",
+    recipientUserId: userId,
+    href: "/auth/accept-invite",
+    variables: { name: p.name ?? "there", invite_link: actionLink },
+  });
+  if (!res.ok) return { ok: false as const, error: res.error };
+
+  const invitedAt = new Date();
+  await admin.from("profiles").update({
+    status: "pending",
+    invite_sent_at: invitedAt.toISOString(),
+    invite_expires_at: new Date(invitedAt.getTime() + INVITE_TTL_MS).toISOString(),
+  }).eq("id", userId);
+
+  await logActivity("user_added", guard.userId, `${guard.userName} resent the invite to ${p.name ?? p.email}`, userId);
+
+  revalidatePath("/admin/managers");
+  revalidatePath(`/admin/managers/${userId}`);
   return { ok: true as const, email: p.email };
 }
