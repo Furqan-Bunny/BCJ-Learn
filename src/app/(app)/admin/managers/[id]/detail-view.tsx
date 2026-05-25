@@ -11,6 +11,7 @@ import {
   RefreshCcw,
   Trash2,
   Mail,
+  Send,
   Calendar,
   Trophy,
   AlertTriangle,
@@ -22,7 +23,7 @@ import { PageHeader } from "@/components/shared/page-header";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { initials, fmtDate, fmtRelative, fmtPct, fmtDuration } from "@/lib/format";
 import { toast } from "sonner";
-import { deactivateUser, reactivateUser, forceResetPassword } from "@/lib/server/admin-actions";
+import { deactivateUser, reactivateUser, forceResetPassword, resendInvite } from "@/lib/server/admin-actions";
 import { sendReminder } from "@/lib/server/reminder-actions";
 import { resetManagerForModule } from "@/lib/server/module-actions";
 import { useRouter } from "next/navigation";
@@ -71,6 +72,18 @@ export function ManagerDetailView({ m, modules, myAttempts, deliveriesByModule }
       return;
     }
     toast.success(`${m.name} ${verb}d`);
+    router.refresh();
+  }
+
+  async function handleResendInvite() {
+    setBusy(true);
+    const res = await resendInvite(m.id);
+    setBusy(false);
+    if (!res.ok) {
+      toast.error(res.error ?? "Could not resend invite");
+      return;
+    }
+    toast.success(`Invite resent to ${m.name}`);
     router.refresh();
   }
 
@@ -132,6 +145,11 @@ export function ManagerDetailView({ m, modules, myAttempts, deliveriesByModule }
         description={m.email}
         actions={
           <div className="flex items-center gap-2">
+            {m.status === "pending" && (
+              <Button variant="outline" onClick={handleResendInvite} disabled={busy}>
+                <Send className="mr-2 size-4" /> Resend invite
+              </Button>
+            )}
             <Button variant="outline" onClick={handleSendReminder} disabled={busy}>
               <Bell className="mr-2 size-4" /> Send reminder
             </Button>
@@ -162,6 +180,12 @@ export function ManagerDetailView({ m, modules, myAttempts, deliveriesByModule }
               <div className="mt-3 flex justify-center">
                 <StatusBadge variant={m.status} />
               </div>
+              {m.status === "pending" && (
+                <div className="mt-2 text-[11px] text-muted-foreground">
+                  {m.inviteSentAt ? `Invited ${fmtRelative(m.inviteSentAt)}` : "Invite sent"}
+                  {m.inviteExpiresAt ? ` · expires ${fmtRelative(m.inviteExpiresAt)}` : ""}
+                </div>
+              )}
             </CardContent>
           </Card>
 
