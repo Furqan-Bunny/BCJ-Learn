@@ -103,8 +103,10 @@ export default function AcceptInvitePage() {
       return;
     }
 
-    // 2. Update profile with the (possibly corrected) name + avatar_url
-    const updates: Record<string, unknown> = { name: name.trim() };
+    // 2. Update profile with the (possibly corrected) name + avatar_url, and
+    //    flip the invite from "pending" to "active" now that it's accepted.
+    //    (The track_last_active trigger also does this on first sign-in.)
+    const updates: Record<string, unknown> = { name: name.trim(), status: "active" };
     if (avatarUrl) updates.avatar_url = avatarUrl;
     await supabase.from("profiles").update(updates).eq("id", userId);
 
