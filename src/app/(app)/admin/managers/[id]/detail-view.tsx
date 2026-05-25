@@ -10,6 +10,7 @@ import {
   Bell,
   RefreshCcw,
   Trash2,
+  Ban,
   Mail,
   Send,
   Calendar,
@@ -23,7 +24,7 @@ import { PageHeader } from "@/components/shared/page-header";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { initials, fmtDate, fmtRelative, fmtPct, fmtDuration } from "@/lib/format";
 import { toast } from "sonner";
-import { deactivateUser, reactivateUser, forceResetPassword, resendInvite } from "@/lib/server/admin-actions";
+import { deactivateUser, reactivateUser, forceResetPassword, resendInvite, deleteUser } from "@/lib/server/admin-actions";
 import { sendReminder } from "@/lib/server/reminder-actions";
 import { resetManagerForModule } from "@/lib/server/module-actions";
 import { useRouter } from "next/navigation";
@@ -73,6 +74,23 @@ export function ManagerDetailView({ m, modules, myAttempts, deliveriesByModule }
     }
     toast.success(`${m.name} ${verb}d`);
     router.refresh();
+  }
+
+  async function handleDelete() {
+    if (!confirm(`Permanently delete ${m.name} and all their data? This cannot be undone.`)) return;
+    if (DEMO_MODE) {
+      toast.success(`${m.name} deleted (demo)`);
+      return;
+    }
+    setBusy(true);
+    const res = await deleteUser(m.id);
+    setBusy(false);
+    if (!res.ok) {
+      toast.error(res.error ?? "Failed to delete");
+      return;
+    }
+    toast.success(`${m.name} deleted`);
+    router.push("/admin/managers");
   }
 
   async function handleResendInvite() {
@@ -160,7 +178,10 @@ export function ManagerDetailView({ m, modules, myAttempts, deliveriesByModule }
               <RefreshCcw className="mr-2 size-4" /> Reassign retake
             </Button>
             <Button variant="outline" className="text-rose-600" onClick={handleDeactivate}>
-              <Trash2 className="mr-2 size-4" /> {m.status === "inactive" ? "Reactivate" : "Deactivate"}
+              <Ban className="mr-2 size-4" /> {m.status === "inactive" ? "Reactivate" : "Deactivate"}
+            </Button>
+            <Button variant="outline" className="text-rose-600" onClick={handleDelete} disabled={busy}>
+              <Trash2 className="mr-2 size-4" /> Delete
             </Button>
           </div>
         }

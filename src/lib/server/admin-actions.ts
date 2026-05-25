@@ -260,6 +260,37 @@ export async function reactivateUser(userId: string) {
   return { ok: true as const };
 }
 
+// ─── B.4b deleteUser (permanent) ──────────────────────────
+// Hard-deletes the auth user. Because profiles.id references auth.users(id)
+// ON DELETE CASCADE — and every child table (attempts, attendance, notifications,
+// acknowledgements, module_invitees, module_owners, …) cascades off profiles —
+// this single call removes the login and all of the user's data. Audit/content
+// rows (activity.actor_id, questions.approved_by, resources.created_by) are set
+// null, so history is preserved.
+
+export async function deleteUser(userId: string) {
+  const guard = await requireAdmin();
+  if (!guard.ok) return { ok: false as const, error: guard.error };
+  if (guard.userId === userId) return { ok: false as const, error: "You can't delete your own account" };
+
+  const admin = createAdminClient();
+
+  const { data: profile } = await admin.from("profiles").select("name, email").eq("id", userId).single();
+  const p = profile as { name?: string; email?: string } | null;
+  const targetName = p?.name ?? p?.email ?? "user";
+
+  const { error } = await admin.auth.admin.deleteUser(userId);
+  if (error) return { ok: false as const, error: error.message };
+
+  // The profile row is gone now (cascade), so log without a target_id reference.
+  await logActivity("user_deleted", guard.userId, `${guard.userName} permanently deleted ${targetName}`);
+
+  revalidatePath("/admin/managers");
+  revalidatePath("/admin/teachers");
+  revalidatePath("/admin/admins");
+  return { ok: true as const };
+}
+
 // ─── B.5 force password reset for a user ──────────────────
 
 export async function forceResetPassword(userId: string) {

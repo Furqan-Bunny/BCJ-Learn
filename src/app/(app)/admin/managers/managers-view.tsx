@@ -1,7 +1,6 @@
 "use client";
 
 import * as React from "react";
-import Link from "next/link";
 import {
   ColumnDef,
   flexRender,
@@ -22,6 +21,7 @@ import {
   Bell,
   RefreshCcw,
   Trash2,
+  Ban,
   Filter,
   Send,
   X as XIcon,
@@ -65,7 +65,7 @@ import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 import { SearchLoadingBar, motion } from "@/components/shared/animations";
 import { sendReminder, sendBulkReminders } from "@/lib/server/reminder-actions";
-import { deactivateUser, resendInvite } from "@/lib/server/admin-actions";
+import { deactivateUser, resendInvite, deleteUser } from "@/lib/server/admin-actions";
 
 const COHORTS: Cohort[] = ["Atlanta", "Dallas", "Phoenix"];
 const STATUSES: ManagerStatus[] = ["pending", "active", "at-risk", "completed", "inactive"];
@@ -190,8 +190,8 @@ export function AdminManagersView({ managers }: { managers: Manager[] }) {
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
-                <DropdownMenuItem asChild>
-                  <Link href={`/admin/managers/${m.id}`}>View profile</Link>
+                <DropdownMenuItem onClick={() => router.push(`/admin/managers/${m.id}`)}>
+                  View profile
                 </DropdownMenuItem>
                 {m.status === "pending" && (
                   <DropdownMenuItem
@@ -215,10 +215,8 @@ export function AdminManagersView({ managers }: { managers: Manager[] }) {
                 >
                   <Bell className="mr-2 size-4" /> Send reminder
                 </DropdownMenuItem>
-                <DropdownMenuItem asChild>
-                  <Link href={`/admin/managers/${m.id}`}>
-                    <RefreshCcw className="mr-2 size-4" /> Reassign retake…
-                  </Link>
+                <DropdownMenuItem onClick={() => router.push(`/admin/managers/${m.id}`)}>
+                  <RefreshCcw className="mr-2 size-4" /> Reassign retake…
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem
@@ -231,7 +229,19 @@ export function AdminManagersView({ managers }: { managers: Manager[] }) {
                     router.refresh();
                   }}
                 >
-                  <Trash2 className="mr-2 size-4" /> Deactivate
+                  <Ban className="mr-2 size-4" /> Deactivate
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  className="text-rose-600"
+                  onClick={async () => {
+                    if (!confirm(`Permanently delete ${m.name} and all their data? This cannot be undone.`)) return;
+                    const res = await deleteUser(m.id);
+                    if (!res.ok) { toast.error(res.error ?? "Could not delete"); return; }
+                    toast.success(`${m.name} deleted`);
+                    router.refresh();
+                  }}
+                >
+                  <Trash2 className="mr-2 size-4" /> Delete
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
