@@ -3,15 +3,14 @@
 import * as React from "react";
 import Link from "next/link";
 import { Card, CardContent } from "@/components/ui/card";
-import { ArrowRight, Calendar, Users, Trophy } from "lucide-react";
+import { ArrowRight, Calendar, Users, Trophy, List, LayoutGrid } from "lucide-react";
 import { PageHeader } from "@/components/shared/page-header";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { AddModuleSheet } from "@/components/admin/add-module-sheet";
 import { Stagger, StaggerItem, CountUp } from "@/components/shared/animations";
 import { fmtDate } from "@/lib/format";
-import type { ModuleDef, Attempt } from "@/types";
-
-import type { Teacher } from "@/types";
+import { cn } from "@/lib/utils";
+import type { ModuleDef, Attempt, Teacher } from "@/types";
 
 export interface AdminModulesViewProps {
   modules: ModuleDef[];
@@ -21,26 +20,47 @@ export interface AdminModulesViewProps {
   defaultNumber: number;
 }
 
+type View = "list" | "cards";
+const VIEW_KEY = "bcj.modulesView";
+
 export function AdminModulesView({ modules, attempts, teacherNamesById, teachers, defaultNumber }: AdminModulesViewProps) {
+  // Default to the list view; remember the user's choice between visits.
+  const [view, setView] = React.useState<View>("list");
+  React.useEffect(() => {
+    const saved = typeof window !== "undefined" ? window.localStorage.getItem(VIEW_KEY) : null;
+    if (saved === "list" || saved === "cards") setView(saved);
+  }, []);
+  function changeView(v: View) {
+    setView(v);
+    try { window.localStorage.setItem(VIEW_KEY, v); } catch { /* ignore */ }
+  }
+
+  // Derive each module's display values once, reused by both views.
+  const rows = modules.map((m) => {
+    const ownerNames = m.ownerTeacherIds.map((id) => teacherNamesById[id]).filter(Boolean) as string[];
+    const att = attempts.filter((a) => a.moduleSlug === m.slug);
+    const passed = att.filter((a) => a.status === "passed").length;
+    const passRate = att.length ? Math.round((passed / att.length) * 100) : 0;
+    return { m, ownerNames, attempts: att.length, passRate };
+  });
+
   return (
     <>
       <PageHeader
         eyebrow="Curriculum"
         title="All modules"
-        description="The five-module Employee training program. Click any to see results, content, and attempts."
-        actions={<AddModuleSheet teachers={teachers} defaultNumber={defaultNumber} />}
+        description="The Employee training program. Click any to see results, content, and attempts."
+        actions={
+          <div className="flex items-center gap-2">
+            <ViewToggle view={view} onChange={changeView} />
+            <AddModuleSheet teachers={teachers} defaultNumber={defaultNumber} />
+          </div>
+        }
       />
 
-      <Stagger className="grid lg:grid-cols-2 gap-4">
-        {modules.map((m) => {
-          const ownerNames = m.ownerTeacherIds
-            .map((id) => teacherNamesById[id])
-            .filter(Boolean) as string[];
-          const att = attempts.filter((a) => a.moduleSlug === m.slug);
-          const passed = att.filter((a) => a.status === "passed").length;
-          const passRate = att.length ? Math.round((passed / att.length) * 100) : 0;
-
-          return (
+      {view === "cards" ? (
+        <Stagger className="grid lg:grid-cols-2 gap-4">
+          {rows.map(({ m, ownerNames, attempts: attCount, passRate }) => (
             <StaggerItem key={m.slug} className="h-full">
               <Link href={`/admin/modules/${m.slug}`} className="block group h-full">
                 <Card className="card-lift card-glow group-hover:border-primary/40 h-full flex flex-col">
@@ -54,8 +74,8 @@ export function AdminModulesView({ modules, attempts, teacherNamesById, teachers
 
                     <div className="mt-4 grid grid-cols-3 gap-2 text-sm">
                       <Stat icon={Calendar} label="Day" value={m.scheduledDate ? fmtDate(m.scheduledDate, "MMM d") : "—"} animate={false} />
-                      <Stat icon={Users} label="Attempts" value={String(att.length)} animate />
-                      <Stat icon={Trophy} label="Pass rate" value={att.length ? `${passRate}%` : "—"} animate={att.length > 0} suffix="%" rawNumber={passRate} />
+                      <Stat icon={Users} label="Attempts" value={String(attCount)} animate />
+                      <Stat icon={Trophy} label="Pass rate" value={attCount ? `${passRate}%` : "—"} animate={attCount > 0} suffix="%" rawNumber={passRate} />
                     </div>
 
                     <div className="mt-auto pt-4 flex items-center justify-between text-xs">
@@ -69,10 +89,84 @@ export function AdminModulesView({ modules, attempts, teacherNamesById, teachers
                 </Card>
               </Link>
             </StaggerItem>
-          );
-        })}
-      </Stagger>
+          ))}
+        </Stagger>
+      ) : (
+        <Stagger className="space-y-2.5">
+          {rows.map(({ m, ownerNames, attempts: attCount, passRate }) => (
+            <StaggerItem key={m.slug}>
+              <Link href={`/admin/modules/${m.slug}`} className="block group">
+                <Card className="card-lift group-hover:border-primary/40">
+                  <CardContent className="p-4 flex items-center gap-4">
+                    <div className="text-xs font-mono text-muted-foreground w-24 shrink-0 leading-tight">
+                      <div className="text-foreground font-semibold">M{m.number}</div>
+                      <div>{m.scheduledMonth}</div>
+                    </div>
+
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <span className="font-semibold truncate">{m.title}</span>
+                        <StatusBadge variant={m.status} />
+                      </div>
+                      <p className="text-sm text-muted-foreground truncate">{m.description}</p>
+                    </div>
+
+                    <div className="hidden md:flex items-center gap-6 text-sm shrink-0">
+                      <RowStat icon={Calendar} label="Day" value={m.scheduledDate ? fmtDate(m.scheduledDate, "MMM d") : "—"} />
+                      <RowStat icon={Users} label="Attempts" value={String(attCount)} />
+                      <RowStat icon={Trophy} label="Pass rate" value={attCount ? `${passRate}%` : "—"} />
+                    </div>
+
+                    <div className="hidden xl:block w-36 shrink-0 text-xs text-muted-foreground truncate">
+                      {ownerNames.length > 1 ? "Co-owned by " : "Owned by "}
+                      <span className="text-foreground font-medium">{ownerNames.join(", ") || "—"}</span>
+                    </div>
+
+                    <ArrowRight className="size-4 text-muted-foreground shrink-0 transition-transform group-hover:translate-x-0.5 group-hover:text-primary" />
+                  </CardContent>
+                </Card>
+              </Link>
+            </StaggerItem>
+          ))}
+        </Stagger>
+      )}
     </>
+  );
+}
+
+function ViewToggle({ view, onChange }: { view: View; onChange: (v: View) => void }) {
+  return (
+    <div className="flex items-center gap-0.5 rounded-md border p-0.5">
+      {([
+        { id: "list" as const, icon: List, label: "List view" },
+        { id: "cards" as const, icon: LayoutGrid, label: "Card view" },
+      ]).map(({ id, icon: Icon, label }) => (
+        <button
+          key={id}
+          type="button"
+          onClick={() => onChange(id)}
+          aria-label={label}
+          aria-pressed={view === id}
+          className={cn(
+            "flex items-center justify-center size-8 rounded transition-colors",
+            view === id ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-accent",
+          )}
+        >
+          <Icon className="size-4" />
+        </button>
+      ))}
+    </div>
+  );
+}
+
+function RowStat({ icon: Icon, label, value }: { icon: React.ComponentType<{ className?: string }>; label: string; value: string }) {
+  return (
+    <div className="text-right">
+      <div className="flex items-center gap-1 text-[10px] uppercase tracking-wider text-muted-foreground justify-end">
+        <Icon className="size-3" /> {label}
+      </div>
+      <div className="font-semibold tabular-nums">{value}</div>
+    </div>
   );
 }
 

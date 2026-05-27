@@ -226,7 +226,7 @@ export default function LoginPage() {
             transition={{ duration: 0.6, delay: 0.2, ease: [0.16, 1, 0.3, 1] }}
             className="text-4xl font-bold leading-tight tracking-tight max-w-md text-gradient-shift"
           >
-            Train every Employee. Prove they got it.
+            Train every team member. Build confidence at every level.
           </motion.h1>
           <motion.p
             initial={{ opacity: 0, y: 12 }}
@@ -234,15 +234,15 @@ export default function LoginPage() {
             transition={{ duration: 0.6, delay: 0.32, ease: [0.16, 1, 0.3, 1] }}
             className="mt-4 text-primary-foreground/80 max-w-md"
           >
-            BCJ&rsquo;s custom training and quiz platform — five modules, on-site testing, instant results, and a live admin dashboard.
+            BCJ&rsquo;s custom training platform for company-wide learning, manager development, and consistent standards across every team. Team members complete assigned modules, take BCJ-approved knowledge checks, get instant results, and are guided through retakes automatically.
           </motion.p>
         </div>
 
         <div className="space-y-3 max-w-md relative z-10">
           {[
-            "85% pass threshold, retakes auto-scheduled",
-            "AI-drafted questions, BCJ-approved",
-            "Full reporting for QBRs and HR",
+            "Knowledge checks with an 85% readiness threshold",
+            "Automatic retakes and reminders",
+            "Live admin & department-level reporting for QBRs, HR, and compliance",
           ].map((line, i) => (
             <motion.div
               key={line}
