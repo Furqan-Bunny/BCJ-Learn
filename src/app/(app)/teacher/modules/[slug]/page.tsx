@@ -32,6 +32,11 @@ export default async function TeacherModulePage(props: PageProps<"/teacher/modul
     allManagers.map((m) => [m.id, { id: m.id, name: m.name, avatarColor: m.avatarColor, cohort: m.cohort }]),
   );
 
+  const rosterIds = new Set(roster.map((r) => r.manager.id));
+  const addableManagers = allManagers
+    .filter((m) => !rosterIds.has(m.id) && m.status !== "inactive" && m.status !== "pending")
+    .map((m) => ({ id: m.id, name: m.name }));
+
   return (
     <TeacherModuleView
       mod={mod}
@@ -41,6 +46,7 @@ export default async function TeacherModulePage(props: PageProps<"/teacher/modul
       deliveries={deliveries}
       managersById={managersById}
       currentDeliveryStart={currentDelivery?.startedAt ?? null}
+      addableManagers={addableManagers}
     />
   );
 }

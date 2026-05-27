@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { PasswordInput } from "@/components/ui/password-input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
@@ -49,6 +50,7 @@ export interface ProfileFormProps {
       trainingReminders: boolean;
       atRiskAlerts: boolean;
     };
+    twoFactorEnabled: boolean;
   };
 }
 
@@ -83,6 +85,10 @@ export function ProfileForm({ initial }: ProfileFormProps) {
     quizResults !== initial.notificationPrefs.quizResults ||
     trainingReminders !== initial.notificationPrefs.trainingReminders ||
     atRiskAlerts !== initial.notificationPrefs.atRiskAlerts;
+
+  // Security — two-factor (email OTP at sign-in)
+  const [twoFactor, setTwoFactor] = React.useState(initial.twoFactorEnabled);
+  const [savingTwoFactor, setSavingTwoFactor] = React.useState(false);
 
   // Danger
   const [signingOutEverywhere, setSigningOutEverywhere] = React.useState(false);
@@ -167,6 +173,20 @@ export function ProfileForm({ initial }: ProfileFormProps) {
       return;
     }
     toast.success("Notification preferences saved");
+    router.refresh();
+  }
+
+  async function handleToggleTwoFactor(next: boolean) {
+    setTwoFactor(next);
+    setSavingTwoFactor(true);
+    const result = await updateProfile({ twoFactorEnabled: next });
+    setSavingTwoFactor(false);
+    if (!result.ok) {
+      setTwoFactor(!next); // revert on failure
+      toast.error(result.error ?? "Failed to update two-factor setting");
+      return;
+    }
+    toast.success(next ? "Two-factor authentication turned on" : "Two-factor authentication turned off");
     router.refresh();
   }
 
@@ -371,6 +391,33 @@ export function ProfileForm({ initial }: ProfileFormProps) {
         </CardContent>
       </Card>
 
+      {/* Security — two-factor authentication */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <ShieldCheck className="size-4" /> Security
+          </CardTitle>
+          <CardDescription>Add an extra step when you sign in.</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="flex items-start justify-between gap-4">
+            <div className="flex-1 min-w-0">
+              <Label htmlFor="pref-2fa" className="font-medium">Two-factor authentication</Label>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                Email me a 6-digit sign-in code each time I log in. Keeps your account
+                safe even if someone learns your password.
+              </p>
+            </div>
+            <Switch
+              id="pref-2fa"
+              checked={twoFactor}
+              onCheckedChange={handleToggleTwoFactor}
+              disabled={savingTwoFactor}
+            />
+          </div>
+        </CardContent>
+      </Card>
+
       {/* Account context (read-only) */}
       <Card>
         <CardHeader>
@@ -401,9 +448,8 @@ export function ProfileForm({ initial }: ProfileFormProps) {
           <form onSubmit={handleChangePassword} className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="curr-pw">Current password</Label>
-              <Input
+              <PasswordInput
                 id="curr-pw"
-                type="password"
                 value={currentPassword}
                 onChange={(e) => setCurrentPassword(e.target.value)}
                 autoComplete="current-password"
@@ -414,9 +460,8 @@ export function ProfileForm({ initial }: ProfileFormProps) {
             <div className="grid sm:grid-cols-2 gap-3">
               <div className="space-y-2">
                 <Label htmlFor="new-pw">New password</Label>
-                <Input
+                <PasswordInput
                   id="new-pw"
-                  type="password"
                   value={newPassword}
                   onChange={(e) => setNewPassword(e.target.value)}
                   autoComplete="new-password"
@@ -427,9 +472,8 @@ export function ProfileForm({ initial }: ProfileFormProps) {
               </div>
               <div className="space-y-2">
                 <Label htmlFor="conf-pw">Confirm new password</Label>
-                <Input
+                <PasswordInput
                   id="conf-pw"
-                  type="password"
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
                   autoComplete="new-password"

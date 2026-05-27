@@ -8,8 +8,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { Mail, Bell, Send, Sparkles, Loader2 } from "lucide-react";
+import { Mail, Bell, Send, Sparkles, Loader2, Info, Plus } from "lucide-react";
+import { cn } from "@/lib/utils";
 import { PageHeader } from "@/components/shared/page-header";
 import { Badge } from "@/components/ui/badge";
 import { fmtRelative } from "@/lib/format";
@@ -21,40 +21,71 @@ import { updateReminderRules } from "@/lib/server/settings-actions";
 import type { NotificationItem } from "@/types";
 import type { ReminderRules } from "@/lib/db/settings";
 import type { TemplateKey } from "@/lib/emails/send";
+import type { EmailTemplateRow } from "@/lib/db/email-templates";
 
-// Keys match the email_templates rows seeded in migration 0003.
-const TEMPLATES: { id: TemplateKey; label: string; subject: string; body: string }[] = [
-  { id: "invite",            label: "Invitation",            subject: "Welcome to BCJ Learn", body: "# Hi {{name}},\n\nYou've been invited to join BCJ Learn — our internal training and quiz platform.\n\n[Set up your account]({{invite_link}})\n\nThis link expires in 7 days.\n\n— The BCJ team" },
-  { id: "password_reset",    label: "Password reset",        subject: "Reset your BCJ Learn password", body: "# Hi {{name}},\n\nYou requested a password reset. Click the link below to set a new password:\n\n[Reset password]({{reset_link}})\n\nIf you didn't request this, ignore this email. The link expires in 1 hour." },
-  { id: "welcome",           label: "Welcome",               subject: "You're all set on BCJ Learn", body: "# Welcome, {{name}}!\n\nYour account is ready. Your first training module is scheduled for {{first_module_date}}.\n\n[Open BCJ Learn]({{app_url}})" },
-  { id: "quiz_passed",       label: "Quiz passed",           subject: "You passed {{module_title}} 🎉", body: "# Great work, {{name}}!\n\nYou scored **{{score}}%** on the {{module_title}} quiz — well above the 85% pass threshold.\n\nThe next module unlocks on {{next_module_date}}.\n\n[View your progress]({{progress_link}})" },
-  { id: "quiz_failed",       label: "Quiz failed (retake)",  subject: "Retake scheduled for {{module_title}}", body: "# Hi {{name}},\n\nYou scored **{{score}}%** on the {{module_title}} quiz. Don't worry — a retake is automatically scheduled using an easier question set.\n\nYou can take it any time.\n\n[Take the retake]({{retake_link}})" },
-  { id: "overdue_reminder",  label: "Overdue reminder",      subject: "Reminder: {{module_title}} quiz is overdue", body: "# Hi {{name}},\n\nYou haven't completed the **{{module_title}}** quiz yet. Please complete it by {{due_date}}.\n\n[Take the quiz]({{quiz_link}})" },
-  { id: "at_risk_alert",     label: "At-risk alert (admin)", subject: "BCJ Learn — {{employee_name}} flagged at-risk", body: "# Hi {{admin_name}},\n\n{{employee_name}} ({{cohort}}) has been flagged as at-risk. Reason: {{reason}}.\n\n[Review their profile]({{profile_link}})" },
-];
+// Friendly tab names for known template keys; unknown keys fall back to a
+// title-cased version of the key.
+const TEMPLATE_LABELS: Record<string, string> = {
+  invite: "Invitation",
+  password_reset: "Password reset",
+  welcome: "Welcome",
+  quiz_passed: "Quiz passed",
+  quiz_failed: "Quiz failed (retake)",
+  overdue_reminder: "Overdue reminder",
+  at_risk_alert: "At-risk alert",
+  login_code: "Sign-in code",
+  seminar_scheduled: "Seminar scheduled",
+  seminar_rescheduled: "Seminar rescheduled",
+};
+
+function labelFor(key: string): string {
+  return TEMPLATE_LABELS[key] ?? key.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+}
 
 export interface NotificationsViewProps {
   recent: NotificationItem[];
   initialRules: ReminderRules;
   profilesById: Record<string, { id: string; name: string; avatarColor: string }>;
+  templates: EmailTemplateRow[];
 }
 
-export function NotificationsView({ recent, initialRules, profilesById }: NotificationsViewProps) {
+export function NotificationsView({ recent, initialRules, profilesById, templates }: NotificationsViewProps) {
   const router = useRouter();
-  const [activeTpl, setActiveTpl] = React.useState<TemplateKey>(TEMPLATES[0].id);
+  const [activeTpl, setActiveTpl] = React.useState<string>(templates[0]?.key ?? "");
   const [autoReminders, setAutoReminders] = React.useState(initialRules.autoReminders);
   const [overdueDays, setOverdueDays] = React.useState(initialRules.overdueDays);
   const [saving, setSaving] = React.useState(false);
   const [savingRules, setSavingRules] = React.useState(false);
   const [testing, setTesting] = React.useState(false);
 
-  const tpl = TEMPLATES.find((t) => t.id === activeTpl)!;
-  const [subject, setSubject] = React.useState(tpl.subject);
-  const [body, setBody] = React.useState(tpl.body);
+  const tpl = templates.find((t) => t.key === activeTpl) ?? templates[0];
+  const [subject, setSubject] = React.useState(tpl?.subject ?? "");
+  const [body, setBody] = React.useState(tpl?.bodyMarkdown ?? "");
+  const bodyRef = React.useRef<HTMLTextAreaElement>(null);
+
+  // Insert a {{variable}} into the body at the cursor — so non-technical admins
+  // never have to type the braces themselves.
+  function insertVariable(v: string) {
+    const token = `{{${v}}}`;
+    const el = bodyRef.current;
+    if (!el) {
+      setBody((b) => b + token);
+      return;
+    }
+    const start = el.selectionStart ?? body.length;
+    const end = el.selectionEnd ?? body.length;
+    const next = body.slice(0, start) + token + body.slice(end);
+    setBody(next);
+    requestAnimationFrame(() => {
+      el.focus();
+      const pos = start + token.length;
+      el.setSelectionRange(pos, pos);
+    });
+  }
 
   React.useEffect(() => {
-    setSubject(tpl.subject);
-    setBody(tpl.body);
+    setSubject(tpl?.subject ?? "");
+    setBody(tpl?.bodyMarkdown ?? "");
   }, [tpl]);
 
   async function handleSaveTemplate(label: string) {
@@ -70,11 +101,12 @@ export function NotificationsView({ recent, initialRules, profilesById }: Notifi
       return;
     }
     toast.success(`${label} template saved`);
+    router.refresh();
   }
 
   async function handleSendTest() {
     setTesting(true);
-    const result = await sendTestEmail(activeTpl);
+    const result = await sendTestEmail(activeTpl as TemplateKey);
     setTesting(false);
     if (!result.ok) {
       toast.error(result.error ?? "Could not send test");
@@ -112,14 +144,53 @@ export function NotificationsView({ recent, initialRules, profilesById }: Notifi
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <Tabs value={activeTpl} onValueChange={(v) => setActiveTpl(v as TemplateKey)}>
-                <TabsList>
-                  {TEMPLATES.map((t) => (
-                    <TabsTrigger key={t.id} value={t.id}>{t.label}</TabsTrigger>
+              <div className="mb-4 rounded-lg border border-primary/20 bg-primary/[0.04] p-3 flex gap-2.5">
+                <Info className="size-4 text-primary shrink-0 mt-0.5" />
+                <div className="text-xs text-muted-foreground space-y-1">
+                  <p className="font-medium text-foreground">How dynamic text works</p>
+                  <p>
+                    Anything inside double braces — like{" "}
+                    <code className="font-mono bg-muted px-1 rounded">{"{{name}}"}</code> — is automatically
+                    replaced with each person&rsquo;s real info when the email is sent. Just write your message
+                    normally and <span className="font-medium text-foreground">click a variable below</span> to
+                    drop it in — you never have to type the braces yourself.
+                  </p>
+                  <p className="italic">
+                    {'Example: "Hi {{name}}, your {{module_title}} seminar is on {{seminar_date}}." → "Hi Nancy, your Operations & Leadership seminar is on Jun 12."'}
+                  </p>
+                </div>
+              </div>
+              {templates.length === 0 ? (
+                <div className="text-sm text-muted-foreground py-6 text-center">
+                  No email templates found. Apply the database migrations to seed them.
+                </div>
+              ) : (
+              <div className="grid sm:grid-cols-[210px_1fr] gap-5">
+                {/* Template picker — one per row, clearly spaced */}
+                <div className="flex sm:flex-col gap-1 overflow-x-auto sm:overflow-visible sm:border-r sm:pr-3 pb-1 sm:pb-0">
+                  <div className="hidden sm:block text-[10px] uppercase tracking-wider text-muted-foreground px-2 pb-1">
+                    Choose an email
+                  </div>
+                  {templates.map((t) => (
+                    <button
+                      key={t.key}
+                      type="button"
+                      onClick={() => setActiveTpl(t.key)}
+                      className={cn(
+                        "text-left text-sm rounded-md px-3 py-2 whitespace-nowrap shrink-0 transition-colors",
+                        activeTpl === t.key
+                          ? "bg-primary/10 text-primary font-medium"
+                          : "text-muted-foreground hover:bg-accent hover:text-foreground",
+                      )}
+                    >
+                      {labelFor(t.key)}
+                    </button>
                   ))}
-                </TabsList>
-                {TEMPLATES.map((t) => (
-                  <TabsContent key={t.id} value={t.id} className="mt-5 space-y-4">
+                </div>
+
+                {/* Editor for the selected template */}
+                {tpl && (
+                  <div className="space-y-4 min-w-0">
                     <div className="space-y-1.5">
                       <Label>Subject</Label>
                       <Input value={subject} onChange={(e) => setSubject(e.target.value)} />
@@ -127,20 +198,33 @@ export function NotificationsView({ recent, initialRules, profilesById }: Notifi
                     <div className="space-y-1.5">
                       <Label>Body</Label>
                       <Textarea
+                        ref={bodyRef}
                         value={body}
                         onChange={(e) => setBody(e.target.value)}
                         rows={10}
                         className="font-mono text-sm"
                       />
-                      <div className="text-xs text-muted-foreground flex flex-wrap gap-1.5 pt-1">
-                        <span>Variables:</span>
-                        {["{{name}}", "{{module_title}}", "{{score}}", "{{due_date}}", "{{quiz_link}}", "{{invite_link}}", "{{reset_link}}", "{{progress_link}}", "{{retake_link}}", "{{app_url}}", "{{employee_name}}", "{{admin_name}}", "{{cohort}}", "{{reason}}", "{{profile_link}}", "{{first_module_date}}", "{{next_module_date}}"].map((v) => (
-                          <Badge key={v} variant="outline" className="font-mono text-[10px]">{v}</Badge>
-                        ))}
+                      <div className="text-xs text-muted-foreground flex flex-wrap gap-1.5 pt-1 items-center">
+                        <span>Click to insert:</span>
+                        {tpl.variables.length === 0 ? (
+                          <span className="italic">no variables for this email</span>
+                        ) : (
+                          tpl.variables.map((v) => (
+                            <button
+                              key={v}
+                              type="button"
+                              onClick={() => insertVariable(v)}
+                              title={`Insert {{${v}}}`}
+                              className="inline-flex items-center gap-1 rounded border bg-card px-1.5 py-0.5 font-mono text-[10px] hover:bg-accent hover:border-primary/40 transition-colors"
+                            >
+                              <Plus className="size-2.5" />{`{{${v}}}`}
+                            </button>
+                          ))
+                        )}
                       </div>
                     </div>
-                    <div className="flex items-center gap-2">
-                      <Button onClick={() => handleSaveTemplate(t.label)} disabled={saving}>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <Button onClick={() => handleSaveTemplate(labelFor(tpl.key))} disabled={saving}>
                         {saving ? "Saving…" : "Save changes"}
                       </Button>
                       <EmailPreviewDialog subject={subject} bodyMarkdown={body} />
@@ -152,9 +236,10 @@ export function NotificationsView({ recent, initialRules, profilesById }: Notifi
                         )}
                       </Button>
                     </div>
-                  </TabsContent>
-                ))}
-              </Tabs>
+                  </div>
+                )}
+              </div>
+              )}
             </CardContent>
           </Card>
 

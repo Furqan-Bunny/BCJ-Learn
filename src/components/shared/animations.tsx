@@ -555,8 +555,15 @@ export function RippleButton({
 /* ─── AppLoader ───────────────────────────────────────────────────────── */
 // Branded full-page loader. Logo gently pulses; three dots wave in sequence.
 
-export function AppLoader({ label = "Loading BCJ Learn" }: { label?: string }) {
+export function AppLoader({ label = "Loading BCJ Learn", messages }: { label?: string; messages?: string[] }) {
   const reduced = useReducedMotion();
+  const steps = messages && messages.length > 0 ? messages : null;
+  const [stepIdx, setStepIdx] = React.useState(0);
+  React.useEffect(() => {
+    if (!steps || steps.length <= 1) return;
+    const t = setInterval(() => setStepIdx((p) => (p + 1) % steps.length), 950);
+    return () => clearInterval(t);
+  }, [steps?.length]); // eslint-disable-line react-hooks/exhaustive-deps
   return (
     <div className="flex items-center justify-center min-h-[calc(100vh-12rem)] w-full">
       <div className="flex flex-col items-center gap-6">
@@ -579,7 +586,19 @@ export function AppLoader({ label = "Loading BCJ Learn" }: { label?: string }) {
             />
           ))}
         </div>
-        <span className="text-xs text-muted-foreground tracking-wider uppercase">{label}</span>
+        {steps ? (
+          <motion.span
+            key={stepIdx}
+            initial={{ opacity: 0, y: 4 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.3 }}
+            className="text-xs text-muted-foreground tracking-wider uppercase"
+          >
+            {steps[stepIdx]}
+          </motion.span>
+        ) : (
+          <span className="text-xs text-muted-foreground tracking-wider uppercase">{label}</span>
+        )}
       </div>
     </div>
   );

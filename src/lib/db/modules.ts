@@ -10,6 +10,7 @@ interface ModuleRow {
   description: string;
   scheduled_month: string | null;
   scheduled_date: string | null;
+  scheduled_time: string | null;
   status: ModuleStatus;
   pass_threshold: number;
   question_count: number;
@@ -59,6 +60,7 @@ function rowToModuleDef(
     description: r.description,
     scheduledMonth: r.scheduled_month ?? "",
     scheduledDate: r.scheduled_date ?? "",
+    scheduledTime: r.scheduled_time ?? "",
     ownerTeacherIds,
     status: r.status,
     passThreshold: r.pass_threshold,

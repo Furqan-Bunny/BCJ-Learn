@@ -14,12 +14,15 @@
 
 import { createClient, createAdminClient } from "@/lib/supabase/server";
 import { pushInAppNotification } from "@/lib/notifications/push";
-import { claudeClient, DEFAULT_MODEL } from "@/lib/ai/claude";
+import { openaiClient, CHAT_MODEL } from "@/lib/ai/openai";
+import { extractTextForContent } from "@/lib/ai/extract";
 import {
   QUESTION_GEN_SYSTEM,
   questionGenUserPrompt,
   questionRegenSystem,
   questionRegenUserPrompt,
+  SUMMARIZE_SYSTEM,
+  summarizeUserPrompt,
 } from "@/lib/ai/prompts";
 import { revalidatePath } from "next/cache";
 import { listQuestionVersions, type QuestionVersion } from "@/lib/db/questions";
@@ -119,20 +122,15 @@ interface DraftQuestion {
 }
 
 function extractJsonArray(raw: string): DraftQuestion[] {
-  // Strip code fences if Claude included them despite the instructions.
   let cleaned = raw.trim();
   if (cleaned.startsWith("```")) {
     cleaned = cleaned.replace(/^```(?:json)?\s*/i, "").replace(/```\s*$/i, "").trim();
   }
-  // Sometimes there's a preamble. Slice from first `[` to last `]`.
-  const firstBracket = cleaned.indexOf("[");
-  const lastBracket = cleaned.lastIndexOf("]");
-  if (firstBracket !== -1 && lastBracket !== -1 && lastBracket > firstBracket) {
-    cleaned = cleaned.slice(firstBracket, lastBracket + 1);
-  }
   const parsed = JSON.parse(cleaned);
-  if (!Array.isArray(parsed)) throw new Error("Expected array");
-  return parsed as DraftQuestion[];
+  if (Array.isArray(parsed)) return parsed as DraftQuestion[];
+  const qs = (parsed as { questions?: unknown } | null)?.questions;
+  if (Array.isArray(qs)) return qs as DraftQuestion[];
+  throw new Error("Expected a questions array");
 }
 
 function extractJsonObject(raw: string): DraftQuestion {
@@ -148,135 +146,34 @@ function extractJsonObject(raw: string): DraftQuestion {
   return JSON.parse(cleaned) as DraftQuestion;
 }
 
-async function callClaudeForBatch(
+async function callLlmForBatch(
   content: string,
   pool: QuestionPool,
   count: number,
+  avoidTexts?: string[],
 ): Promise<DraftQuestion[]> {
-  const claude = claudeClient();
-  const msg = await claude.messages.create({
-    model: DEFAULT_MODEL,
-    max_tokens: 8000,
-    system: QUESTION_GEN_SYSTEM,
-    messages: [{ role: "user", content: questionGenUserPrompt(content, pool, count) }],
+  const openai = openaiClient();
+  const res = await openai.chat.completions.create({
+    model: CHAT_MODEL,
+    response_format: { type: "json_object" },
+    messages: [
+      { role: "system", content: QUESTION_GEN_SYSTEM },
+      { role: "user", content: questionGenUserPrompt(content, pool, count, avoidTexts) },
+    ],
   });
-
-  const text = msg.content
-    .filter((b): b is Extract<typeof b, { type: "text" }> => b.type === "text")
-    .map((b) => b.text)
-    .join("\n");
-
-  try {
-    return extractJsonArray(text);
-  } catch {
-    // Retry once with a stricter follow-up.
-    const retry = await claude.messages.create({
-      model: DEFAULT_MODEL,
-      max_tokens: 8000,
-      system: QUESTION_GEN_SYSTEM,
-      messages: [
-        { role: "user", content: questionGenUserPrompt(content, pool, count) },
-        { role: "assistant", content: text },
-        { role: "user", content: "That output was not valid JSON. Please respond with ONLY the raw JSON array, no preamble, no markdown fences." },
-      ],
-    });
-    const retryText = retry.content
-      .filter((b): b is Extract<typeof b, { type: "text" }> => b.type === "text")
-      .map((b) => b.text)
-      .join("\n");
-    return extractJsonArray(retryText);
-  }
+  const text = res.choices[0]?.message?.content ?? "";
+  return extractJsonArray(text);
 }
 
-function buildSourceContent(lessons: { title: string; description: string; contents: { type: string; title: string; metadata: unknown }[] }[]): string {
-  const chunks: string[] = [];
-  for (const l of lessons) {
-    chunks.push(`## ${l.title}\n${l.description}`);
-    for (const c of l.contents) {
-      chunks.push(`### ${c.type.toUpperCase()}: ${c.title}`);
-      const meta = c.metadata as { documentPages?: string[]; slides?: { title: string; bullets: string[] }[] } | null;
-      if (meta?.documentPages) {
-        chunks.push(meta.documentPages.join("\n\n"));
-      }
-      if (meta?.slides) {
-        for (const s of meta.slides) {
-          chunks.push(`Slide: ${s.title}\n${s.bullets.map((b) => `- ${b}`).join("\n")}`);
-        }
-      }
-    }
-  }
-  // Truncate so we don't exceed Claude's input window cost-effectively.
-  const joined = chunks.join("\n\n");
-  return joined.length > 50_000 ? joined.slice(0, 50_000) : joined;
-}
-
-export async function generateQuestions(moduleSlug: string): Promise<
-  | { ok: true; created: number }
-  | { ok: false; error: string }
-> {
-  const guard = await requireAdminOrModuleOwner(moduleSlug);
-  if (!guard.ok) return { ok: false, error: guard.error };
-
-  const admin = createAdminClient();
-  const { data: lessonsData } = await admin
-    .from("lessons")
-    .select("title, description, lesson_contents(type, title, metadata)")
-    .eq("module_slug", moduleSlug)
-    .order("order");
-
-  const lessons = (lessonsData ?? []) as {
-    title: string;
-    description: string;
-    lesson_contents: { type: string; title: string; metadata: unknown }[];
-  }[];
-
-  if (lessons.length === 0) {
-    return { ok: false, error: "This module has no lessons yet — add content first." };
-  }
-
-  const sourceContent = buildSourceContent(
-    lessons.map((l) => ({
-      title: l.title,
-      description: l.description,
-      contents: l.lesson_contents ?? [],
-    })),
-  );
-
-  if (sourceContent.trim().length < 200) {
-    return {
-      ok: false,
-      error: "Not enough source content. Add lesson manuals, slides, or documents before generating questions.",
-    };
-  }
-
-  if (DEMO_MODE) {
-    // Demo: skip the Claude call and stub a few pending questions so the UI
-    // can be exercised without burning API credits.
-    return { ok: true, created: 0 };
-  }
-
-  let firstAttempt: DraftQuestion[] = [];
-  let retake: DraftQuestion[] = [];
-  try {
-    [firstAttempt, retake] = await Promise.all([
-      callClaudeForBatch(sourceContent, "first-attempt", FIRST_ATTEMPT_COUNT),
-      callClaudeForBatch(sourceContent, "retake", RETAKE_COUNT),
-    ]);
-  } catch (err) {
-    return { ok: false, error: `Claude error: ${(err as Error).message}` };
-  }
-
-  // Insert questions + options under a single transaction-flavoured pass.
-  const allDrafts = [
-    ...firstAttempt.map((q) => ({ ...q, pool: "first-attempt" as QuestionPool })),
-    ...retake.map((q) => ({ ...q, pool: "retake" as QuestionPool })),
-  ];
-
+async function insertDrafts(
+  admin: ReturnType<typeof createAdminClient>,
+  moduleSlug: string,
+  drafts: (DraftQuestion & { pool: QuestionPool })[],
+  userId: string,
+): Promise<number> {
   let created = 0;
-
-  for (const draft of allDrafts) {
+  for (const draft of drafts) {
     if (!draft.text || !Array.isArray(draft.options) || draft.options.length !== 4) continue;
-
     const { data: insertedQ, error: qErr } = await admin
       .from("questions")
       .insert({
@@ -289,45 +186,230 @@ export async function generateQuestions(moduleSlug: string): Promise<
       })
       .select("id")
       .single();
-
     if (qErr || !insertedQ) continue;
     const qId = (insertedQ as { id: string }).id;
-
-    const optionRows = draft.options.map((o, i) => ({
-      question_id: qId,
-      text: o.text,
-      correct: !!o.correct,
-      order: i,
-    }));
-
+    const optionRows = draft.options.map((o, i) => ({ question_id: qId, text: o.text, correct: !!o.correct, order: i }));
     const { error: oErr } = await admin.from("question_options").insert(optionRows);
-    if (oErr) {
-      // Roll back this question if its options failed to insert.
-      await admin.from("questions").delete().eq("id", qId);
-      continue;
-    }
-
-    // Baseline version snapshot.
-    await snapshotQuestion(admin, qId, "initial", guard.userId);
-
+    if (oErr) { await admin.from("questions").delete().eq("id", qId); continue; }
+    await snapshotQuestion(admin, qId, "initial", userId);
     created++;
   }
+  return created;
+}
 
-  // Refresh denormalised counts on the module row.
-  const { count: totalCount } = await admin
+async function refreshQuestionCounts(admin: ReturnType<typeof createAdminClient>, moduleSlug: string) {
+  const { count } = await admin
     .from("questions")
     .select("*", { count: "exact", head: true })
     .eq("module_slug", moduleSlug);
-  await admin
-    .from("modules")
-    .update({ questions_total: totalCount ?? 0 })
-    .eq("slug", moduleSlug);
+  await admin.from("modules").update({ questions_total: count ?? 0 }).eq("slug", moduleSlug);
+  revalidatePath(`/teacher/modules/${moduleSlug}/questions`);
+  revalidatePath(`/admin/modules/${moduleSlug}`);
+  revalidatePath(`/admin/questions`);
+}
+
+// ─── Staged generation pipeline (client-drivable for live progress) ──────
+
+// Stage 1 — extract text from every file, cache it, store the combined source.
+export async function extractModuleSources(moduleSlug: string): Promise<
+  | { ok: true; totalChars: number; items: { title: string; type: string; chars: number; note?: string }[] }
+  | { ok: false; error: string }
+> {
+  const guard = await requireAdminOrModuleOwner(moduleSlug);
+  if (!guard.ok) return { ok: false, error: guard.error };
+
+  const admin = createAdminClient();
+  const { data: lessonsData } = await admin
+    .from("lessons")
+    .select("title, description, lesson_contents(id, type, title, metadata, storage_path)")
+    .eq("module_slug", moduleSlug)
+    .order("order");
+  const lessons = (lessonsData ?? []) as {
+    title: string;
+    description: string;
+    lesson_contents: { id: string; type: string; title: string; metadata: unknown; storage_path: string | null }[];
+  }[];
+  if (lessons.length === 0) return { ok: false, error: "This module has no lessons yet — add content first." };
+
+  const parts: string[] = [];
+  const items: { title: string; type: string; chars: number; note?: string }[] = [];
+  for (const l of lessons) {
+    parts.push(`## ${l.title}\n${l.description}`);
+    for (const c of l.lesson_contents ?? []) {
+      const res = await extractTextForContent({
+        type: c.type,
+        title: c.title,
+        storagePath: c.storage_path,
+        fileName: (c.metadata as { fileName?: string } | null)?.fileName ?? null,
+        metadata: c.metadata,
+      });
+      const text = res.text.trim();
+      if (text) {
+        parts.push(`### ${c.title}\n${text}`);
+        const prevMeta = (c.metadata as Record<string, unknown> | null) ?? {};
+        await admin.from("lesson_contents").update({ metadata: { ...prevMeta, extractedText: text } }).eq("id", c.id);
+      }
+      items.push({ title: c.title, type: c.type, chars: text.length, note: res.note });
+    }
+  }
+  let combined = parts.join("\n\n");
+  if (combined.length > 80_000) combined = combined.slice(0, 80_000);
+  await admin.from("modules").update({ ai_source_text: combined }).eq("slug", moduleSlug);
+
+  return { ok: true, totalChars: combined.trim().length, items };
+}
+
+// Stage 2 — condense long/multi-source material into a focused study summary.
+export async function summarizeModule(moduleSlug: string): Promise<{ ok: boolean; error?: string; summarized?: boolean }> {
+  const guard = await requireAdminOrModuleOwner(moduleSlug);
+  if (!guard.ok) return { ok: false, error: guard.error };
+  if (DEMO_MODE) return { ok: true, summarized: false };
+
+  const admin = createAdminClient();
+  const { data } = await admin.from("modules").select("ai_source_text").eq("slug", moduleSlug).single();
+  const source = (data as { ai_source_text?: string } | null)?.ai_source_text ?? "";
+  if (source.trim().length < 6000) return { ok: true, summarized: false };
+
+  try {
+    const openai = openaiClient();
+    const res = await openai.chat.completions.create({
+      model: CHAT_MODEL,
+      messages: [
+        { role: "system", content: SUMMARIZE_SYSTEM },
+        { role: "user", content: summarizeUserPrompt(source) },
+      ],
+    });
+    const summary = res.choices[0]?.message?.content?.trim();
+    if (summary && summary.length > 200) {
+      await admin.from("modules").update({ ai_source_text: summary }).eq("slug", moduleSlug);
+      return { ok: true, summarized: true };
+    }
+  } catch (err) {
+    return { ok: true, summarized: false, error: (err as Error).message };
+  }
+  return { ok: true, summarized: false };
+}
+
+// Stage 3 — generate one pool's questions from the cached source.
+export async function generateQuestionBatch(
+  moduleSlug: string,
+  pool: QuestionPool,
+): Promise<{ ok: boolean; error?: string; created?: number }> {
+  const guard = await requireAdminOrModuleOwner(moduleSlug);
+  if (!guard.ok) return { ok: false, error: guard.error };
+
+  const admin = createAdminClient();
+  const { data } = await admin.from("modules").select("ai_source_text").eq("slug", moduleSlug).single();
+  const source = (data as { ai_source_text?: string } | null)?.ai_source_text ?? "";
+  if (source.trim().length < 200) {
+    return { ok: false, error: "No readable content found. Upload a document/video with real content first." };
+  }
+  if (DEMO_MODE) return { ok: true, created: 0 };
+
+  const count = pool === "retake" ? RETAKE_COUNT : FIRST_ATTEMPT_COUNT;
+  let drafts: DraftQuestion[];
+  try {
+    drafts = await callLlmForBatch(source, pool, count);
+  } catch (err) {
+    return { ok: false, error: `AI error: ${(err as Error).message}` };
+  }
+  const created = await insertDrafts(admin, moduleSlug, drafts.map((q) => ({ ...q, pool })), guard.userId);
+  await refreshQuestionCounts(admin, moduleSlug);
+  return { ok: true, created };
+}
+
+// Returns drafts WITHOUT inserting — powers the interactive one-by-one review.
+export async function generateQuestionDrafts(
+  moduleSlug: string,
+  pool: QuestionPool,
+  count: number,
+  avoidTexts: string[] = [],
+): Promise<{ ok: boolean; error?: string; drafts?: DraftQuestion[] }> {
+  const guard = await requireAdminOrModuleOwner(moduleSlug);
+  if (!guard.ok) return { ok: false, error: guard.error };
+
+  const admin = createAdminClient();
+  const { data } = await admin.from("modules").select("ai_source_text").eq("slug", moduleSlug).single();
+  const source = (data as { ai_source_text?: string } | null)?.ai_source_text ?? "";
+  if (source.trim().length < 200) {
+    return { ok: false, error: "No readable content found. Add a document/video with real content first." };
+  }
+  if (DEMO_MODE) return { ok: true, drafts: [] };
+
+  try {
+    const drafts = await callLlmForBatch(source, pool, count, avoidTexts);
+    const valid = drafts.filter((d) => d.text && Array.isArray(d.options) && d.options.length === 4);
+    return { ok: true, drafts: valid };
+  } catch (err) {
+    return { ok: false, error: `AI error: ${(err as Error).message}` };
+  }
+}
+
+// Inserts a single admin-approved draft (status 'approved') + refreshes counts.
+export async function commitQuestionDraft(
+  moduleSlug: string,
+  pool: QuestionPool,
+  draft: DraftQuestion,
+): Promise<{ ok: boolean; error?: string; id?: string }> {
+  const guard = await requireAdminOrModuleOwner(moduleSlug);
+  if (!guard.ok) return { ok: false, error: guard.error };
+  if (!draft.text || !Array.isArray(draft.options) || draft.options.length !== 4) {
+    return { ok: false, error: "Invalid question" };
+  }
+  if (DEMO_MODE) return { ok: true, id: "demo" };
+
+  const admin = createAdminClient();
+  const { data: insertedQ, error: qErr } = await admin
+    .from("questions")
+    .insert({
+      module_slug: moduleSlug,
+      pool,
+      status: "approved",
+      text: draft.text,
+      explanation: draft.explanation ?? null,
+      generated_by_ai: true,
+      approved_at: new Date().toISOString(),
+      approved_by: guard.userId,
+    })
+    .select("id")
+    .single();
+  if (qErr || !insertedQ) return { ok: false, error: qErr?.message ?? "Could not save question" };
+  const qId = (insertedQ as { id: string }).id;
+
+  const optionRows = draft.options.map((o, i) => ({ question_id: qId, text: o.text, correct: !!o.correct, order: i }));
+  const { error: oErr } = await admin.from("question_options").insert(optionRows);
+  if (oErr) { await admin.from("questions").delete().eq("id", qId); return { ok: false, error: oErr.message }; }
+
+  await snapshotQuestion(admin, qId, "initial", guard.userId);
+
+  const [{ count: total }, { count: approved }] = await Promise.all([
+    admin.from("questions").select("*", { count: "exact", head: true }).eq("module_slug", moduleSlug),
+    admin.from("questions").select("*", { count: "exact", head: true }).eq("module_slug", moduleSlug).in("status", ["approved", "edited"]),
+  ]);
+  await admin.from("modules").update({ questions_total: total ?? 0, questions_approved: approved ?? 0 }).eq("slug", moduleSlug);
 
   revalidatePath(`/teacher/modules/${moduleSlug}/questions`);
   revalidatePath(`/admin/modules/${moduleSlug}`);
   revalidatePath(`/admin/questions`);
+  return { ok: true, id: qId };
+}
 
-  return { ok: true, created };
+// One-shot generation (used by the "Generate with AI" button) — composes the stages.
+export async function generateQuestions(moduleSlug: string): Promise<
+  | { ok: true; created: number }
+  | { ok: false; error: string }
+> {
+  const ex = await extractModuleSources(moduleSlug);
+  if (!ex.ok) return ex;
+  if (ex.totalChars < 200) {
+    return { ok: false, error: "No readable content found in this module's files. Upload a Word/PDF/text document (or a short video) with real content, then try again." };
+  }
+  await summarizeModule(moduleSlug);
+  const a = await generateQuestionBatch(moduleSlug, "first-attempt");
+  if (!a.ok) return { ok: false, error: a.error ?? "Generation failed" };
+  const b = await generateQuestionBatch(moduleSlug, "retake");
+  if (!b.ok) return { ok: false, error: b.error ?? "Generation failed" };
+  return { ok: true, created: (a.created ?? 0) + (b.created ?? 0) };
 }
 
 // ─── Approve question ──────────────────────────────────────────────────
@@ -450,20 +532,19 @@ export async function regenerateQuestion(questionId: string): Promise<{ ok: bool
 
   let draft: DraftQuestion;
   try {
-    const claude = claudeClient();
-    const msg = await claude.messages.create({
-      model: DEFAULT_MODEL,
-      max_tokens: 1500,
-      system: questionRegenSystem(),
-      messages: [{ role: "user", content: questionRegenUserPrompt(originalText, null) }],
+    const openai = openaiClient();
+    const res = await openai.chat.completions.create({
+      model: CHAT_MODEL,
+      response_format: { type: "json_object" },
+      messages: [
+        { role: "system", content: questionRegenSystem() },
+        { role: "user", content: questionRegenUserPrompt(originalText, null) },
+      ],
     });
-    const text = msg.content
-      .filter((b): b is Extract<typeof b, { type: "text" }> => b.type === "text")
-      .map((b) => b.text)
-      .join("\n");
+    const text = res.choices[0]?.message?.content ?? "";
     draft = extractJsonObject(text);
   } catch (err) {
-    return { ok: false, error: `Claude error: ${(err as Error).message}` };
+    return { ok: false, error: `AI error: ${(err as Error).message}` };
   }
 
   const admin = createAdminClient();

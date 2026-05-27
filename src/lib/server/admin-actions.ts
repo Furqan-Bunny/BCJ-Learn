@@ -1,5 +1,6 @@
 "use server";
 
+import { randomBytes } from "crypto";
 import { createClient, createAdminClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
 import { pushInAppNotification } from "@/lib/notifications/push";
@@ -54,15 +55,20 @@ export async function inviteUser(input: InviteUserInput) {
   if (!guard.ok) return { ok: false as const, error: guard.error };
 
   const admin = createAdminClient();
-  const redirectTo = `${process.env.NEXT_PUBLIC_APP_URL ?? ""}/auth/accept-invite`;
 
-  const { data, error } = await admin.auth.admin.inviteUserByEmail(input.email, {
-    data: { name: input.name, role: input.role },
-    redirectTo,
+  // Create the auth user WITHOUT a password and WITHOUT any Supabase email.
+  // We email our own branded /auth/accept-invite?token=… link via Resend; the
+  // invitee sets their password there (acceptInvite). Independent of any
+  // Supabase SMTP / email-link / redirect configuration.
+  const token = randomBytes(32).toString("hex");
+  const { data, error } = await admin.auth.admin.createUser({
+    email: input.email,
+    email_confirm: true,
+    user_metadata: { name: input.name, role: input.role },
   });
 
   if (error || !data?.user) {
-    return { ok: false as const, error: error?.message ?? "Failed to send invite" };
+    return { ok: false as const, error: error?.message ?? "Failed to create user" };
   }
 
   // The handle_new_user trigger created the profile with role from metadata.
@@ -76,10 +82,24 @@ export async function inviteUser(input: InviteUserInput) {
       name: input.name,
       cohort: input.role === "manager" ? input.cohort ?? null : null,
       status: "pending",
+      invite_token: token,
       invite_sent_at: invitedAt.toISOString(),
       invite_expires_at: new Date(invitedAt.getTime() + INVITE_TTL_MS).toISOString(),
     })
     .eq("id", data.user.id);
+
+  // Deliver the branded invite via Resend with our own token link.
+  const inviteLink = `${process.env.NEXT_PUBLIC_APP_URL ?? ""}/auth/accept-invite?token=${token}`;
+  const sent = await sendEmail({
+    to: input.email,
+    templateKey: "invite",
+    recipientUserId: data.user.id,
+    href: "/auth/accept-invite",
+    variables: { name: input.name, invite_link: inviteLink },
+  });
+  if (!sent.ok) {
+    return { ok: false as const, error: sent.error ?? "Invite created but email failed — use Resend invite." };
+  }
 
   await logActivity(
     "user_added",
@@ -108,15 +128,16 @@ export async function bulkInviteUsers(rows: BulkInviteRow[]) {
   if (!guard.ok) return { ok: false as const, error: guard.error, results: [] };
 
   const admin = createAdminClient();
-  const redirectTo = `${process.env.NEXT_PUBLIC_APP_URL ?? ""}/auth/accept-invite`;
 
   const results: { email: string; ok: boolean; error?: string }[] = [];
   let invited = 0;
 
   for (const row of rows) {
-    const { data, error } = await admin.auth.admin.inviteUserByEmail(row.email, {
-      data: { name: row.name, role: "manager" },
-      redirectTo,
+    const token = randomBytes(32).toString("hex");
+    const { data, error } = await admin.auth.admin.createUser({
+      email: row.email,
+      email_confirm: true,
+      user_metadata: { name: row.name, role: "manager" },
     });
 
     if (error || !data?.user) {
@@ -129,9 +150,23 @@ export async function bulkInviteUsers(rows: BulkInviteRow[]) {
       name: row.name,
       cohort: row.cohort as Cohort,
       status: "pending",
+      invite_token: token,
       invite_sent_at: invitedAt.toISOString(),
       invite_expires_at: new Date(invitedAt.getTime() + INVITE_TTL_MS).toISOString(),
     }).eq("id", data.user.id);
+
+    const inviteLink = `${process.env.NEXT_PUBLIC_APP_URL ?? ""}/auth/accept-invite?token=${token}`;
+    const sent = await sendEmail({
+      to: row.email,
+      templateKey: "invite",
+      recipientUserId: data.user.id,
+      href: "/auth/accept-invite",
+      variables: { name: row.name, invite_link: inviteLink },
+    });
+    if (!sent.ok) {
+      results.push({ email: row.email, ok: false, error: sent.error ?? "Email failed" });
+      continue;
+    }
     results.push({ email: row.email, ok: true });
     invited++;
   }
@@ -329,36 +364,23 @@ export async function resendInvite(userId: string) {
   const p = profile as { email?: string; name?: string } | null;
   if (!p?.email) return { ok: false as const, error: "User not found" };
 
-  const redirectTo = `${process.env.NEXT_PUBLIC_APP_URL ?? ""}/auth/accept-invite`;
-
-  // Generate a fresh action link. Try an invite link first; if the user already
-  // exists and that's rejected, fall back to a magic sign-in link.
-  function linkFrom(d: unknown): string | undefined {
-    return (d as { properties?: { action_link?: string } } | null)?.properties?.action_link;
-  }
-  let actionLink: string | undefined;
-  const invite = await admin.auth.admin.generateLink({ type: "invite", email: p.email, options: { redirectTo } });
-  actionLink = linkFrom(invite.data);
-  if (invite.error || !actionLink) {
-    const magic = await admin.auth.admin.generateLink({ type: "magiclink", email: p.email, options: { redirectTo } });
-    actionLink = linkFrom(magic.data);
-    if (magic.error || !actionLink) {
-      return { ok: false as const, error: invite.error?.message ?? magic.error?.message ?? "Could not generate invite link" };
-    }
-  }
+  // Issue a fresh single-use token and email our own accept-invite link.
+  const token = randomBytes(32).toString("hex");
+  const inviteLink = `${process.env.NEXT_PUBLIC_APP_URL ?? ""}/auth/accept-invite?token=${token}`;
 
   const res = await sendEmail({
     to: p.email,
     templateKey: "invite",
     recipientUserId: userId,
     href: "/auth/accept-invite",
-    variables: { name: p.name ?? "there", invite_link: actionLink },
+    variables: { name: p.name ?? "there", invite_link: inviteLink },
   });
   if (!res.ok) return { ok: false as const, error: res.error };
 
   const invitedAt = new Date();
   await admin.from("profiles").update({
     status: "pending",
+    invite_token: token,
     invite_sent_at: invitedAt.toISOString(),
     invite_expires_at: new Date(invitedAt.getTime() + INVITE_TTL_MS).toISOString(),
   }).eq("id", userId);

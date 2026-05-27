@@ -20,12 +20,15 @@ export type TemplateKey =
   | "quiz_passed"
   | "quiz_failed"
   | "overdue_reminder"
-  | "at_risk_alert";
+  | "at_risk_alert"
+  | "login_code"
+  | "seminar_scheduled"
+  | "seminar_rescheduled";
 
 // Maps template kinds to the notification_kind enum on `notifications`.
 function notificationKindFor(template: TemplateKey): "invitation" | "reminder" | "result" | "alert" {
   if (template === "invite" || template === "welcome") return "invitation";
-  if (template === "overdue_reminder" || template === "password_reset") return "reminder";
+  if (template === "overdue_reminder" || template === "password_reset" || template === "seminar_scheduled" || template === "seminar_rescheduled") return "reminder";
   if (template === "quiz_passed" || template === "quiz_failed") return "result";
   return "alert";
 }

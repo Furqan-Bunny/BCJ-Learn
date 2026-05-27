@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Sparkles, GraduationCap, BookOpen, ShieldCheck, ArrowRight, CheckCircle2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { PasswordInput } from "@/components/ui/password-input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -14,6 +15,7 @@ import type { Role } from "@/types";
 import { cn } from "@/lib/utils";
 import { motion } from "framer-motion";
 import { createClient } from "@/lib/supabase/client";
+import { requestLoginOtp, verifyLoginOtp } from "@/lib/server/auth-actions";
 import { toast } from "sonner";
 import { MeshGradient } from "@/components/shared/mesh-gradient";
 import { MagneticButton, TiltCard, DrawCheck } from "@/components/shared/animations";
@@ -61,6 +63,10 @@ export default function LoginPage() {
   const [submitting, setSubmitting] = React.useState(false);
   const [hovered, setHovered] = React.useState<Role | null>(null);
   const [authError, setAuthError] = React.useState<string | null>(null);
+  const [otpStep, setOtpStep] = React.useState(false);
+  const [otpCode, setOtpCode] = React.useState("");
+  const [otpSubmitting, setOtpSubmitting] = React.useState(false);
+  const [resending, setResending] = React.useState(false);
   const [showForgot, setShowForgot] = React.useState(false);
   const [forgotEmail, setForgotEmail] = React.useState("");
   const [forgotSubmitting, setForgotSubmitting] = React.useState(false);
@@ -106,28 +112,71 @@ export default function LoginPage() {
     }
 
     // ─── Production mode: real Supabase Auth ──────────────────────
-    const supabase = createClient();
-    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
-
-    if (error || !data.user) {
-      setAuthError(error?.message ?? "Sign-in failed");
+    // Check whether this account requires an emailed sign-in code (2FA).
+    const res = await requestLoginOtp(email, password);
+    if (!res.ok) {
+      setAuthError(res.error ?? "Sign-in failed");
       setSubmitting(false);
       return;
     }
+    if (res.requiresOtp) {
+      setOtpStep(true);
+      setSubmitting(false);
+      toast.success("We emailed you a sign-in code");
+      return;
+    }
+    // No 2FA → finish sign-in now.
+    const ok = await completeSignIn();
+    if (!ok) setSubmitting(false);
+  }
 
-    // Fetch the profile to determine the role-appropriate landing page.
+  // Establishes the real session (password is still in component state) and
+  // routes to the role-appropriate dashboard. Used by both the no-2FA path and
+  // after a verified OTP.
+  async function completeSignIn(): Promise<boolean> {
+    const supabase = createClient();
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+    if (error || !data.user) {
+      setAuthError(error?.message ?? "Sign-in failed");
+      return false;
+    }
     const { data: profile } = await supabase
       .from("profiles")
       .select("role")
       .eq("id", data.user.id)
       .single();
-
     const userRole: Role = ((profile as { role?: Role } | null)?.role ?? "manager") as Role;
     setRole(userRole);
     setAuthedUserId(data.user.id);
-
     toast.success("Signed in");
     router.push(ROLE_ROUTE[userRole]);
+    return true;
+  }
+
+  async function handleVerifyOtp(e: React.FormEvent) {
+    e.preventDefault();
+    setOtpSubmitting(true);
+    setAuthError(null);
+    const res = await verifyLoginOtp(email, otpCode);
+    if (!res.ok) {
+      setAuthError(res.error ?? "Verification failed");
+      setOtpSubmitting(false);
+      return;
+    }
+    const ok = await completeSignIn();
+    if (!ok) setOtpSubmitting(false);
+  }
+
+  async function handleResendOtp() {
+    setResending(true);
+    setAuthError(null);
+    const res = await requestLoginOtp(email, password);
+    setResending(false);
+    if (!res.ok) {
+      setAuthError(res.error ?? "Could not resend the code");
+      return;
+    }
+    toast.success("New code sent");
   }
 
   function pickRole(r: Role) {
@@ -248,6 +297,57 @@ export default function LoginPage() {
             Use your work email and password. New here? Your admin sent an invite.
           </p>
 
+          {otpStep ? (
+            <form className="mt-8 space-y-4" onSubmit={handleVerifyOtp}>
+              <p className="text-sm text-muted-foreground">
+                We emailed a 6-digit code to{" "}
+                <span className="font-medium text-foreground">{email}</span>. Enter it to finish signing in.
+              </p>
+              <div className="space-y-2">
+                <Label htmlFor="otp">Sign-in code</Label>
+                <Input
+                  id="otp"
+                  inputMode="numeric"
+                  autoComplete="one-time-code"
+                  maxLength={6}
+                  value={otpCode}
+                  onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, ""))}
+                  placeholder="123456"
+                  required
+                  autoFocus
+                  className="h-11 text-center text-lg font-mono tracking-[0.4em]"
+                />
+              </div>
+
+              {authError && (
+                <div className="rounded-md border border-rose-500/30 bg-rose-50/50 dark:bg-rose-950/20 px-3 py-2 text-sm text-rose-700 dark:text-rose-300">
+                  {authError}
+                </div>
+              )}
+
+              <Button type="submit" disabled={otpSubmitting || otpCode.length < 6} className="w-full h-11">
+                {otpSubmitting ? "Verifying…" : <>Verify &amp; sign in <ArrowRight className="size-4 ml-1" /></>}
+              </Button>
+
+              <div className="flex items-center justify-between text-xs">
+                <button
+                  type="button"
+                  onClick={() => { setOtpStep(false); setOtpCode(""); setAuthError(null); }}
+                  className="text-muted-foreground hover:text-foreground"
+                >
+                  ← Back
+                </button>
+                <button
+                  type="button"
+                  onClick={handleResendOtp}
+                  disabled={resending}
+                  className="text-primary hover:underline disabled:opacity-50"
+                >
+                  {resending ? "Sending…" : "Resend code"}
+                </button>
+              </div>
+            </form>
+          ) : (
           <form className="mt-8 space-y-4" onSubmit={handleSubmit}>
             <div className="space-y-2">
               <Label htmlFor="email">Work email</Label>
@@ -277,9 +377,8 @@ export default function LoginPage() {
                   Forgot password?
                 </button>
               </div>
-              <Input
+              <PasswordInput
                 id="password"
-                type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
@@ -310,6 +409,7 @@ export default function LoginPage() {
               By signing in, you agree to BCJ&rsquo;s acceptable-use policy.
             </p>
           </form>
+          )}
         </motion.div>
       </div>
 

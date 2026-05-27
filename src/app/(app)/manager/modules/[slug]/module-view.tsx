@@ -6,10 +6,13 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
   Calendar, Target, Clock, Layers, PlayCircle, FileText, Link2,
-  BookOpen, Sparkles, Info,
+  BookOpen, Sparkles, Info, Lock,
 } from "lucide-react";
+import { toast } from "sonner";
 import { PageHeader } from "@/components/shared/page-header";
 import { QuizStatusCard } from "@/components/manager/quiz-status-card";
+import { CheckInCard } from "@/components/manager/check-in-card";
+import { DeliveryLiveSync } from "@/components/manager/delivery-live-sync";
 import { ContentViewer } from "@/components/manager/content-viewer";
 import { fmtDate } from "@/lib/format";
 import type { ContentType, LessonContent, ModuleDef, Attempt } from "@/types";
@@ -31,6 +34,8 @@ export interface ManagerModuleViewProps {
   isCheckedIn: boolean;
   sessionStartedAt: string | null;
   sessionEndedAt: string | null;
+  checkinOpen?: boolean;
+  managerName?: string;
 }
 
 export function ManagerModuleView({
@@ -42,16 +47,56 @@ export function ManagerModuleView({
   isCheckedIn,
   sessionStartedAt,
   sessionEndedAt,
+  checkinOpen = false,
+  managerName = "",
 }: ManagerModuleViewProps) {
   const [previewing, setPreviewing] = React.useState<LessonContent | null>(null);
 
+  // Materials are seminar-only: an employee can view/preview the content ONLY
+  // after they've checked in at the live session (or already passed it — they
+  // attended before). This stops people from studying/sharing the material
+  // without attending.
+  const alreadyPassed = myAttempts.some((a) => a.status === "passed");
+  const canViewMaterials = isCheckedIn || alreadyPassed;
+
+  function openContent(item: LessonContent) {
+    if (!canViewMaterials) {
+      toast.info("Materials open at the seminar", {
+        description: "Check in at the live session to view the content.",
+      });
+      return;
+    }
+    setPreviewing(item);
+  }
+
   return (
     <>
+      {!sessionEndedAt && (
+        <DeliveryLiveSync
+          slug={mod.slug}
+          signature={`${checkinOpen}|${!!sessionStartedAt}|${!!sessionEndedAt}|${isCheckedIn}`}
+        />
+      )}
       <PageHeader
         eyebrow={`Module ${mod.number} · ${mod.scheduledMonth}`}
         title={mod.title}
         description={mod.description}
       />
+
+      {/* Check-in (only meaningful on the seminar day, once the trainer opens
+          it). Lets the employee enter the room code right from the module. */}
+      {!sessionEndedAt && (checkinOpen || isCheckedIn) && (
+        <div className="mb-4">
+          <CheckInCard
+            manager={{ id: managerId, name: managerName }}
+            mod={mod}
+            initialCheckedIn={isCheckedIn}
+            sessionStartedAt={sessionStartedAt}
+            sessionEndedAt={sessionEndedAt}
+            checkinOpen={checkinOpen}
+          />
+        </div>
+      )}
 
       <div className="mb-6">
         <QuizStatusCard
@@ -72,12 +117,16 @@ export function ManagerModuleView({
         <StatCard icon={Layers} label="Quiz" value={`${mod.questionCount} questions`} sub={mod.timeLimitMinutes ? `${mod.timeLimitMinutes} min limit` : "Untimed"} />
       </div>
 
-      <Card className="mb-6 border-primary/20 bg-primary/[0.03]">
+      <Card className={cn("mb-6", canViewMaterials ? "border-primary/20 bg-primary/[0.03]" : "border-amber-500/30 bg-amber-50/50 dark:bg-amber-950/15")}>
         <CardContent className="p-4 flex items-start gap-3">
-          <Info className="size-5 text-primary shrink-0 mt-0.5" />
+          {canViewMaterials
+            ? <Info className="size-5 text-primary shrink-0 mt-0.5" />
+            : <Lock className="size-5 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />}
           <div className="text-sm">
             <span className="font-semibold text-foreground">How this works.</span>
-            <span className="text-muted-foreground"> This module is delivered as a <span className="font-medium text-foreground">{totalMinutes}-minute live in-person session</span> by {teacher?.name ?? "your trainer"}, broken into <span className="font-medium text-foreground">{mod.lessons.length} lessons</span>. Materials below are reference — you don&rsquo;t need to complete them to take the quiz. Show up to the room, listen, then take the quiz right after.</span>
+            <span className="text-muted-foreground"> This module is delivered as a <span className="font-medium text-foreground">{totalMinutes}-minute live in-person session</span> by {teacher?.name ?? "your trainer"}, broken into <span className="font-medium text-foreground">{mod.lessons.length} lessons</span>. {canViewMaterials
+              ? "Show up to the room, listen, then take the quiz right after."
+              : "The materials below stay locked until you check in at the live seminar — that's where you learn the content, then take the quiz right after."}</span>
           </div>
         </CardContent>
       </Card>
@@ -106,14 +155,17 @@ export function ManagerModuleView({
                     return (
                       <button
                         key={item.id}
-                        onClick={() => setPreviewing(item)}
-                        className="w-full flex items-center gap-3 px-3 py-2 rounded-md border bg-card hover:bg-accent/40 hover:border-primary/40 transition-all text-left group"
+                        onClick={() => openContent(item)}
+                        className={cn(
+                          "w-full flex items-center gap-3 px-3 py-2 rounded-md border bg-card transition-all text-left group",
+                          canViewMaterials ? "hover:bg-accent/40 hover:border-primary/40" : "cursor-not-allowed opacity-70",
+                        )}
                       >
                         <div className={cn("size-7 rounded flex items-center justify-center shrink-0", meta.tint)}>
                           <Icon className="size-3.5" />
                         </div>
                         <div className="flex-1 min-w-0">
-                          <div className="text-sm font-medium truncate group-hover:text-primary transition-colors">{item.title}</div>
+                          <div className={cn("text-sm font-medium truncate", canViewMaterials && "group-hover:text-primary transition-colors")}>{item.title}</div>
                           <div className="text-[11px] text-muted-foreground flex items-center gap-2">
                             <span>{meta.label}</span>
                             {item.durationMinutes && (
@@ -122,7 +174,7 @@ export function ManagerModuleView({
                                 <span>{item.durationMinutes} min</span>
                               </>
                             )}
-                            {item.fileName && (
+                            {canViewMaterials && item.fileName && (
                               <>
                                 <span className="text-muted-foreground/50">·</span>
                                 <span className="truncate">{item.fileName}</span>
@@ -130,9 +182,13 @@ export function ManagerModuleView({
                             )}
                           </div>
                         </div>
-                        <Badge variant="outline" className="text-[10px] shrink-0 group-hover:border-primary/50 group-hover:text-primary transition-colors">
-                          {item.type === "link" ? "Open ↗" : "Preview"}
-                        </Badge>
+                        {canViewMaterials ? (
+                          <Badge variant="outline" className="text-[10px] shrink-0 group-hover:border-primary/50 group-hover:text-primary transition-colors">
+                            {item.type === "link" ? "Open ↗" : "Preview"}
+                          </Badge>
+                        ) : (
+                          <Lock className="size-3.5 shrink-0 text-muted-foreground" />
+                        )}
                       </button>
                     );
                   })}
@@ -143,7 +199,7 @@ export function ManagerModuleView({
         ))}
       </div>
 
-      {mod.flashcards && mod.flashcards.length > 0 && (
+      {canViewMaterials && mod.flashcards && mod.flashcards.length > 0 && (
         <section className="mt-10">
           <div className="flex items-center justify-between mb-3">
             <h3 className="text-lg font-semibold tracking-tight">Optional self-study</h3>
@@ -183,7 +239,7 @@ export function ManagerModuleView({
         </span>
       </div>
 
-      <ContentViewer content={previewing} onClose={() => setPreviewing(null)} moduleSlug={mod.slug} />
+      <ContentViewer content={canViewMaterials ? previewing : null} onClose={() => setPreviewing(null)} moduleSlug={mod.slug} />
     </>
   );
 }

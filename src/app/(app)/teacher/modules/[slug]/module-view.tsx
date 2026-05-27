@@ -9,6 +9,7 @@ import { StatusBadge } from "@/components/shared/status-badge";
 import { ModuleRoster } from "@/components/shared/module-roster";
 import { DeliveryHistory } from "@/components/shared/delivery-history";
 import { ScheduleRedelivery } from "@/components/admin/schedule-redelivery";
+import { RescheduleSeminar } from "@/components/admin/reschedule-seminar";
 import { fmtDate } from "@/lib/format";
 import type { ModuleDef, Attempt, Manager } from "@/types";
 import type { RosterRow, RosterCounts } from "@/lib/db/roster";
@@ -22,6 +23,7 @@ export interface TeacherModuleViewProps {
   deliveries: DeliveryRecord[];
   managersById: Record<string, Pick<Manager, "id" | "name" | "avatarColor" | "cohort">>;
   currentDeliveryStart: string | null;
+  addableManagers?: { id: string; name: string }[];
 }
 
 export function TeacherModuleView({
@@ -32,6 +34,7 @@ export function TeacherModuleView({
   deliveries,
   managersById,
   currentDeliveryStart,
+  addableManagers = [],
 }: TeacherModuleViewProps) {
   const slug = mod.slug;
   const totalMinutes = mod.lessons.reduce((sum, l) => sum + l.durationMinutes, 0);
@@ -142,15 +145,23 @@ export function TeacherModuleView({
               Who&rsquo;s expected for the current delivery · status updates as quiz attempts come in
             </p>
           </div>
-          <ScheduleRedelivery
-            moduleSlug={slug}
-            moduleTitle={mod.title}
-            currentDeliveryStart={currentDeliveryStart}
-            checkedInCount={rosterCounts.checkedIn}
-            pendingCount={roster.filter((r) => r.status !== "passed").length}
-          />
+          <div className="flex items-center gap-2">
+            {currentDeliveryStart && (
+              <RescheduleSeminar
+                moduleSlug={slug}
+                moduleTitle={mod.title}
+                attendeeCount={rosterCounts.expected}
+              />
+            )}
+            <ScheduleRedelivery
+              moduleSlug={slug}
+              moduleTitle={mod.title}
+              currentDeliveryStart={currentDeliveryStart}
+              checkedInCount={rosterCounts.checkedIn}
+            />
+          </div>
         </div>
-        <ModuleRoster moduleSlug={slug} roster={roster} counts={rosterCounts} />
+        <ModuleRoster moduleSlug={slug} roster={roster} counts={rosterCounts} manageable addableManagers={addableManagers} />
       </div>
 
       <div className="mt-10">

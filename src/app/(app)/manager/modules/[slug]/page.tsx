@@ -42,9 +42,30 @@ export default async function ManagerModulePage(props: PageProps<"/manager/modul
   ]);
   const myAttempts = allMyAttempts.filter((a) => a.moduleSlug === slug);
 
+  // Materials are seminar-only. Until the employee checks in at the live
+  // session (or has already passed), DON'T send the actual content to the
+  // browser at all — strip document text, slides, file paths, and media URLs so
+  // it can't be read from the page source / network. The outline (titles, type,
+  // duration) is kept so they can see what the seminar covers.
+  const canViewMaterials = checkInStatus.checkedIn || myAttempts.some((a) => a.status === "passed");
+  const safeMod = canViewMaterials
+    ? mod
+    : {
+        ...mod,
+        lessons: mod.lessons.map((l) => ({
+          ...l,
+          contents: l.contents.map((c) => ({
+            id: c.id,
+            type: c.type,
+            title: c.title,
+            durationMinutes: c.durationMinutes,
+          })),
+        })),
+      };
+
   return (
     <ManagerModuleView
-      mod={mod}
+      mod={safeMod}
       totalMinutes={totalMinutes}
       teacher={teacher}
       managerId={me.id}
@@ -52,6 +73,8 @@ export default async function ManagerModulePage(props: PageProps<"/manager/modul
       isCheckedIn={checkInStatus.checkedIn}
       sessionStartedAt={delivery?.sessionStartedAt ?? null}
       sessionEndedAt={delivery?.sessionEndedAt ?? null}
+      checkinOpen={!!delivery?.checkinOpenedAt}
+      managerName={me.name}
     />
   );
 }

@@ -2,69 +2,56 @@
 
 import * as React from "react";
 import {
-  Sheet,
-  SheetClose,
-  SheetContent,
-  SheetDescription,
-  SheetFooter,
-  SheetHeader,
-  SheetTitle,
-  SheetTrigger,
-} from "@/components/ui/sheet";
+  Dialog, DialogContent, DialogDescription, DialogTitle, DialogTrigger,
+} from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Plus, Sparkles, BookOpen, Calendar, Target, Clock, Layers, Lock, Check, Users, Loader2 } from "lucide-react";
+import {
+  Plus, BookOpen, Calendar, Target, Clock, Layers, Lock, Check, Users, Loader2,
+  ArrowRight, ArrowLeft, ListChecks, Rocket, Mail,
+} from "lucide-react";
 import { initials } from "@/lib/format";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 import { LessonsBuilder, emptyLesson } from "@/components/admin/lessons-builder";
-import { createModule } from "@/lib/server/module-actions";
+import { QuestionReviewPanel } from "@/components/admin/question-review-panel";
+import { createModule, publishModule, getDueEmployees, scheduleSeminar, notifySeminar } from "@/lib/server/module-actions";
 import type { Lesson, Teacher } from "@/types";
 
 interface AddModuleSheetProps {
   trigger?: React.ReactNode;
-  /** All teachers available to assign as owner — fetched server-side by host page. */
   teachers: Teacher[];
-  /** Default module number (max+1 from DB). */
   defaultNumber?: number;
-  /**
-   * If set, the owner field is locked to this teacher id (can't be changed).
-   * Used when a Teacher creates a module — they can only create modules they own.
-   * Admin path (no lockedOwnerId) shows the full teacher dropdown.
-   */
   lockedOwnerId?: string;
 }
+
+type DueEmployee = { id: string; name: string; email: string; cohort: string | null };
 
 export function AddModuleSheet({ trigger, teachers, defaultNumber = 6, lockedOwnerId }: AddModuleSheetProps) {
   const router = useRouter();
   const lockedOwner = lockedOwnerId ? teachers.find((t) => t.id === lockedOwnerId) : null;
   const [open, setOpen] = React.useState(false);
+  const [step, setStep] = React.useState(1);
+  const [createdSlug, setCreatedSlug] = React.useState<string | null>(null);
   const [submitting, setSubmitting] = React.useState(false);
 
-  // Form state
+  // Step 1 — details + content
   const [number, setNumber] = React.useState<number>(defaultNumber);
   const [title, setTitle] = React.useState("");
   const [description, setDescription] = React.useState("");
   const [scheduledDate, setScheduledDate] = React.useState("");
+  const [scheduledTime, setScheduledTime] = React.useState("");
   const [ownerTeacherIds, setOwnerTeacherIds] = React.useState<string[]>(lockedOwnerId ? [lockedOwnerId] : []);
-
-  function toggleTeacher(id: string) {
-    setOwnerTeacherIds((prev) =>
-      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id],
-    );
-  }
   const [passThreshold, setPassThreshold] = React.useState(85);
   const [questionCount, setQuestionCount] = React.useState(25);
   const [timeLimitMinutes, setTimeLimitMinutes] = React.useState(30);
   const [hasTimeLimit, setHasTimeLimit] = React.useState(true);
-  const [autoGenerate, setAutoGenerate] = React.useState(true);
-
-  // Lessons (the seminar plan)
   const draftSlug = React.useMemo(
     () => title.trim().toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "") || `m-${number}`,
     [title, number],
@@ -72,357 +59,355 @@ export function AddModuleSheet({ trigger, teachers, defaultNumber = 6, lockedOwn
   const [lessons, setLessons] = React.useState<Lesson[]>(() => [emptyLesson(draftSlug, 1)]);
   const totalLessonMinutes = lessons.reduce((s, l) => s + (l.durationMinutes || 0), 0);
 
+  // Step 2 — generation (the interactive panel reports how many were added)
+  const [genAdded, setGenAdded] = React.useState(0);
 
-  const canSubmit = !!title.trim() && !!description.trim() && !!scheduledDate && ownerTeacherIds.length > 0 && lessons.length > 0;
+  // Step 3 — employees
+  const [employees, setEmployees] = React.useState<DueEmployee[]>([]);
+  const [selected, setSelected] = React.useState<Set<string>>(new Set());
+  const [empLoading, setEmpLoading] = React.useState(false);
+  const [empSearch, setEmpSearch] = React.useState("");
 
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    if (!canSubmit) return;
+  // Step 4 — publish + notify progress
+  const [notify, setNotify] = React.useState<{ sent: number; total: number } | null>(null);
+
+  function toggleTeacher(id: string) {
+    setOwnerTeacherIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
+  }
+
+  function resetAll() {
+    setStep(1);
+    setCreatedSlug(null);
+    setNumber((n) => n + 1);
+    setTitle(""); setDescription(""); setScheduledDate(""); setScheduledTime("");
+    setOwnerTeacherIds(lockedOwnerId ? [lockedOwnerId] : []);
+    setLessons([emptyLesson(`m-${number + 1}`, 1)]);
+    setGenAdded(0);
+    setEmployees([]); setSelected(new Set()); setNotify(null); setEmpSearch("");
+  }
+
+  const canCreate = !!title.trim() && !!description.trim() && !!scheduledDate && ownerTeacherIds.length > 0 && lessons.length > 0;
+
+  // ─── Step 1 → create ──────────────────────────────────────────────────
+  async function handleCreate() {
+    if (!canCreate) return;
     setSubmitting(true);
-
     const monthLabel = scheduledDate
       ? new Date(scheduledDate).toLocaleDateString("en-US", { month: "long", year: "numeric" })
       : null;
-
     const res = await createModule({
-      slug: draftSlug,
-      number,
-      title: title.trim(),
-      description: description.trim(),
-      scheduledMonth: monthLabel,
-      scheduledDate: scheduledDate || null,
-      status: "draft",
-      passThreshold: passThreshold / 100,
-      questionCount,
+      slug: draftSlug, number, title: title.trim(), description: description.trim(),
+      scheduledMonth: monthLabel, scheduledDate: scheduledDate || null, scheduledTime: scheduledTime || null, status: "draft",
+      passThreshold: passThreshold / 100, questionCount,
       timeLimitMinutes: hasTimeLimit ? timeLimitMinutes : null,
-      ownerTeacherIds,
-      lessons,
+      ownerTeacherIds, lessons,
     });
-
     setSubmitting(false);
-    if (!res.ok) {
-      toast.error(res.error ?? "Could not create module");
-      return;
-    }
-
-    setOpen(false);
-    toast.success(`Module "${title}" created as draft`, {
-      description: `${lessons.length} lesson${lessons.length === 1 ? "" : "s"} · ${totalLessonMinutes} min total. ${
-        lockedOwner
-          ? "Add content, approve questions, then publish when ready."
-          : autoGenerate
-            ? "Open the question authoring page to generate the question bank with AI."
-            : "Add questions manually whenever you're ready."
-      }`,
-    });
-    // Reset form
-    setNumber(number + 1);
-    setTitle("");
-    setDescription("");
-    setScheduledDate("");
-    setOwnerTeacherIds(lockedOwnerId ? [lockedOwnerId] : []);
-    setLessons([emptyLesson(`m-${number + 1}`, 1)]);
+    if (!res.ok) { toast.error(res.error ?? "Could not create module"); return; }
+    setCreatedSlug(draftSlug);
+    setStep(2);
     router.refresh();
   }
 
+  // ─── Step 3 — load due employees ──────────────────────────────────────
+  React.useEffect(() => {
+    if (step !== 3 || !createdSlug) return;
+    setEmpLoading(true);
+    getDueEmployees(createdSlug).then((res) => {
+      // Start with NOBODY selected — the admin must explicitly choose who
+      // attends. Skipping this step (selecting no one) schedules no seminar
+      // and emails nobody.
+      if (res.ok) { setEmployees(res.employees); setSelected(new Set()); }
+      else toast.error(res.error ?? "Could not load employees");
+      setEmpLoading(false);
+    });
+  }, [step, createdSlug]);
+
+  function toggleEmp(id: string) {
+    setSelected((prev) => { const n = new Set(prev); if (n.has(id)) n.delete(id); else n.add(id); return n; });
+  }
+
+  const filteredEmployees = React.useMemo(() => {
+    const q = empSearch.trim().toLowerCase();
+    if (!q) return employees;
+    return employees.filter((e) => e.name.toLowerCase().includes(q) || e.email.toLowerCase().includes(q));
+  }, [employees, empSearch]);
+
+  // ─── Step 4 — publish + schedule + notify ─────────────────────────────
+  async function handlePublish() {
+    if (!createdSlug) return;
+    setSubmitting(true);
+    const pub = await publishModule(createdSlug);
+    if (!pub.ok) { setSubmitting(false); toast.error(pub.error ?? "Could not publish"); return; }
+
+    const ids = [...selected];
+    if (ids.length > 0 && scheduledDate) {
+      const sch = await scheduleSeminar(createdSlug, scheduledDate, ids, scheduledTime || null);
+      if (sch.ok) {
+        setNotify({ sent: 0, total: ids.length });
+        const CHUNK = 5;
+        let sent = 0;
+        for (let i = 0; i < ids.length; i += CHUNK) {
+          const r = await notifySeminar(createdSlug, "scheduled", ids.slice(i, i + CHUNK));
+          sent += r.sent ?? 0;
+          setNotify({ sent, total: ids.length });
+        }
+      }
+    }
+    setSubmitting(false);
+    setNotify(null);
+    setOpen(false);
+    toast.success(`${title} published`, { description: ids.length ? `Seminar scheduled · ${ids.length} employee(s) notified.` : undefined });
+    resetAll();
+    router.refresh();
+  }
+
+  const stepLabels = ["Details & content", "Generate questions", "Choose employees", "Publish & send"];
+
   return (
-    <Sheet open={open} onOpenChange={setOpen}>
-      <SheetTrigger asChild>
-        {trigger ?? (
-          <Button>
-            <Plus className="mr-2 size-4" /> Add module
-          </Button>
-        )}
-      </SheetTrigger>
-      <SheetContent className="w-full sm:max-w-2xl overflow-y-auto">
-        <SheetHeader className="pb-2">
-          <Badge variant="outline" className="w-fit text-[10px] uppercase tracking-wider">
-            {lockedOwner ? "Create your module" : "New module"}
-          </Badge>
-          <SheetTitle className="text-2xl tracking-tight">
-            {lockedOwner ? "Create a module you'll own" : "Add a new training module"}
-          </SheetTitle>
-          <SheetDescription>
-            {lockedOwner
-              ? "You'll be the owner of this module — you can edit content, approve AI questions, and present it. Saved as a draft until you publish."
-              : "Modules become available to Employees in the order you set. AI can draft a starter question bank from your uploaded content."}
-          </SheetDescription>
-        </SheetHeader>
-
-        <form onSubmit={handleSubmit} className="px-4 pb-4 space-y-5">
-          {/* Number + title */}
-          <div className="grid grid-cols-[100px_1fr] gap-3">
-            <div className="space-y-1.5">
-              <Label htmlFor="m-number" className="text-xs">
-                <BookOpen className="size-3 inline mr-1" /> Number
-              </Label>
-              <Input
-                id="m-number"
-                type="number"
-                min={1}
-                max={20}
-                value={number}
-                onChange={(e) => setNumber(Number(e.target.value))}
-                className="h-10 text-center font-mono text-lg font-bold"
-              />
-            </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="m-title" className="text-xs">Module title</Label>
-              <Input
-                id="m-title"
-                value={title}
-                onChange={(e) => setTitle(e.target.value)}
-                placeholder="e.g., Customer Service Excellence"
-                className="h-10"
-                autoFocus
-              />
+    <Dialog open={open} onOpenChange={(o) => { setOpen(o); if (!o) resetAll(); }}>
+      <DialogTrigger asChild>
+        {trigger ?? (<Button><Plus className="mr-2 size-4" /> Add module</Button>)}
+      </DialogTrigger>
+      <DialogContent className="sm:max-w-3xl p-0 gap-0 overflow-hidden">
+        <div className="flex flex-col max-h-[88vh]">
+          {/* ─── Header + stepper ─────────────────────────────────── */}
+          <div className="shrink-0 border-b bg-muted/30 px-6 pt-6 pb-5">
+            <Badge variant="outline" className="w-fit text-[10px] uppercase tracking-wider mb-2">
+              Step {step} of 4
+            </Badge>
+            <DialogTitle className="text-2xl tracking-tight">
+              {step === 1 ? (lockedOwner ? "Create a module you'll own" : "Add a new training module") : title}
+            </DialogTitle>
+            <DialogDescription className="mt-1">
+              {step === 1 ? "Fill in the details and upload content. Next, AI drafts the quiz, you pick who takes it, and publish."
+                : step === 2 ? "Review each AI-drafted question — Add the good ones, Skip the rest."
+                : step === 3 ? "These employees are due for this module. Pick who attends — leave empty to schedule the seminar later."
+                : "Publish the module and send it to the selected employees."}
+            </DialogDescription>
+            {/* numbered stepper */}
+            <div className="flex items-center gap-2 mt-4">
+              {stepLabels.map((label, i) => {
+                const n = i + 1;
+                const isDone = n < step;
+                const isActive = n === step;
+                return (
+                  <React.Fragment key={n}>
+                    <div className="flex items-center gap-2 min-w-0">
+                      <div className={`size-6 rounded-full flex items-center justify-center text-[11px] font-semibold shrink-0 transition-colors ${
+                        isDone ? "bg-primary text-primary-foreground"
+                          : isActive ? "bg-primary/15 text-primary ring-2 ring-primary/30"
+                          : "bg-muted text-muted-foreground"}`}>
+                        {isDone ? <Check className="size-3.5" strokeWidth={3} /> : n}
+                      </div>
+                      <span className={`text-xs truncate hidden sm:inline ${isActive ? "font-medium text-foreground" : "text-muted-foreground"}`}>{label}</span>
+                    </div>
+                    {n < 4 && <div className={`h-px flex-1 min-w-3 ${isDone ? "bg-primary" : "bg-border"}`} />}
+                  </React.Fragment>
+                );
+              })}
             </div>
           </div>
 
-          {/* Description */}
-          <div className="space-y-1.5">
-            <Label htmlFor="m-desc" className="text-xs">Description</Label>
-            <Textarea
-              id="m-desc"
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              placeholder="One sentence summarising what this module covers."
-              rows={3}
-              className="resize-none"
-            />
-            <p className="text-[11px] text-muted-foreground">
-              Shown on the manager dashboard and in module cards.
-            </p>
-          </div>
+          {/* ─── Scrollable body ──────────────────────────────────── */}
+          <div className="flex-1 min-h-0 overflow-y-auto">
 
-          {/* Schedule */}
-          <div className="space-y-1.5">
-            <Label htmlFor="m-date" className="text-xs">
-              <Calendar className="size-3 inline mr-1" /> Training day
-            </Label>
-            <Input
-              id="m-date"
-              type="date"
-              value={scheduledDate}
-              onChange={(e) => setScheduledDate(e.target.value)}
-              className="h-10 max-w-xs"
-            />
-          </div>
-
-          {/* Assign to Teacher — prominent, full-width picker */}
-          {lockedOwner ? (
-            <div className="rounded-lg border-2 border-primary/30 bg-primary/[0.04] p-4">
-              <div className="flex items-center gap-2 mb-3">
-                <BookOpen className="size-4 text-primary" />
-                <span className="text-sm font-semibold">Assigned to Department Lead</span>
-                <Badge variant="outline" className="ml-auto text-[10px] gap-1">
-                  <Lock className="size-2.5" /> You — locked
-                </Badge>
+        {/* ─── STEP 1 ─────────────────────────────────────────────── */}
+        {step === 1 && (
+          <form onSubmit={(e) => { e.preventDefault(); handleCreate(); }} className="px-6 py-5 space-y-5">
+            <div className="grid grid-cols-[100px_1fr] gap-3">
+              <div className="space-y-1.5">
+                <Label htmlFor="m-number" className="text-xs"><BookOpen className="size-3 inline mr-1" /> Number</Label>
+                <Input id="m-number" type="number" min={1} max={20} value={number} onChange={(e) => setNumber(Number(e.target.value))} className="h-10 text-center font-mono text-lg font-bold" />
               </div>
-              <div className="flex items-center gap-3 p-3 rounded-md border bg-card">
-                <Avatar className="size-10 border shrink-0">
-                  <AvatarFallback
-                    style={{ background: lockedOwner.avatarColor, color: "white" }}
-                    className="text-sm font-semibold"
-                  >
-                    {initials(lockedOwner.name)}
-                  </AvatarFallback>
-                </Avatar>
-                <div className="flex-1 min-w-0">
-                  <div className="font-semibold text-sm truncate">{lockedOwner.name}</div>
-                  <div className="text-xs text-muted-foreground truncate">{lockedOwner.email}</div>
+              <div className="space-y-1.5">
+                <Label htmlFor="m-title" className="text-xs">Module title</Label>
+                <Input id="m-title" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="e.g., Customer Service Excellence" className="h-10" autoFocus />
+              </div>
+            </div>
+
+            <div className="space-y-1.5">
+              <Label htmlFor="m-desc" className="text-xs">Description</Label>
+              <Textarea id="m-desc" value={description} onChange={(e) => setDescription(e.target.value)} placeholder="One sentence summarising what this module covers." rows={3} className="resize-none" />
+            </div>
+
+            <div className="grid grid-cols-2 gap-3 max-w-md">
+              <div className="space-y-1.5">
+                <Label htmlFor="m-date" className="text-xs"><Calendar className="size-3 inline mr-1" /> Training day</Label>
+                <Input id="m-date" type="date" value={scheduledDate} onChange={(e) => setScheduledDate(e.target.value)} className="h-10" />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="m-time" className="text-xs"><Clock className="size-3 inline mr-1" /> Start time</Label>
+                <Input id="m-time" type="time" value={scheduledTime} onChange={(e) => setScheduledTime(e.target.value)} className="h-10" />
+              </div>
+            </div>
+
+            {lockedOwner ? (
+              <div className="rounded-lg border-2 border-primary/30 bg-primary/[0.04] p-4">
+                <div className="flex items-center gap-2 mb-3">
+                  <BookOpen className="size-4 text-primary" />
+                  <span className="text-sm font-semibold">Assigned to Department Lead</span>
+                  <Badge variant="outline" className="ml-auto text-[10px] gap-1"><Lock className="size-2.5" /> You — locked</Badge>
+                </div>
+                <div className="flex items-center gap-3 p-3 rounded-md border bg-card">
+                  <Avatar className="size-10 border shrink-0"><AvatarFallback style={{ background: lockedOwner.avatarColor, color: "white" }} className="text-sm font-semibold">{initials(lockedOwner.name)}</AvatarFallback></Avatar>
+                  <div className="flex-1 min-w-0"><div className="font-semibold text-sm truncate">{lockedOwner.name}</div><div className="text-xs text-muted-foreground truncate">{lockedOwner.email}</div></div>
+                </div>
+              </div>
+            ) : (
+              <div className="rounded-lg border-2 border-primary/30 bg-primary/[0.04] p-4">
+                <div className="flex items-center gap-2 mb-1">
+                  <Users className="size-4 text-primary" />
+                  <Label className="text-sm font-semibold">Assign to Department Leads</Label>
+                  {ownerTeacherIds.length === 0
+                    ? <Badge variant="outline" className="ml-auto text-[10px] text-amber-700 dark:text-amber-300 border-amber-500/40">Pick at least one</Badge>
+                    : <Badge variant="outline" className="ml-auto text-[10px] text-primary border-primary/40 gap-1"><Check className="size-2.5" /> {ownerTeacherIds.length} selected</Badge>}
+                </div>
+                <p className="text-xs text-muted-foreground mb-3">Pick one or more Department Leads to co-own this module.</p>
+                <div className="grid sm:grid-cols-2 gap-2">
+                  {teachers.map((t) => {
+                    const sel = ownerTeacherIds.includes(t.id);
+                    return (
+                      <button key={t.id} type="button" onClick={() => toggleTeacher(t.id)} aria-pressed={sel}
+                        className={`flex items-center gap-3 p-3 rounded-lg border transition-all text-left ${sel ? "border-primary bg-primary/10 ring-2 ring-primary/20" : "border-border bg-card hover:bg-accent/40 hover:border-primary/40"}`}>
+                        <Avatar className="size-9 border shrink-0"><AvatarFallback style={{ background: t.avatarColor, color: "white" }} className="text-xs font-semibold">{initials(t.name)}</AvatarFallback></Avatar>
+                        <div className="flex-1 min-w-0"><div className="font-medium text-sm truncate">{t.name}</div></div>
+                        <div className={`size-4 rounded shrink-0 flex items-center justify-center ${sel ? "bg-primary border-2 border-primary" : "border-2 border-muted-foreground/30"}`}>{sel && <Check className="size-3 text-primary-foreground" strokeWidth={3} />}</div>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            <div className="rounded-lg border bg-muted/30 p-4 space-y-4">
+              <div className="text-xs font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5"><Target className="size-3.5" /> Quiz settings</div>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <Label htmlFor="m-threshold" className="text-xs">Pass threshold</Label>
+                  <div className="relative"><Input id="m-threshold" type="number" min={50} max={100} value={passThreshold} onChange={(e) => setPassThreshold(Number(e.target.value))} className="h-9 pr-7" /><span className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">%</span></div>
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="m-count" className="text-xs">Questions on the day</Label>
+                  <Input id="m-count" type="number" min={5} max={100} value={questionCount} onChange={(e) => setQuestionCount(Number(e.target.value))} className="h-9" />
+                </div>
+              </div>
+              <div className="flex items-center justify-between gap-3">
+                <div className="flex-1">
+                  <Label htmlFor="m-time" className="text-xs flex items-center gap-1"><Clock className="size-3" /> Time limit</Label>
+                  <p className="text-[11px] text-muted-foreground mt-0.5">{hasTimeLimit ? `${timeLimitMinutes} minutes` : "No time limit"}</p>
+                </div>
+                <div className="flex items-center gap-2">
+                  {hasTimeLimit && <Input type="number" min={5} max={120} value={timeLimitMinutes} onChange={(e) => setTimeLimitMinutes(Number(e.target.value))} className="h-9 w-20" />}
+                  <Switch checked={hasTimeLimit} onCheckedChange={setHasTimeLimit} />
                 </div>
               </div>
             </div>
-          ) : (
-            <div className="rounded-lg border-2 border-primary/30 bg-primary/[0.04] p-4">
-              <div className="flex items-center gap-2 mb-1">
-                <Users className="size-4 text-primary" />
-                <Label className="text-sm font-semibold">Assign to Department Leads</Label>
-                {ownerTeacherIds.length === 0 ? (
-                  <Badge variant="outline" className="ml-auto text-[10px] text-amber-700 dark:text-amber-300 border-amber-500/40">
-                    Pick at least one
-                  </Badge>
-                ) : (
-                  <Badge variant="outline" className="ml-auto text-[10px] text-primary border-primary/40 gap-1">
-                    <Check className="size-2.5" /> {ownerTeacherIds.length} selected
-                  </Badge>
+
+            <div className="space-y-2 -mx-2 px-2 py-3 rounded-lg bg-muted/30">
+              <Label className="text-xs font-semibold uppercase tracking-wider flex items-center gap-1.5 px-1"><Layers className="size-3.5" /> Seminar plan — Lessons & content</Label>
+              <p className="text-[11px] text-muted-foreground px-1">Upload videos, documents (Word/PDF), slides, or links. AI reads these to write the quiz.</p>
+              <LessonsBuilder lessons={lessons} onChange={setLessons} moduleSlug={draftSlug} />
+            </div>
+
+            <div className="sticky bottom-0 -mx-6 px-6 py-3 flex justify-end gap-2 border-t bg-background/95 backdrop-blur">
+              <Button type="submit" disabled={!canCreate || submitting}>
+                {submitting ? <><Loader2 className="size-4 animate-spin mr-1.5" /> Saving…</> : <>Save &amp; next: AI questions <ArrowRight className="size-4 ml-1" /></>}
+              </Button>
+            </div>
+          </form>
+        )}
+
+        {/* ─── STEP 2 — generate (one-by-one review) ──────────────── */}
+        {step === 2 && (
+          <div className="px-6 py-5 space-y-4">
+            <p className="text-xs text-muted-foreground">
+              AI reads your content and drafts questions one at a time. <strong>Add</strong> the good ones, <strong>Skip</strong> the rest — skipped questions are discarded, nothing is saved.
+            </p>
+            {createdSlug && <QuestionReviewPanel moduleSlug={createdSlug} onAddedChange={setGenAdded} />}
+            <div className="sticky bottom-0 -mx-6 px-6 py-3 flex items-center justify-between gap-3 border-t bg-background/95 backdrop-blur">
+              <span className="text-sm text-muted-foreground whitespace-nowrap">
+                {genAdded > 0 ? `${genAdded} added so far` : "None added yet"}
+              </span>
+              <div className="flex gap-2 shrink-0">
+                {genAdded === 0 && <Button variant="ghost" onClick={() => setStep(3)}>Skip</Button>}
+                <Button onClick={() => setStep(3)}>
+                  Next: employees <ArrowRight className="size-4 ml-1" />
+                </Button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ─── STEP 3 — employees ─────────────────────────────────── */}
+        {step === 3 && (
+          <div className="px-6 py-5 space-y-4">
+            <div className="rounded-lg border">
+              <div className="flex items-center justify-between px-3 py-2 border-b bg-muted/30">
+                <span className="text-sm font-medium flex items-center gap-2"><Users className="size-4 text-muted-foreground" />{empLoading ? "Loading…" : `${selected.size} of ${employees.length} selected`}</span>
+                {employees.length > 0 && (
+                  <button type="button" className="text-xs text-primary hover:underline"
+                    onClick={() => setSelected(selected.size === employees.length ? new Set() : new Set(employees.map((e) => e.id)))}>
+                    {selected.size === employees.length ? "Deselect all" : "Select all"}
+                  </button>
                 )}
               </div>
-              <p className="text-xs text-muted-foreground mb-3">
-                Pick one or more Department Leads to co-own this module. They&rsquo;ll edit content, approve AI questions, schedule sessions, and take turns presenting it live.
-              </p>
-
-              <div className="grid sm:grid-cols-2 gap-2">
-                {teachers.map((t) => {
-                  const selected = ownerTeacherIds.includes(t.id);
-                  const moduleCount = t.ownedModuleSlugs?.length ?? 0;
-                  return (
-                    <button
-                      key={t.id}
-                      type="button"
-                      onClick={() => toggleTeacher(t.id)}
-                      aria-pressed={selected}
-                      className={`flex items-center gap-3 p-3 rounded-lg border transition-all text-left ${
-                        selected
-                          ? "border-primary bg-primary/10 ring-2 ring-primary/20 shadow-sm"
-                          : "border-border bg-card hover:bg-accent/40 hover:border-primary/40"
-                      }`}
-                    >
-                      <Avatar className="size-9 border shrink-0">
-                        <AvatarFallback
-                          style={{ background: t.avatarColor, color: "white" }}
-                          className="text-xs font-semibold"
-                        >
-                          {initials(t.name)}
-                        </AvatarFallback>
-                      </Avatar>
-                      <div className="flex-1 min-w-0">
-                        <div className="font-medium text-sm truncate flex items-center gap-1.5">
-                          {t.name}
-                          {selected && <Sparkles className="size-3 text-primary shrink-0" />}
-                        </div>
-                        <div className="text-[11px] text-muted-foreground truncate">
-                          {moduleCount === 0 ? "No modules yet" : `${moduleCount} module${moduleCount === 1 ? "" : "s"} owned`}
-                        </div>
-                      </div>
-                      <div
-                        className={`size-4 rounded shrink-0 flex items-center justify-center transition-all ${
-                          selected ? "border-primary bg-primary border-2" : "border-2 border-muted-foreground/30"
-                        }`}
-                      >
-                        {selected && <Check className="size-3 text-primary-foreground" strokeWidth={3} />}
-                      </div>
-                    </button>
-                  );
-                })}
-              </div>
-              {ownerTeacherIds.length > 1 && (
-                <div className="mt-3 text-[11px] text-muted-foreground flex items-start gap-1.5">
-                  <Sparkles className="size-3 mt-0.5 text-primary shrink-0" />
-                  <span>
-                    Co-owned modules: any owner can edit content, approve questions, and present sessions. The first selected is the primary contact.
-                  </span>
+              {employees.length > 0 && (
+                <div className="px-3 py-2 border-b">
+                  <Input value={empSearch} onChange={(e) => setEmpSearch(e.target.value)}
+                    placeholder="Search by name or email…" className="h-8 text-sm" />
                 </div>
               )}
-            </div>
-          )}
-
-          {/* Quiz settings */}
-          <div className="rounded-lg border bg-muted/30 p-4 space-y-4">
-            <div className="text-xs font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
-              <Target className="size-3.5" /> Quiz settings
-            </div>
-
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1.5">
-                <Label htmlFor="m-threshold" className="text-xs">Pass threshold</Label>
-                <div className="relative">
-                  <Input
-                    id="m-threshold"
-                    type="number"
-                    min={50}
-                    max={100}
-                    value={passThreshold}
-                    onChange={(e) => setPassThreshold(Number(e.target.value))}
-                    className="h-9 pr-7"
-                  />
-                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">%</span>
-                </div>
-              </div>
-              <div className="space-y-1.5">
-                <Label htmlFor="m-count" className="text-xs">Questions on the day</Label>
-                <Input
-                  id="m-count"
-                  type="number"
-                  min={5}
-                  max={100}
-                  value={questionCount}
-                  onChange={(e) => setQuestionCount(Number(e.target.value))}
-                  className="h-9"
-                />
+              <div className="max-h-72 overflow-y-auto divide-y">
+                {empLoading ? (
+                  <div className="p-6 text-center"><Loader2 className="size-4 animate-spin mx-auto text-muted-foreground" /></div>
+                ) : employees.length === 0 ? (
+                  <div className="p-6 text-center text-sm text-muted-foreground">No employees are due for this module right now.</div>
+                ) : filteredEmployees.length === 0 ? (
+                  <div className="p-6 text-center text-sm text-muted-foreground">No employees match “{empSearch}”.</div>
+                ) : filteredEmployees.map((e) => (
+                  <label key={e.id} className="flex items-center gap-3 px-3 py-2 cursor-pointer hover:bg-accent/40">
+                    <Checkbox checked={selected.has(e.id)} onCheckedChange={() => toggleEmp(e.id)} />
+                    <div className="min-w-0 flex-1"><div className="text-sm font-medium truncate">{e.name}</div><div className="text-xs text-muted-foreground truncate">{e.email}{e.cohort ? ` · ${e.cohort}` : ""}</div></div>
+                  </label>
+                ))}
               </div>
             </div>
-
-            <div className="flex items-center justify-between gap-3">
-              <div className="flex-1">
-                <Label htmlFor="m-time" className="text-xs flex items-center gap-1">
-                  <Clock className="size-3" /> Time limit
-                </Label>
-                <p className="text-[11px] text-muted-foreground mt-0.5">
-                  {hasTimeLimit ? `${timeLimitMinutes} minutes` : "No time limit"}
-                </p>
-              </div>
-              <div className="flex items-center gap-2">
-                {hasTimeLimit && (
-                  <Input
-                    type="number"
-                    min={5}
-                    max={120}
-                    value={timeLimitMinutes}
-                    onChange={(e) => setTimeLimitMinutes(Number(e.target.value))}
-                    className="h-9 w-20"
-                  />
-                )}
-                <Switch checked={hasTimeLimit} onCheckedChange={setHasTimeLimit} />
-              </div>
+            <div className="sticky bottom-0 -mx-6 px-6 py-3 flex justify-between gap-2 border-t bg-background/95 backdrop-blur">
+              <Button variant="ghost" onClick={() => setStep(2)}><ArrowLeft className="size-4 mr-1" /> Back</Button>
+              <Button onClick={() => setStep(4)} variant={selected.size === 0 ? "outline" : "default"}>
+                {selected.size === 0 ? "Skip — no attendees" : `Continue · ${selected.size} selected`} <ArrowRight className="size-4 ml-1" />
+              </Button>
             </div>
           </div>
+        )}
 
-          {/* AI generation */}
-          <div className="rounded-lg border-2 border-dashed border-[var(--ai)]/30 bg-[var(--ai)]/5 p-4">
-            <div className="flex items-start justify-between gap-3">
-              <div className="flex-1">
-                <div className="flex items-center gap-2">
-                  <Sparkles className="size-4 text-[var(--ai)]" />
-                  <Label htmlFor="m-ai" className="text-sm font-semibold cursor-pointer">
-                    Auto-draft questions with AI
-                  </Label>
-                </div>
-                <p className="text-xs text-muted-foreground mt-1">
-                  Once you upload a manual or slides, AI will draft 50 first-attempt + 30 retake (easier) questions for the Department Lead to review and approve.
-                </p>
-              </div>
-              <Switch id="m-ai" checked={autoGenerate} onCheckedChange={setAutoGenerate} />
+        {/* ─── STEP 4 — publish ───────────────────────────────────── */}
+        {step === 4 && (
+          <div className="px-6 py-5 space-y-4">
+            <div className="rounded-lg border bg-card p-5 space-y-3 text-sm">
+              <div className="flex items-center gap-2 font-semibold"><Rocket className="size-4 text-primary" /> Ready to publish</div>
+              <div className="flex items-center gap-2 text-muted-foreground"><ListChecks className="size-4" /> {genAdded > 0 ? `${genAdded} questions added` : "Questions can be added later"}</div>
+              <div className="flex items-center gap-2 text-muted-foreground"><Calendar className="size-4" /> Seminar on {scheduledDate || "—"}</div>
+              <div className="flex items-center gap-2 text-muted-foreground"><Mail className="size-4" /> {selected.size > 0 ? `${selected.size} employee(s) will be invited & emailed` : "No attendees — schedule & email later from the module page"}</div>
             </div>
-          </div>
-
-          {/* Lessons (the seminar plan) */}
-          <div className="space-y-2 -mx-2 px-2 py-3 rounded-lg bg-muted/30">
-            <div className="flex items-start justify-between gap-3 px-1">
+            {notify && (
               <div>
-                <Label className="text-xs font-semibold uppercase tracking-wider flex items-center gap-1.5">
-                  <Layers className="size-3.5" /> Seminar plan — Lessons
-                </Label>
-                <p className="text-[11px] text-muted-foreground mt-1">
-                  Break the {totalLessonMinutes || "—"}-minute seminar into lessons. Add videos, documents, slide decks, or external links to each lesson. The Department Lead will present them in order.
-                </p>
+                <div className="h-1.5 rounded-full bg-muted overflow-hidden"><div className="h-full bg-primary transition-all" style={{ width: `${notify.total ? (notify.sent / notify.total) * 100 : 0}%` }} /></div>
+                <p className="text-[11px] text-muted-foreground mt-1">Emailing employees… {notify.sent} of {notify.total}</p>
               </div>
-            </div>
-            <LessonsBuilder
-              lessons={lessons}
-              onChange={setLessons}
-              moduleSlug={draftSlug}
-            />
-          </div>
-        </form>
-
-        <SheetFooter className="border-t pt-4">
-          <SheetClose asChild>
-            <Button variant="outline">Cancel</Button>
-          </SheetClose>
-          <Button
-            onClick={handleSubmit as unknown as React.MouseEventHandler<HTMLButtonElement>}
-            disabled={!canSubmit || submitting}
-          >
-            {submitting ? (
-              <><Loader2 className="size-4 animate-spin mr-1.5" /> Creating…</>
-            ) : (
-              "Create module as draft"
             )}
-          </Button>
-        </SheetFooter>
-      </SheetContent>
-    </Sheet>
+            <div className="sticky bottom-0 -mx-6 px-6 py-3 flex justify-between gap-2 border-t bg-background/95 backdrop-blur">
+              <Button variant="ghost" onClick={() => setStep(3)} disabled={submitting}><ArrowLeft className="size-4 mr-1" /> Back</Button>
+              <Button onClick={handlePublish} disabled={submitting}>
+                {submitting ? <><Loader2 className="size-4 animate-spin mr-1.5" /> {notify ? `Emailing ${notify.sent}/${notify.total}…` : "Publishing…"}</> : <><Rocket className="size-4 mr-1.5" /> {selected.size > 0 ? "Publish & send" : "Publish module"}</>}
+              </Button>
+            </div>
+          </div>
+        )}
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
   );
 }

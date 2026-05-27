@@ -15,6 +15,8 @@ import { KpiCard } from "@/components/shared/kpi-card";
 import { ModuleRoster } from "@/components/shared/module-roster";
 import { DeliveryHistory } from "@/components/shared/delivery-history";
 import { ScheduleRedelivery } from "@/components/admin/schedule-redelivery";
+import { RescheduleSeminar } from "@/components/admin/reschedule-seminar";
+import { ModuleSetupPanel } from "@/components/admin/module-setup-panel";
 import { fmtDate, initials } from "@/lib/format";
 import type { ContentType, ModuleDef, Attempt, Question, Teacher, Manager } from "@/types";
 import type { RosterRow, RosterCounts } from "@/lib/db/roster";
@@ -38,6 +40,7 @@ export interface AdminModuleViewProps {
   deliveries: DeliveryRecord[];
   managersById: Record<string, Pick<Manager, "id" | "name" | "avatarColor" | "cohort">>;
   currentDeliveryStart: string | null;
+  addableManagers?: { id: string; name: string }[];
 }
 
 export function AdminModuleView({
@@ -50,6 +53,7 @@ export function AdminModuleView({
   deliveries,
   managersById,
   currentDeliveryStart,
+  addableManagers = [],
 }: AdminModuleViewProps) {
   const slug = mod.slug;
   const totalMinutes = mod.lessons.reduce((sum, l) => sum + l.durationMinutes, 0);
@@ -104,6 +108,19 @@ export function AdminModuleView({
             </Button>
           </div>
         }
+      />
+
+      <ModuleSetupPanel
+        slug={slug}
+        moduleTitle={mod.title}
+        status={mod.status}
+        lessonCount={mod.lessons.length}
+        contentItemCount={contentCounts.totalItems}
+        questionsApproved={approvedQs}
+        questionsTotal={questions.length}
+        questionCount={mod.questionCount}
+        currentDeliveryStart={currentDeliveryStart}
+        attendeeCount={rosterCounts.expected}
       />
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
@@ -193,15 +210,23 @@ export function AdminModuleView({
                   Who&rsquo;s expected for the current delivery
                 </p>
               </div>
-              <ScheduleRedelivery
-                moduleSlug={slug}
-                moduleTitle={mod.title}
-                currentDeliveryStart={currentDeliveryStart}
-                checkedInCount={rosterCounts.checkedIn}
-                pendingCount={roster.filter((r) => r.status !== "passed").length}
-              />
+              <div className="flex items-center gap-2">
+                {currentDeliveryStart && (
+                  <RescheduleSeminar
+                    moduleSlug={slug}
+                    moduleTitle={mod.title}
+                    attendeeCount={rosterCounts.expected}
+                  />
+                )}
+                <ScheduleRedelivery
+                  moduleSlug={slug}
+                  moduleTitle={mod.title}
+                  currentDeliveryStart={currentDeliveryStart}
+                  checkedInCount={rosterCounts.checkedIn}
+                />
+              </div>
             </div>
-            <ModuleRoster moduleSlug={slug} roster={roster} counts={rosterCounts} />
+            <ModuleRoster moduleSlug={slug} roster={roster} counts={rosterCounts} manageable addableManagers={addableManagers} />
           </div>
 
           <div className="mt-10">

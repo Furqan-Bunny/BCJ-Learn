@@ -4,11 +4,37 @@
 // actions with real DB-backed inserts/deletes against the `attendance` table.
 
 import { createClient, createAdminClient } from "@/lib/supabase/server";
+import { getCurrentDelivery, getCheckedInStatus } from "@/lib/db/deliveries";
 import { revalidatePath } from "next/cache";
 
 const DEMO_MODE = process.env.NEXT_PUBLIC_DEMO_MODE === "true";
 
-export async function logCheckIn(moduleSlug: string): Promise<{ ok: boolean; error?: string }> {
+// Lightweight, manager-safe snapshot of the current delivery's live state.
+// A client poller calls this and refreshes the page when anything changes, so
+// the employee sees check-in open / session start / quiz unlock in real time
+// without manually refreshing.
+export async function getDeliveryPulse(
+  moduleSlug: string,
+): Promise<{ ok: boolean; checkinOpen: boolean; sessionStarted: boolean; sessionEnded: boolean; checkedIn: boolean }> {
+  const sb = await createClient();
+  const { data: { user } } = await sb.auth.getUser();
+  if (!user) return { ok: false, checkinOpen: false, sessionStarted: false, sessionEnded: false, checkedIn: false };
+
+  const [delivery, checkin] = await Promise.all([
+    getCurrentDelivery(moduleSlug),
+    getCheckedInStatus(moduleSlug, user.id),
+  ]);
+
+  return {
+    ok: true,
+    checkinOpen: !!delivery?.checkinOpenedAt,
+    sessionStarted: !!delivery?.sessionStartedAt,
+    sessionEnded: !!delivery?.sessionEndedAt,
+    checkedIn: checkin.checkedIn,
+  };
+}
+
+export async function logCheckIn(moduleSlug: string, code?: string): Promise<{ ok: boolean; error?: string }> {
   const sb = await createClient();
   const {
     data: { user },
@@ -22,7 +48,7 @@ export async function logCheckIn(moduleSlug: string): Promise<{ ok: boolean; err
   // Find the current open delivery for this module.
   const { data: delivery } = await admin
     .from("module_deliveries")
-    .select("id")
+    .select("id, checkin_opened_at, checkin_code, session_started_at, session_ended_at")
     .eq("module_slug", moduleSlug)
     .is("ended_at", null)
     .order("delivery_index", { ascending: false })
@@ -32,7 +58,24 @@ export async function logCheckIn(moduleSlug: string): Promise<{ ok: boolean; err
     return { ok: false, error: "No active delivery scheduled for this module" };
   }
 
-  const deliveryId = (delivery as { id: string }).id;
+  const d = delivery as {
+    id: string; checkin_opened_at: string | null; checkin_code: string | null;
+    session_started_at: string | null; session_ended_at: string | null;
+  };
+
+  // Gate: the trainer must have opened check-in, the session must not be over,
+  // and the employee must enter the code shown in the room.
+  if (!d.checkin_opened_at) {
+    return { ok: false, error: "Check-in hasn't opened yet — wait for your trainer to start the seminar." };
+  }
+  if (d.session_ended_at) {
+    return { ok: false, error: "The seminar has ended — check-in is closed." };
+  }
+  if (d.checkin_code && (code ?? "").trim() !== d.checkin_code) {
+    return { ok: false, error: "Wrong check-in code. Enter the code shown on the screen in the room." };
+  }
+
+  const deliveryId = d.id;
 
   // Idempotent insert (UNIQUE(manager_id, delivery_id) in schema).
   const { error } = await admin.from("attendance").upsert(

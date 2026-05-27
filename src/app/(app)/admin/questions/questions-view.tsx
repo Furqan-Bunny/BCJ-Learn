@@ -9,7 +9,10 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Search, Sparkles, ArrowRight, Filter, X as XIcon, ListChecks, BookOpen, CheckCircle2,
+  ChevronLeft, ChevronRight,
 } from "lucide-react";
+
+const PAGE_SIZE = 10;
 import { PageHeader } from "@/components/shared/page-header";
 import { StatusBadge } from "@/components/shared/status-badge";
 import type { Question, QuestionStatus, QuestionPool, ModuleDef } from "@/types";
@@ -55,6 +58,13 @@ export function AdminQuestionLibraryView({ questions, modules, teacherNamesById 
 
   const activeModule = modules.find((m) => m.slug === moduleSlug);
   const filtersActive = moduleSlug !== ALL || status !== "all" || pool !== "all" || search !== "";
+
+  // Pagination — render only one page at a time; reset to page 1 on any filter change.
+  const [page, setPage] = React.useState(0);
+  React.useEffect(() => { setPage(0); }, [moduleSlug, status, pool, search]);
+  const pageCount = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const pageSafe = Math.min(page, pageCount - 1);
+  const paged = filtered.slice(pageSafe * PAGE_SIZE, pageSafe * PAGE_SIZE + PAGE_SIZE);
 
   return (
     <>
@@ -204,13 +214,14 @@ export function AdminQuestionLibraryView({ questions, modules, teacherNamesById 
         </Card>
       ) : (
         <div className="space-y-2">
-          {filtered.slice(0, 50).map((q, i) => {
+          {paged.map((q, i) => {
             const mod = modules.find((m) => m.slug === q.moduleSlug);
+            const num = pageSafe * PAGE_SIZE + i + 1;
             return (
               <Card key={q.id} className="hover:shadow-sm transition-shadow">
                 <CardContent className="p-4 flex items-start gap-4">
                   <div className="text-[10px] font-mono text-muted-foreground tabular-nums shrink-0 mt-1 w-8 text-right">
-                    {String(i + 1).padStart(3, "0")}
+                    {String(num).padStart(3, "0")}
                   </div>
                   <Sparkles className="size-4 text-[var(--ai)] mt-1 shrink-0" />
                   <div className="flex-1 min-w-0">
@@ -237,11 +248,30 @@ export function AdminQuestionLibraryView({ questions, modules, teacherNamesById 
               </Card>
             );
           })}
-          {filtered.length > 50 && (
-            <div className="mt-4 text-xs text-muted-foreground text-center py-3 border rounded-lg bg-muted/30">
-              Showing first 50 of {filtered.length} matching questions. Refine your filters to narrow down.
+          <div className="mt-4 flex items-center justify-between gap-3 flex-wrap">
+            <div className="text-xs text-muted-foreground">
+              Showing {pageSafe * PAGE_SIZE + 1}–{Math.min((pageSafe + 1) * PAGE_SIZE, filtered.length)} of {filtered.length}
             </div>
-          )}
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-muted-foreground">Page {pageSafe + 1} of {pageCount}</span>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setPage((p) => Math.max(0, p - 1))}
+                disabled={pageSafe === 0}
+              >
+                <ChevronLeft className="size-4 mr-1" /> Prev
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setPage((p) => Math.min(pageCount - 1, p + 1))}
+                disabled={pageSafe >= pageCount - 1}
+              >
+                Next <ChevronRight className="size-4 ml-1" />
+              </Button>
+            </div>
+          </div>
         </div>
       )}
     </>

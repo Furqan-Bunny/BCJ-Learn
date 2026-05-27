@@ -7,7 +7,9 @@ import { createClient, createAdminClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
 import { pushInAppNotification } from "@/lib/notifications/push";
 import { getModule, listModuleContentVersions } from "@/lib/db/modules";
-import type { ContentType, Lesson, LessonContent, ModuleStatus, Role } from "@/types";
+import { sendEmail } from "@/lib/emails/send";
+import { fmtDate } from "@/lib/format";
+import type { ContentType, Lesson, LessonContent, ModuleStatus, Role, CheckinState } from "@/types";
 
 const DEMO_MODE = process.env.NEXT_PUBLIC_DEMO_MODE === "true";
 
@@ -61,6 +63,7 @@ export interface CreateModuleInput {
   description: string;
   scheduledMonth: string | null;
   scheduledDate: string | null;
+  scheduledTime: string | null;
   status: ModuleStatus;
   passThreshold: number;
   questionCount: number;
@@ -84,6 +87,7 @@ export async function createModule(input: CreateModuleInput): Promise<{ ok: bool
     description: input.description,
     scheduled_month: input.scheduledMonth,
     scheduled_date: input.scheduledDate,
+    scheduled_time: input.scheduledTime,
     status: input.status,
     pass_threshold: input.passThreshold,
     question_count: input.questionCount,
@@ -153,12 +157,17 @@ export async function createModule(input: CreateModuleInput): Promise<{ ok: bool
       module_slug: input.slug,
       delivery_index: 1,
       scheduled_date: input.scheduledDate,
+      scheduled_time: input.scheduledTime,
     })
     .select("id")
     .single();
   if (deliveryRow) {
     const deliveryId = (deliveryRow as { id: string }).id;
-    const { data: managers } = await admin.from("profiles").select("id").eq("role", "manager");
+    const { data: managers } = await admin
+      .from("profiles")
+      .select("id")
+      .eq("role", "manager")
+      .not("status", "in", "(inactive,pending)");
     if (managers && managers.length > 0) {
       const inviteeRows = (managers as { id: string }[]).map((m) => ({
         delivery_id: deliveryId,
@@ -354,6 +363,29 @@ export async function publishModule(slug: string): Promise<{ ok: boolean; error?
   return { ok: true };
 }
 
+// ─── unpublishModule (back to draft) ────────────────────────────────────
+
+export async function unpublishModule(slug: string): Promise<{ ok: boolean; error?: string }> {
+  const guard = await requireAdminOrModuleOwner(slug);
+  if (!guard.ok) return { ok: false, error: guard.error };
+
+  if (DEMO_MODE) return { ok: true };
+
+  const admin = createAdminClient();
+  const { error } = await admin.from("modules").update({ status: "draft" }).eq("slug", slug);
+  if (error) return { ok: false, error: error.message };
+
+  await admin.from("activity").insert({
+    kind: "module_published",
+    actor_id: guard.userId,
+    message: `${guard.userName} set module ${slug} back to draft`,
+  });
+
+  revalidatePath(`/admin/modules/${slug}`);
+  revalidatePath(`/teacher/modules/${slug}`);
+  return { ok: true };
+}
+
 // ─── scheduleRedelivery (wraps RPC) ────────────────────────────────────
 
 export async function scheduleRedelivery(slug: string, newDate: string | null): Promise<{ ok: boolean; error?: string }> {
@@ -372,6 +404,245 @@ export async function scheduleRedelivery(slug: string, newDate: string | null): 
   revalidatePath(`/admin/modules/${slug}`);
   revalidatePath(`/teacher/modules/${slug}`);
   return { ok: true };
+}
+
+// ─── editable seminar roster: add / remove an invitee ──────────────────
+
+async function currentDeliveryId(
+  admin: ReturnType<typeof createAdminClient>,
+  slug: string,
+): Promise<string | null> {
+  const { data } = await admin
+    .from("module_deliveries")
+    .select("id")
+    .eq("module_slug", slug)
+    .is("ended_at", null)
+    .order("delivery_index", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  return (data as { id: string } | null)?.id ?? null;
+}
+
+export async function addInvitee(moduleSlug: string, managerId: string): Promise<{ ok: boolean; error?: string }> {
+  const guard = await requireAdminOrModuleOwner(moduleSlug);
+  if (!guard.ok) return { ok: false, error: guard.error };
+  if (DEMO_MODE) return { ok: true };
+
+  const admin = createAdminClient();
+  const deliveryId = await currentDeliveryId(admin, moduleSlug);
+  if (!deliveryId) return { ok: false, error: "No active seminar — schedule one first." };
+
+  const { error } = await admin
+    .from("module_invitees")
+    .upsert(
+      { delivery_id: deliveryId, manager_id: managerId, status: "invited" },
+      { onConflict: "delivery_id,manager_id" },
+    );
+  if (error) return { ok: false, error: error.message };
+
+  revalidatePath(`/admin/modules/${moduleSlug}`);
+  revalidatePath(`/teacher/modules/${moduleSlug}`);
+  return { ok: true };
+}
+
+export async function removeInvitee(moduleSlug: string, managerId: string): Promise<{ ok: boolean; error?: string }> {
+  const guard = await requireAdminOrModuleOwner(moduleSlug);
+  if (!guard.ok) return { ok: false, error: guard.error };
+  if (DEMO_MODE) return { ok: true };
+
+  const admin = createAdminClient();
+  const deliveryId = await currentDeliveryId(admin, moduleSlug);
+  if (!deliveryId) return { ok: false, error: "No active seminar." };
+
+  await admin.from("module_invitees").delete().eq("delivery_id", deliveryId).eq("manager_id", managerId);
+  await admin.from("attendance").delete().eq("delivery_id", deliveryId).eq("manager_id", managerId);
+
+  revalidatePath(`/admin/modules/${moduleSlug}`);
+  revalidatePath(`/teacher/modules/${moduleSlug}`);
+  return { ok: true };
+}
+
+// ─── schedule a seminar: preview the due list, then invite + email ─────
+
+// Active employees who haven't passed this module in the last 12 months
+// (new hires + past fails + recert-due). Mirrors the schedule_redelivery SQL.
+export async function getDueEmployees(moduleSlug: string) {
+  const guard = await requireAdminOrModuleOwner(moduleSlug);
+  if (!guard.ok) return { ok: false as const, error: guard.error };
+
+  const admin = createAdminClient();
+  const cutoff = new Date(Date.now() - 365 * 24 * 60 * 60 * 1000).toISOString();
+
+  const [{ data: managers }, { data: passes }] = await Promise.all([
+    admin
+      .from("profiles")
+      .select("id, name, email, cohort")
+      .eq("role", "manager")
+      .not("status", "in", "(inactive,pending)")
+      .order("name"),
+    admin
+      .from("attempts")
+      .select("manager_id")
+      .eq("module_slug", moduleSlug)
+      .eq("status", "passed")
+      .gt("started_at", cutoff),
+  ]);
+
+  const passedRecently = new Set(((passes ?? []) as { manager_id: string }[]).map((a) => a.manager_id));
+  const employees = ((managers ?? []) as { id: string; name: string; email: string; cohort: string | null }[])
+    .filter((m) => !passedRecently.has(m.id))
+    .map((m) => ({ id: m.id, name: m.name, email: m.email, cohort: m.cohort }));
+
+  return { ok: true as const, employees };
+}
+
+// Ends the current open delivery, creates a new one on `date`, invites exactly
+// `managerIds`, and emails each of them that the seminar is scheduled.
+export async function scheduleSeminar(moduleSlug: string, date: string, managerIds: string[], time?: string | null) {
+  const guard = await requireAdminOrModuleOwner(moduleSlug);
+  if (!guard.ok) return { ok: false as const, error: guard.error };
+  if (DEMO_MODE) return { ok: true as const, invited: managerIds.length, emailed: 0 };
+
+  const admin = createAdminClient();
+
+  await admin
+    .from("module_deliveries")
+    .update({ ended_at: new Date().toISOString() })
+    .eq("module_slug", moduleSlug)
+    .is("ended_at", null);
+
+  const { data: maxRow } = await admin
+    .from("module_deliveries")
+    .select("delivery_index")
+    .eq("module_slug", moduleSlug)
+    .order("delivery_index", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  const nextIndex = ((maxRow as { delivery_index?: number } | null)?.delivery_index ?? 0) + 1;
+
+  const { data: deliveryRow, error: dErr } = await admin
+    .from("module_deliveries")
+    .insert({ module_slug: moduleSlug, delivery_index: nextIndex, scheduled_date: date, scheduled_time: time ?? null })
+    .select("id")
+    .single();
+  if (dErr || !deliveryRow) return { ok: false as const, error: dErr?.message ?? "Could not create the seminar" };
+  const deliveryId = (deliveryRow as { id: string }).id;
+
+  if (managerIds.length > 0) {
+    await admin.from("module_invitees").insert(
+      managerIds.map((id) => ({ delivery_id: deliveryId, manager_id: id, status: "invited" })),
+    );
+  }
+
+  // Emails are NOT sent here — the client calls notifySeminar() in batches so it
+  // can show live progress. We just return the recipient list.
+  const mod = await getModule(moduleSlug);
+  const moduleTitle = mod?.title ?? moduleSlug;
+
+  let recipients: { id: string; name: string; email: string }[] = [];
+  if (managerIds.length > 0) {
+    const { data: people } = await admin.from("profiles").select("id, name, email").in("id", managerIds);
+    recipients = (people ?? []) as { id: string; name: string; email: string }[];
+  }
+
+  await admin.from("activity").insert({
+    kind: "delivery_rescheduled",
+    actor_id: guard.userId,
+    message: `${guard.userName} scheduled a seminar for ${moduleTitle} on ${fmtDate(date)} (${managerIds.length} invited)`,
+  });
+
+  revalidatePath(`/admin/modules/${moduleSlug}`);
+  revalidatePath(`/teacher/modules/${moduleSlug}`);
+  return { ok: true as const, invited: managerIds.length, recipients };
+}
+
+// Send the seminar email (scheduled or rescheduled) to a batch of recipients,
+// in parallel. The client calls this per chunk to drive a progress indicator.
+export async function notifySeminar(
+  moduleSlug: string,
+  mode: "scheduled" | "rescheduled",
+  recipientIds: string[],
+) {
+  const guard = await requireAdminOrModuleOwner(moduleSlug);
+  if (!guard.ok) return { ok: false as const, error: guard.error, sent: 0 };
+  if (DEMO_MODE || recipientIds.length === 0) return { ok: true as const, sent: 0 };
+
+  const admin = createAdminClient();
+  const mod = await getModule(moduleSlug);
+  const moduleTitle = mod?.title ?? moduleSlug;
+  const link = `${process.env.NEXT_PUBLIC_APP_URL ?? ""}/login`;
+  const templateKey = mode === "rescheduled" ? "seminar_rescheduled" : "seminar_scheduled";
+
+  const { data: del } = await admin
+    .from("module_deliveries")
+    .select("scheduled_date")
+    .eq("module_slug", moduleSlug)
+    .is("ended_at", null)
+    .order("delivery_index", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  const sd = (del as { scheduled_date?: string } | null)?.scheduled_date;
+  const seminarDate = sd ? fmtDate(sd) : "soon";
+
+  const { data: people } = await admin.from("profiles").select("id, name, email").in("id", recipientIds);
+  const list = (people ?? []) as { id: string; name: string; email: string }[];
+
+  const results = await Promise.all(
+    list.map((p) =>
+      sendEmail({
+        to: p.email,
+        templateKey,
+        recipientUserId: p.id,
+        href: "/manager/dashboard",
+        variables: { name: p.name ?? "there", module_title: moduleTitle, seminar_date: seminarDate, link },
+      })
+        .then((r) => r.ok)
+        .catch(() => false),
+    ),
+  );
+  return { ok: true as const, sent: results.filter(Boolean).length };
+}
+
+// Move the CURRENT (active) seminar to a new date — same delivery, same
+// attendees — and email everyone already invited about the new date.
+export async function rescheduleSeminar(moduleSlug: string, newDate: string, newTime?: string | null) {
+  const guard = await requireAdminOrModuleOwner(moduleSlug);
+  if (!guard.ok) return { ok: false as const, error: guard.error };
+  if (DEMO_MODE) return { ok: true as const, emailed: 0 };
+
+  const admin = createAdminClient();
+  const deliveryId = await currentDeliveryId(admin, moduleSlug);
+  if (!deliveryId) return { ok: false as const, error: "No active seminar to reschedule — schedule one first." };
+
+  await admin.from("module_deliveries")
+    .update({ scheduled_date: newDate, ...(newTime !== undefined ? { scheduled_time: newTime } : {}) })
+    .eq("id", deliveryId);
+
+  const mod = await getModule(moduleSlug);
+  const moduleTitle = mod?.title ?? moduleSlug;
+
+  const { data: invitees } = await admin
+    .from("module_invitees")
+    .select("manager_id")
+    .eq("delivery_id", deliveryId);
+  const ids = ((invitees ?? []) as { manager_id: string }[]).map((r) => r.manager_id);
+
+  // Emails sent separately via notifySeminar() so the client can show progress.
+  let recipients: { id: string; name: string; email: string }[] = [];
+  if (ids.length > 0) {
+    const { data: people } = await admin.from("profiles").select("id, name, email").in("id", ids);
+    recipients = (people ?? []) as { id: string; name: string; email: string }[];
+  }
+
+  await admin.from("activity").insert({
+    kind: "delivery_rescheduled",
+    actor_id: guard.userId,
+    message: `${guard.userName} rescheduled the ${moduleTitle} seminar to ${fmtDate(newDate)} (${ids.length} notified)`,
+  });
+
+  revalidatePath(`/admin/modules/${moduleSlug}`);
+  revalidatePath(`/teacher/modules/${moduleSlug}`);
+  return { ok: true as const, recipients };
 }
 
 // ─── startSession / endSession ─────────────────────────────────────────
@@ -441,6 +712,98 @@ export async function endSession(slug: string): Promise<{ ok: boolean; error?: s
 
   revalidatePath(`/teacher/modules/${slug}/results`);
   return { ok: true };
+}
+
+// ─── Check-in lobby (phase 1 of the presenter) ─────────────────────────
+//
+// The trainer opens check-in from the presenter lobby. That mints a short code
+// (shown on the projector) which employees must enter to check in — so only
+// people physically in the room can. The trainer can only open check-in once
+// the scheduled start time has arrived (enforced on their device); employees
+// simply cannot check in until checkin_opened_at is set and the session hasn't
+// started yet.
+
+function makeCheckinCode(): string {
+  return String(Math.floor(1000 + Math.random() * 9000)); // 4 digits
+}
+
+export async function openCheckIn(slug: string): Promise<{ ok: boolean; error?: string; code?: string }> {
+  const guard = await requireAdminOrModuleOwner(slug);
+  if (!guard.ok) return { ok: false, error: guard.error };
+  if (DEMO_MODE) return { ok: true, code: "1234" };
+
+  const admin = createAdminClient();
+  const { data: delivery } = await admin
+    .from("module_deliveries")
+    .select("id, checkin_code, checkin_opened_at, session_started_at")
+    .eq("module_slug", slug)
+    .is("ended_at", null)
+    .order("delivery_index", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (!delivery) return { ok: false, error: "No open delivery — schedule a seminar first." };
+  const d = delivery as { id: string; checkin_code: string | null; checkin_opened_at: string | null };
+
+  // Reuse the existing code if check-in is already open.
+  const code = d.checkin_code ?? makeCheckinCode();
+  const { error } = await admin
+    .from("module_deliveries")
+    .update({ checkin_opened_at: d.checkin_opened_at ?? new Date().toISOString(), checkin_code: code })
+    .eq("id", d.id);
+  if (error) return { ok: false, error: error.message };
+
+  revalidatePath(`/teacher/modules/${slug}/present`);
+  return { ok: true, code };
+}
+
+// Live lobby state for the presenter — polled while in the check-in phase.
+export async function getCheckinState(slug: string): Promise<CheckinState> {
+  const empty: CheckinState = { ok: false, open: false, code: null, scheduledDate: null, scheduledTime: null, sessionStarted: false, sessionEnded: false, invited: 0, checkedIn: [] };
+  const guard = await requireAdminOrModuleOwner(slug);
+  if (!guard.ok) return { ...empty, error: guard.error };
+
+  const admin = createAdminClient();
+  const { data: delivery } = await admin
+    .from("module_deliveries")
+    .select("id, checkin_opened_at, checkin_code, scheduled_date, scheduled_time, session_started_at, session_ended_at")
+    .eq("module_slug", slug)
+    .is("ended_at", null)
+    .order("delivery_index", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (!delivery) return { ...empty, ok: true };
+  const d = delivery as {
+    id: string; checkin_opened_at: string | null; checkin_code: string | null;
+    scheduled_date: string | null; scheduled_time: string | null;
+    session_started_at: string | null; session_ended_at: string | null;
+  };
+
+  const [{ count: invited }, { data: att }] = await Promise.all([
+    admin.from("module_invitees").select("id", { count: "exact", head: true }).eq("delivery_id", d.id),
+    admin.from("attendance").select("manager_id, checked_in_at").eq("delivery_id", d.id),
+  ]);
+
+  const rows = (att ?? []) as { manager_id: string; checked_in_at: string }[];
+  let checkedIn: { id: string; name: string; at: string }[] = [];
+  if (rows.length > 0) {
+    const { data: people } = await admin.from("profiles").select("id, name").in("id", rows.map((r) => r.manager_id));
+    const nameById = new Map(((people ?? []) as { id: string; name: string }[]).map((p) => [p.id, p.name]));
+    checkedIn = rows
+      .map((r) => ({ id: r.manager_id, name: nameById.get(r.manager_id) ?? "Employee", at: r.checked_in_at }))
+      .sort((a, b) => +new Date(a.at) - +new Date(b.at));
+  }
+
+  return {
+    ok: true,
+    open: !!d.checkin_opened_at,
+    code: d.checkin_code,
+    scheduledDate: d.scheduled_date,
+    scheduledTime: d.scheduled_time,
+    sessionStarted: !!d.session_started_at,
+    sessionEnded: !!d.session_ended_at,
+    invited: invited ?? 0,
+    checkedIn,
+  };
 }
 
 // ─── resetManagerForModule ─────────────────────────────────────────────

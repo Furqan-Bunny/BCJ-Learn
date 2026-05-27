@@ -13,6 +13,7 @@ import type { ContentType, LessonContent, ModuleDef } from "@/types";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { startSession as startSessionAction, endSession as endSessionAction } from "@/lib/server/module-actions";
+import { CheckinLobby } from "./checkin-lobby";
 
 const TYPE_META: Record<ContentType, { icon: React.ComponentType<{ className?: string }>; label: string; tint: string }> = {
   video:    { icon: PlayCircle, label: "Video",    tint: "text-rose-400 bg-rose-500/15" },
@@ -21,9 +22,13 @@ const TYPE_META: Record<ContentType, { icon: React.ComponentType<{ className?: s
   link:     { icon: Link2,      label: "Link",     tint: "text-violet-400 bg-violet-500/15" },
 };
 
-export function PresenterView({ mod }: { mod: ModuleDef }) {
+export function PresenterView({ mod, startInPresentation = false }: { mod: ModuleDef; startInPresentation?: boolean }) {
   const slug = mod.slug;
   const router = useRouter();
+
+  // Phase 1 = check-in lobby, Phase 2 = presentation. Start in the lobby unless
+  // the session was already begun.
+  const [phase, setPhase] = React.useState<"lobby" | "presenting">(startInPresentation ? "presenting" : "lobby");
 
   const playlist = React.useMemo(() => {
     return mod.lessons.flatMap((l) =>
@@ -71,7 +76,8 @@ export function PresenterView({ mod }: { mod: ModuleDef }) {
     else enterFullscreen();
   }
 
-  async function startSession() {
+  async function startPresentation() {
+    setPhase("presenting");
     setRunning(true);
     void enterFullscreen();
     const res = await startSessionAction(slug);
@@ -144,6 +150,11 @@ export function PresenterView({ mod }: { mod: ModuleDef }) {
   const elapsedMin = Math.floor(elapsedSec / 60);
   const elapsedSecRem = elapsedSec % 60;
 
+  // Phase 1 — check-in lobby. Starting the presentation advances to phase 2.
+  if (phase === "lobby") {
+    return <CheckinLobby mod={mod} onStart={startPresentation} />;
+  }
+
   return (
     <div ref={stageRef} className="fixed inset-0 z-50 bg-slate-950 text-slate-50 flex flex-col">
       <header className="flex items-center gap-3 px-6 py-3 border-b border-white/10 backdrop-blur bg-slate-950/80">
@@ -198,11 +209,11 @@ export function PresenterView({ mod }: { mod: ModuleDef }) {
         <Button
           variant="ghost"
           size="sm"
-          onClick={running ? () => setRunning(false) : startSession}
+          onClick={() => setRunning((r) => !r)}
           className="text-slate-300 hover:text-white hover:bg-white/10"
         >
           {running ? <Pause className="size-4 mr-1.5" /> : <Play className="size-4 mr-1.5" />}
-          {running ? "Pause" : "Start session"}
+          {running ? "Pause" : "Resume"}
         </Button>
         <Button
           variant="ghost"
@@ -363,12 +374,23 @@ function ContentStage({
 
       <div className="rounded-xl border border-white/10 bg-slate-900/50 overflow-hidden">
         {content.type === "video" && content.videoUrl && (
-          <YouTubePresenter
-            url={content.videoUrl}
-            title={content.title}
-            autoplay={autoplay}
-            onEnded={onVideoEnd}
-          />
+          /youtube\.com|youtu\.be|vimeo\.com/i.test(content.videoUrl) ? (
+            <YouTubePresenter
+              url={content.videoUrl}
+              title={content.title}
+              autoplay={autoplay}
+              onEnded={onVideoEnd}
+            />
+          ) : (
+            <video
+              key={content.videoUrl}
+              src={content.videoUrl}
+              controls
+              autoPlay={autoplay}
+              onEnded={onVideoEnd}
+              className="w-full aspect-video bg-black"
+            />
+          )
         )}
 
         {content.type === "document" && (

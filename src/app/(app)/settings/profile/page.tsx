@@ -52,6 +52,7 @@ export default async function ProfilePage() {
     last_active_at: string;
     phone: string | null;
     notification_prefs: { quiz_results?: boolean; training_reminders?: boolean; at_risk_alerts?: boolean } | null;
+    two_factor_enabled: boolean | null;
   };
 
   const [activity, attempts] = await Promise.all([
@@ -85,6 +86,7 @@ export default async function ProfilePage() {
             trainingReminders: p.notification_prefs?.training_reminders ?? true,
             atRiskAlerts: p.notification_prefs?.at_risk_alerts ?? true,
           },
+          twoFactorEnabled: p.two_factor_enabled ?? false,
         }}
       />
       <ActivityHistory activity={activity} attempts={attempts} role={p.role} />

@@ -1,11 +1,11 @@
-import { listQuestions } from "@/lib/db/questions";
+import { listQuestionsLite } from "@/lib/db/questions";
 import { listModules } from "@/lib/db/modules";
 import { listTeachers } from "@/lib/db/profiles";
 import { AdminQuestionLibraryView } from "./questions-view";
 
 export default async function AdminQuestionsPage() {
   const [questions, modules, teachers] = await Promise.all([
-    listQuestions(),
+    listQuestionsLite(),
     listModules(),
     listTeachers(),
   ]);

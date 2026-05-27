@@ -26,8 +26,13 @@ export default async function ManagerDashboardPage() {
       ? 0
       : Math.round(passedAttempts.reduce((sum, a) => sum + Number(a.scorePct), 0) / passedAttempts.length);
 
-  // Next-module check-in + session lifecycle.
-  const orderedModules = [...modules].sort((a, b) => a.number - b.number);
+  // Next-module check-in + session lifecycle. Match the dashboard view: only
+  // published modules, ordered by scheduled training day (soonest first).
+  const orderKey = (m: (typeof modules)[number]) =>
+    m.scheduledDate ? new Date(m.scheduledDate).getTime() : Number.MAX_SAFE_INTEGER;
+  const orderedModules = modules
+    .filter((m) => m.status === "published")
+    .sort((a, b) => orderKey(a) - orderKey(b) || a.number - b.number);
   const nextModule = orderedModules.find((m) => !passedSlugs.has(m.slug)) ?? orderedModules[orderedModules.length - 1];
   const [checkInStatus, delivery] = nextModule
     ? await Promise.all([getCheckedInStatus(nextModule.slug, me.id), getCurrentDelivery(nextModule.slug)])
@@ -51,6 +56,7 @@ export default async function ManagerDashboardPage() {
       nextModuleSession={{
         sessionStartedAt: delivery?.sessionStartedAt ?? null,
         sessionEndedAt: delivery?.sessionEndedAt ?? null,
+        checkinOpen: !!delivery?.checkinOpenedAt,
       }}
     />
   );

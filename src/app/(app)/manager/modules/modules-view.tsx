@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { CheckCircle2, Lock, Sparkles, Calendar, FileText, PlayCircle, Clock } from "lucide-react";
+import { CheckCircle2, Sparkles, Calendar, FileText, PlayCircle, Clock } from "lucide-react";
 import { PageHeader } from "@/components/shared/page-header";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -33,7 +33,13 @@ export interface ManagerModulesViewProps {
 
 export function ManagerModulesView({ modules, myAttempts }: ManagerModulesViewProps) {
   const passedSlugs = new Set(myAttempts.filter((a) => a.status === "passed").map((a) => a.moduleSlug));
-  const ordered = [...modules].sort((a, b) => a.number - b.number);
+  // Every published module is unlocked — no sequential gating. Show only
+  // published modules, ordered by scheduled training day (soonest first).
+  const orderKey = (m: (typeof modules)[number]) =>
+    m.scheduledDate ? new Date(m.scheduledDate).getTime() : Number.MAX_SAFE_INTEGER;
+  const ordered = modules
+    .filter((m) => m.status === "published")
+    .sort((a, b) => orderKey(a) - orderKey(b) || a.number - b.number);
   const nextModule = ordered.find((m) => !passedSlugs.has(m.slug));
 
   const [query, setQuery] = React.useState("");
@@ -77,13 +83,12 @@ export function ManagerModulesView({ modules, myAttempts }: ManagerModulesViewPr
         {filtered.map((m) => {
           const passed = passedSlugs.has(m.slug);
           const isNext = nextModule?.slug === m.slug;
-          const locked = !passed && !isNext;
           const myAttempt = myAttempts.find((a) => a.moduleSlug === m.slug && a.status === "passed");
           const counts = contentCounts(m);
 
           return (
             <StaggerItem key={m.slug} className="h-full">
-              <Card className={`overflow-hidden card-lift card-glow h-full ${locked ? "opacity-60" : ""}`}>
+              <Card className="overflow-hidden card-lift card-glow h-full">
                 <CardContent className="p-0 h-full">
                   <div className="grid grid-cols-[auto_1fr] gap-0 h-full">
                     <div className="bg-primary/5 border-r flex flex-col items-center justify-center p-6 min-w-[100px]">
@@ -99,7 +104,6 @@ export function ManagerModulesView({ modules, myAttempts }: ManagerModulesViewPr
                           <Sparkles className="size-5 text-[var(--gold)] mt-2" />
                         </motion.span>
                       )}
-                      {locked && <Lock className="size-4 text-muted-foreground mt-2" />}
                     </div>
                     <div className="p-5 flex flex-col">
                       <div className="font-semibold text-lg tracking-tight">{m.title}</div>
@@ -128,12 +132,11 @@ export function ManagerModulesView({ modules, myAttempts }: ManagerModulesViewPr
                               Passed at {myAttempt.scorePct}%
                             </span>
                           )}
-                          {isNext && !passed && <span className="text-primary font-medium">Available now</span>}
-                          {locked && <span className="text-muted-foreground">Pass M{m.number - 1} first</span>}
+                          {!passed && <span className="text-primary font-medium">Available now</span>}
                         </div>
-                        <Button asChild variant={passed ? "outline" : "default"} size="sm" disabled={locked}>
+                        <Button asChild variant={passed ? "outline" : "default"} size="sm">
                           <Link href={`/manager/modules/${m.slug}`}>
-                            {passed ? "Review" : isNext ? "Open" : "Locked"}
+                            {passed ? "Review" : "Open"}
                           </Link>
                         </Button>
                       </div>

@@ -33,6 +33,12 @@ export interface QuizStateInput {
   scheduledDate: string;
   /** Whether the manager has checked in for the current delivery. */
   isCheckedIn: boolean;
+  /**
+   * Whether the trainer has ended the live session (i.e. "opened the quiz").
+   * When true, the quiz opens for the delivery's attendees even if they never
+   * tapped check-in — ending the session is the trainer's explicit "go".
+   */
+  sessionEnded?: boolean;
   /** "Today" override (for testing); defaults to new Date(). */
   now?: Date;
 }
@@ -41,6 +47,7 @@ export function computeQuizState({
   currentAttempts,
   scheduledDate,
   isCheckedIn,
+  sessionEnded = false,
   now = new Date(),
 }: QuizStateInput): QuizState {
   // Sort attempts by start time, oldest first
@@ -65,17 +72,26 @@ export function computeQuizState({
   const failedAttempts = sorted.filter((a) => a.status === "failed");
 
   if (failedAttempts.length === 0) {
-    // No attempts at all — quiz availability depends on seminar timing
-    const trainingDay = new Date(scheduledDate);
-    const trainingDayPassed = trainingDay.getTime() < now.getTime();
+    // No attempts at all — quiz availability depends on seminar timing.
+    // "Passed" means the CALENDAR DAY is over (not just past midnight) — so on
+    // the actual training day it stays "awaiting", not "missed". Parse the date
+    // from its parts to avoid UTC-vs-local midnight shifting the day.
+    const [sy, sm, sd] = (scheduledDate ?? "").split("-").map(Number);
+    const trainingDayPassed = !!sy && (() => {
+      const schedMidnight = new Date(sy, (sm || 1) - 1, sd || 1).getTime();
+      const todayMidnight = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+      return schedMidnight < todayMidnight;
+    })();
 
-    if (isCheckedIn) {
-      // Checked in → quiz unlocks (the seminar is happening or just ended)
-      return { kind: "ready", checkedIn: true };
+    if (isCheckedIn || sessionEnded) {
+      // Checked in, OR the trainer ended the session and opened the quiz for
+      // the room → quiz unlocks.
+      return { kind: "ready", checkedIn: isCheckedIn };
     }
 
     if (trainingDayPassed) {
-      // Training day passed and they never checked in
+      // Training day passed, the session was never opened, and they never
+      // checked in → genuinely missed it.
       return { kind: "missed-session", seminarDate: scheduledDate };
     }
 

@@ -17,6 +17,7 @@ export interface UpdateProfileInput {
   /** Pass `null` or empty string to clear. */
   phone?: string | null;
   notificationPrefs?: NotificationPrefsInput;
+  twoFactorEnabled?: boolean;
 }
 
 const FORMULA_PREFIX = /^[=+\-@\t\r]/;
@@ -39,6 +40,7 @@ export async function updateProfile(input: UpdateProfileInput) {
   if (typeof input.bio === "string") updates.bio = input.bio;
   if (typeof input.timezone === "string") updates.timezone = input.timezone;
   if (typeof input.locale === "string") updates.locale = input.locale;
+  if (typeof input.twoFactorEnabled === "boolean") updates.two_factor_enabled = input.twoFactorEnabled;
 
   // Phone — null/empty clears; otherwise trim, defang, regex-validate.
   if (input.phone !== undefined) {

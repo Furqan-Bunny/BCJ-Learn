@@ -139,3 +139,13 @@ export async function listQuestions(): Promise<Question[]> {
 
   return hydrate(qRows, optsByQ);
 }
+
+// Lightweight variant for list/library views that never render answer options:
+// fetches questions only (skips the question_options query + payload).
+export async function listQuestionsLite(): Promise<Question[]> {
+  const sb = await dbClient();
+  const { data: questions } = await sb.from("questions").select("*");
+  const qRows = (questions ?? []) as QuestionRow[];
+  if (qRows.length === 0) return [];
+  return hydrate(qRows, new Map<string, OptionRow[]>());
+}

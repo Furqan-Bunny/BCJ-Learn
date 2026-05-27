@@ -25,7 +25,7 @@ export function RouteProgress() {
   const navigatingPath = React.useRef<string | null>(null);
   const lastPathname = React.useRef(pathname);
   const incrementTimer = React.useRef<number | null>(null);
-  const startTimer = React.useRef<number | null>(null);
+  const startedAt = React.useRef<number>(0);
 
   // Intercept link clicks to detect a navigation about to happen.
   React.useEffect(() => {
@@ -59,24 +59,26 @@ export function RouteProgress() {
       // No-op nav to same URL.
       if (url.pathname === window.location.pathname && url.search === window.location.search) return;
 
-      // Hold off briefly so super-fast routes don't flicker.
+      // Start the bar immediately so it's visible on every navigation.
       navigatingPath.current = url.pathname;
-      if (startTimer.current) window.clearTimeout(startTimer.current);
-      startTimer.current = window.setTimeout(() => {
-        // Still navigating? Start the bar.
-        if (navigatingPath.current && navigatingPath.current !== lastPathname.current) {
-          setActive(true);
-          setProgress(0);
-        }
-      }, 80);
+      startedAt.current = performance.now();
+      setActive(true);
+      setProgress(0);
     }
 
     document.addEventListener("click", handleClick);
     return () => {
       document.removeEventListener("click", handleClick);
-      if (startTimer.current) window.clearTimeout(startTimer.current);
     };
   }, [reduced]);
+
+  // Safety: if a click started the bar but no navigation actually happened,
+  // auto-hide after a few seconds so it never sticks.
+  React.useEffect(() => {
+    if (!active) return;
+    const safety = window.setTimeout(() => setActive(false), 8000);
+    return () => window.clearTimeout(safety);
+  }, [active]);
 
   // Animate progress 0 → 80% over ~600 ms whenever the bar becomes active.
   React.useEffect(() => {
@@ -109,9 +111,13 @@ export function RouteProgress() {
     navigatingPath.current = null;
     if (!active) return;
 
-    // Snap to 100% then fade.
+    // Snap to 100%, then keep the bar visible for a minimum time so even
+    // instant navigations show a clear "loading" cue.
     setProgress(100);
-    const t = window.setTimeout(() => setActive(false), 220);
+    const MIN_VISIBLE = 650;
+    const elapsed = performance.now() - startedAt.current;
+    const wait = Math.max(260, MIN_VISIBLE - elapsed);
+    const t = window.setTimeout(() => setActive(false), wait);
     return () => window.clearTimeout(t);
   }, [pathname, active]);
 
@@ -122,7 +128,7 @@ export function RouteProgress() {
       {active && (
         <motion.div
           key="route-progress"
-          className="fixed inset-x-0 top-0 z-[100] h-[2px] pointer-events-none"
+          className="fixed inset-x-0 top-0 z-[100] h-[3px] pointer-events-none"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}

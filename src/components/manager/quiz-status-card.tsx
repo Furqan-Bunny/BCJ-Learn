@@ -46,6 +46,7 @@ export function QuizStatusCard({
     currentAttempts: myAttempts,
     scheduledDate: mod.scheduledDate,
     isCheckedIn,
+    sessionEnded: !!sessionEndedAt,
   });
 
   if (!isInvited && state.kind !== "passed") {
@@ -185,7 +186,7 @@ export function QuizStatusCard({
           </Button>
         }
         meta={[
-          { icon: UserCheck, label: "Checked in", value: "Yes" },
+          { icon: UserCheck, label: "Checked in", value: state.checkedIn ? "Yes" : "Not required" },
           { icon: Target, label: "Pass at", value: `${Math.round(mod.passThreshold * 100)}%` },
           { icon: Clock, label: "Time limit", value: mod.timeLimitMinutes ? `${mod.timeLimitMinutes} min` : "Untimed" },
         ]}
@@ -261,8 +262,8 @@ function StatusContainer({
 
   if (variant === "compact") {
     return (
-      <Card className={cn("overflow-hidden", c.border)}>
-        <div className={cn("h-1", c.stripe)} />
+      <Card className={cn("relative overflow-hidden", c.border)}>
+        <div className={cn("absolute inset-x-0 top-0 h-1", c.stripe)} />
         <CardContent className="p-4 flex items-center gap-3">
           <div className={cn("size-9 rounded-md flex items-center justify-center shrink-0", c.iconBg, c.iconText)}>
             <Icon className="size-4" />
@@ -278,8 +279,8 @@ function StatusContainer({
   }
 
   return (
-    <Card className={cn("overflow-hidden", c.border, c.bg)}>
-      <div className={cn("h-1", c.stripe)} />
+    <Card className={cn("relative overflow-hidden", c.border, c.bg)}>
+      <div className={cn("absolute inset-x-0 top-0 h-1", c.stripe)} />
       <CardContent className="p-6 md:p-7">
         <div className="grid md:grid-cols-[auto_1fr_auto] gap-5 items-center">
           <div className={cn("size-14 rounded-xl flex items-center justify-center shrink-0", c.iconBg, c.iconText)}>

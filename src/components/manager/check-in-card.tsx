@@ -2,9 +2,10 @@
 
 import * as React from "react";
 import { useRouter } from "next/navigation";
-import { CheckCircle2, MapPin, Calendar, Clock, UserCheck, Loader2 } from "lucide-react";
+import { CheckCircle2, MapPin, Calendar, Clock, UserCheck, Loader2, Lock } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { fmtDate, fmtRelative } from "@/lib/format";
 import type { ModuleDef } from "@/types";
@@ -21,6 +22,8 @@ interface CheckInCardProps {
   /** Live session state from the current delivery row. */
   sessionStartedAt?: string | null;
   sessionEndedAt?: string | null;
+  /** Whether the trainer has opened check-in (employees can check in now). */
+  checkinOpen?: boolean;
   /** Demo control: hide the card entirely if today != training day. Default: always show. */
   alwaysShow?: boolean;
 }
@@ -32,12 +35,14 @@ export function CheckInCard({
   initialCheckedInAt = null,
   sessionStartedAt = null,
   sessionEndedAt = null,
+  checkinOpen = false,
   alwaysShow = true,
 }: CheckInCardProps) {
   const router = useRouter();
   const [isCheckedIn, setIsCheckedIn] = React.useState(initialCheckedIn);
   const [checkedInAt, setCheckedInAt] = React.useState<string | null>(initialCheckedInAt);
   const [busy, setBusy] = React.useState(false);
+  const [code, setCode] = React.useState("");
 
   const sessionLive = !!sessionStartedAt && !sessionEndedAt;
 
@@ -56,8 +61,12 @@ export function CheckInCard({
   if (!alwaysShow && !isToday) return null;
 
   async function handleCheckIn() {
+    if (code.trim().length < 4) {
+      toast.error("Enter the 4-digit code shown on the room screen");
+      return;
+    }
     setBusy(true);
-    const res = await logCheckIn(mod.slug);
+    const res = await logCheckIn(mod.slug, code.trim());
     setBusy(false);
     if (!res.ok) {
       toast.error(res.error ?? "Could not check in");
@@ -87,8 +96,8 @@ export function CheckInCard({
 
   if (isCheckedIn) {
     return (
-      <Card className="overflow-hidden border-emerald-500/40 bg-emerald-50/50 dark:bg-emerald-950/15">
-        <div className="h-1 bg-emerald-500" />
+      <Card className="relative overflow-hidden border-emerald-500/40 bg-emerald-50/50 dark:bg-emerald-950/15">
+        <div className="absolute inset-x-0 top-0 h-1 bg-emerald-500" />
         <CardContent className="p-5">
           <div className="flex items-start gap-4">
             <div className="size-12 rounded-full bg-emerald-500 text-white flex items-center justify-center shrink-0">
@@ -112,12 +121,34 @@ export function CheckInCard({
     );
   }
 
+  // Trainer hasn't opened check-in yet — show a calm "waiting" state so nobody
+  // can check in before the seminar actually starts.
+  if (!checkinOpen) {
+    return (
+      <Card className="relative overflow-hidden border-[var(--gold)]/30">
+        <div className="absolute inset-x-0 top-0 h-1 bg-[var(--gold)]/50" />
+        <CardContent className="p-5 flex items-start gap-4">
+          <div className="size-12 rounded-full bg-[var(--gold)]/15 text-[var(--gold)] flex items-center justify-center shrink-0">
+            <Lock className="size-5" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <Badge variant="outline" className="text-[10px] uppercase tracking-wider mb-1">Check-in not open yet</Badge>
+            <div className="font-semibold text-lg">{mod.title}</div>
+            <p className="text-sm text-muted-foreground mt-0.5">
+              Check-in opens when your trainer starts the seminar. You&rsquo;ll get a code on the room screen — enter it here to check in.
+            </p>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
   return (
     <Card className={cn(
-      "overflow-hidden",
+      "relative overflow-hidden",
       sessionLive ? "border-rose-500/50 ring-2 ring-rose-500/20" : "border-[var(--gold)]/40",
     )}>
-      <div className={cn("h-1", sessionLive ? "bg-rose-500" : "bg-[var(--gold)]")} />
+      <div className={cn("absolute inset-x-0 top-0 h-1", sessionLive ? "bg-rose-500" : "bg-[var(--gold)]")} />
       <CardContent className="p-5">
         <div className="grid md:grid-cols-[1fr_auto] gap-4 items-center">
           <div>
@@ -135,9 +166,7 @@ export function CheckInCard({
             </div>
             <div className="font-semibold text-lg">{mod.title}</div>
             <p className="text-sm text-muted-foreground mt-0.5 mb-3">
-              {sessionLive
-                ? "Your trainer started the seminar — check in so they know you're here."
-                : "You're in the room — confirm so your trainer knows you're here."}
+              Enter the code shown on the room screen to check in. Only people in the room can.
             </p>
             <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 text-xs text-muted-foreground">
               {mod.scheduledDate && (
@@ -153,15 +182,25 @@ export function CheckInCard({
               </span>
             </div>
           </div>
-          <Button
-            size="lg"
-            onClick={handleCheckIn}
-            disabled={busy}
-            className="h-14 px-6 text-base bg-[var(--gold)] hover:bg-[var(--gold)]/90 text-slate-900 shadow-md"
-          >
-            {busy ? <Loader2 className="size-5 mr-2 animate-spin" /> : <UserCheck className="size-5 mr-2" />}
-            I&rsquo;m here — check me in
-          </Button>
+          <div className="flex flex-col gap-2 md:w-44">
+            <Input
+              value={code}
+              onChange={(e) => setCode(e.target.value.replace(/\D/g, "").slice(0, 4))}
+              inputMode="numeric"
+              placeholder="Code"
+              aria-label="Check-in code"
+              className="h-12 text-center text-xl font-mono tracking-[0.3em]"
+            />
+            <Button
+              size="lg"
+              onClick={handleCheckIn}
+              disabled={busy || code.trim().length < 4}
+              className="h-12 px-6 text-base bg-[var(--gold)] hover:bg-[var(--gold)]/90 text-slate-900 shadow-md"
+            >
+              {busy ? <Loader2 className="size-5 mr-2 animate-spin" /> : <UserCheck className="size-5 mr-2" />}
+              Check in
+            </Button>
+          </div>
         </div>
       </CardContent>
     </Card>

@@ -8,6 +8,9 @@ const nextConfig: NextConfig = {
   typescript: {
     ignoreBuildErrors: true,
   },
+  // Document-parsing libs use Node APIs / dynamic file paths — keep them external
+  // (loaded from node_modules at runtime) instead of bundling them.
+  serverExternalPackages: ["pdf-parse", "mammoth"],
   // Allow next/image to optimize assets served from the public Supabase buckets
   // (branding logo, avatars). Private module-content is served via signed URLs.
   images: {

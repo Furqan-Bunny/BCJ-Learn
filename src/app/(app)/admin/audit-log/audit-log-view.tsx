@@ -98,7 +98,7 @@ export function AuditLogView({ events, actorsById }: AuditLogViewProps) {
                           <span className="text-xs text-muted-foreground hidden md:inline">{actor.name}</span>
                         </>
                       )}
-                      <span className="text-xs text-muted-foreground tabular-nums w-20 text-right">{fmtRelative(e.occurredAt)}</span>
+                      <span className="text-xs text-muted-foreground tabular-nums whitespace-nowrap text-right">{fmtRelative(e.occurredAt)}</span>
                     </div>
                   </motion.li>
                 );

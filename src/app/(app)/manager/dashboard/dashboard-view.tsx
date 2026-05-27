@@ -10,6 +10,7 @@ import { PageHeader } from "@/components/shared/page-header";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { CheckInCard } from "@/components/manager/check-in-card";
 import { QuizStatusCard } from "@/components/manager/quiz-status-card";
+import { DeliveryLiveSync } from "@/components/manager/delivery-live-sync";
 import { fmtRelative, initials } from "@/lib/format";
 import { differenceInCalendarDays } from "date-fns";
 import { Stagger, StaggerItem, CountUp, motion, useReducedMotion } from "@/components/shared/animations";
@@ -29,7 +30,7 @@ export interface ManagerDashboardProps {
   myAttempts: Attempt[];
   myActivity: ActivityEvent[];
   nextModuleCheckIn: { checkedIn: boolean; checkedInAt: string | null };
-  nextModuleSession: { sessionStartedAt: string | null; sessionEndedAt: string | null };
+  nextModuleSession: { sessionStartedAt: string | null; sessionEndedAt: string | null; checkinOpen: boolean };
 }
 
 export function ManagerDashboardView({
@@ -41,8 +42,17 @@ export function ManagerDashboardView({
   nextModuleSession,
 }: ManagerDashboardProps) {
   const passedSlugs = new Set(myAttempts.filter((a) => a.status === "passed").map((a) => a.moduleSlug));
-  const orderedModules = [...modules].sort((a, b) => a.number - b.number);
+  // A published module is unlocked — full stop. No "pass the previous one
+  // first" gating. We only show published modules and order them by their
+  // scheduled training day (soonest first; no-date sinks to the end).
+  const orderKey = (m: (typeof modules)[number]) =>
+    m.scheduledDate ? new Date(m.scheduledDate).getTime() : Number.MAX_SAFE_INTEGER;
+  const orderedModules = modules
+    .filter((m) => m.status === "published")
+    .sort((a, b) => orderKey(a) - orderKey(b) || a.number - b.number);
   const completedCount = passedSlugs.size;
+  // "Up next" = the soonest published module they haven't passed yet (just a
+  // highlight — every published module is still openable).
   const nextModule = orderedModules.find((m) => !passedSlugs.has(m.slug)) ?? orderedModules[orderedModules.length - 1];
   const daysToNext = nextModule?.scheduledDate
     ? differenceInCalendarDays(new Date(nextModule.scheduledDate), new Date())
@@ -60,6 +70,13 @@ export function ManagerDashboardView({
         description="Track your progress through the BCJ Employee training program."
       />
 
+      {nextModule && !nextModuleSession.sessionEndedAt && (
+        <DeliveryLiveSync
+          slug={nextModule.slug}
+          signature={`${nextModuleSession.checkinOpen}|${!!nextModuleSession.sessionStartedAt}|${!!nextModuleSession.sessionEndedAt}|${nextModuleCheckIn.checkedIn}`}
+        />
+      )}
+
       {nextModule && (
         <div className="mb-6">
           <CheckInCard
@@ -69,7 +86,8 @@ export function ManagerDashboardView({
             initialCheckedInAt={nextModuleCheckIn.checkedInAt}
             sessionStartedAt={nextModuleSession.sessionStartedAt}
             sessionEndedAt={nextModuleSession.sessionEndedAt}
-            alwaysShow
+            checkinOpen={nextModuleSession.checkinOpen}
+            alwaysShow={false}
           />
         </div>
       )}
@@ -117,12 +135,11 @@ export function ManagerDashboardView({
           {orderedModules.map((m) => {
             const passed = passedSlugs.has(m.slug);
             const isNext = nextModule && m.slug === nextModule.slug;
-            const locked = !passed && !isNext && nextModule != null && m.number > nextModule.number;
             const myAttempt = myAttempts.find((a) => a.moduleSlug === m.slug && a.status === "passed");
             return (
               <StaggerItem key={m.slug} className="h-full">
               <Link href={`/manager/modules/${m.slug}`} className="block h-full">
-                <Card className={`card-lift card-glow h-full ${locked ? "opacity-60" : ""}`}>
+                <Card className="card-lift card-glow h-full">
                   <CardContent className="p-4 h-full">
                     <div className="flex items-center justify-between mb-3">
                       <div className="text-xs font-mono text-muted-foreground">M{m.number}</div>
@@ -149,9 +166,6 @@ export function ManagerDashboardView({
                     )}
                     {!passed && isNext && (
                       <div className="mt-3 text-xs text-primary font-medium">Up next →</div>
-                    )}
-                    {!passed && locked && (
-                      <div className="mt-3 text-xs text-muted-foreground">Unlocks after M{m.number - 1}</div>
                     )}
                   </CardContent>
                 </Card>

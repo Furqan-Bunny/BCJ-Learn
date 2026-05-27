@@ -118,7 +118,7 @@ export function TeacherQuestionsView({ mod, initialQuestions }: TeacherQuestions
     }
     setGenerating(true);
     const toastId = "generate-batch";
-    toast.loading("Claude is drafting 80 questions… (≈ 30 sec)", { id: toastId });
+    toast.loading("OpenAI is drafting 80 questions… (≈ 30 sec)", { id: toastId });
     const res = await generateQuestions(mod.slug);
     setGenerating(false);
     if (!res.ok) {

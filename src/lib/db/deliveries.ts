@@ -53,9 +53,11 @@ export async function listDeliveriesForModule(slug: string): Promise<DeliveryRec
 
   return deliveries.map((d, i): DeliveryRecord => {
     const nextStart = i < deliveries.length - 1 ? deliveries[i + 1].started_at : null;
-    // First delivery has no lower bound so historical attempts attribute to it;
-    // subsequent deliveries start at their own started_at.
-    const startMs = i === 0 ? -Infinity : new Date(d.started_at).getTime();
+    // Each delivery only counts the attempts made while IT was the active run —
+    // i.e. on/after its own started_at. (A quiz taken before this seminar began
+    // belongs to an earlier delivery, not this one.) So the current seminar shows
+    // only its own quiz results, starting at zero until people actually take it.
+    const startMs = new Date(d.started_at).getTime();
     const endMs = d.ended_at
       ? new Date(d.ended_at).getTime()
       : nextStart
@@ -87,24 +89,25 @@ export async function listDeliveriesForModule(slug: string): Promise<DeliveryRec
 }
 
 /** Returns the current open delivery (ended_at is null), or null. */
-export async function getCurrentDelivery(slug: string): Promise<{ id: string; deliveryIndex: number; startedAt: string; sessionStartedAt: string | null; sessionEndedAt: string | null } | null> {
+export async function getCurrentDelivery(slug: string): Promise<{ id: string; deliveryIndex: number; startedAt: string; sessionStartedAt: string | null; sessionEndedAt: string | null; checkinOpenedAt: string | null } | null> {
   const sb = await dbClient();
   const { data } = await sb
     .from("module_deliveries")
-    .select("id, delivery_index, started_at, session_started_at, session_ended_at")
+    .select("id, delivery_index, started_at, session_started_at, session_ended_at, checkin_opened_at")
     .eq("module_slug", slug)
     .is("ended_at", null)
     .order("delivery_index", { ascending: false })
     .limit(1)
     .maybeSingle();
   if (!data) return null;
-  const row = data as { id: string; delivery_index: number; started_at: string; session_started_at: string | null; session_ended_at: string | null };
+  const row = data as { id: string; delivery_index: number; started_at: string; session_started_at: string | null; session_ended_at: string | null; checkin_opened_at: string | null };
   return {
     id: row.id,
     deliveryIndex: row.delivery_index,
     startedAt: row.started_at,
     sessionStartedAt: row.session_started_at,
     sessionEndedAt: row.session_ended_at,
+    checkinOpenedAt: row.checkin_opened_at,
   };
 }
 

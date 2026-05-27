@@ -4,8 +4,9 @@ import * as React from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
-  Search, Bell, RefreshCcw, ArrowUpRight, Filter, X as XIcon,
+  Search, Bell, RefreshCcw, MoreHorizontal, Filter, X as XIcon,
   CheckCircle2, XCircle, Clock, AlertTriangle, Users, UserCheck, RotateCcw,
+  UserPlus, UserMinus,
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -20,7 +21,7 @@ import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import type { RosterRow, RosterCounts, RosterStatus } from "@/lib/db/roster";
 import { sendReminder, sendBulkReminders } from "@/lib/server/reminder-actions";
-import { resetManagerForModule } from "@/lib/server/module-actions";
+import { resetManagerForModule, addInvitee, removeInvitee } from "@/lib/server/module-actions";
 
 const STATUS_META: Record<RosterStatus, {
   label: string;
@@ -69,6 +70,10 @@ interface ModuleRosterProps {
   showCohort?: boolean;
   initialFilter?: FilterKey;
   managerLinkBase?: string;
+  /** When true, show controls to add/remove people from the current seminar. */
+  manageable?: boolean;
+  /** Active employees not currently on the roster — used by the "Add employee" picker. */
+  addableManagers?: { id: string; name: string }[];
 }
 
 export function ModuleRoster({
@@ -78,6 +83,8 @@ export function ModuleRoster({
   showCohort = true,
   initialFilter = "all",
   managerLinkBase = "/admin/managers",
+  manageable = false,
+  addableManagers = [],
 }: ModuleRosterProps) {
   const router = useRouter();
   const [filter, setFilter] = React.useState<FilterKey>(initialFilter);
@@ -135,6 +142,30 @@ export function ModuleRoster({
     toast.success(`${name} reset for next delivery`, {
       description: "Their past attempts stay in history. Status is now Awaiting.",
     });
+    router.refresh();
+  }
+
+  async function handleAddInvitee(managerId: string, name: string) {
+    setBusy("add:" + managerId);
+    const res = await addInvitee(moduleSlug, managerId);
+    setBusy(null);
+    if (!res.ok) {
+      toast.error(res.error ?? "Could not add to seminar");
+      return;
+    }
+    toast.success(`${name} added to the seminar`);
+    router.refresh();
+  }
+
+  async function handleRemoveInvitee(managerId: string, name: string) {
+    setBusy(managerId);
+    const res = await removeInvitee(moduleSlug, managerId);
+    setBusy(null);
+    if (!res.ok) {
+      toast.error(res.error ?? "Could not remove from seminar");
+      return;
+    }
+    toast.success(`${name} removed from the seminar`);
     router.refresh();
   }
 
@@ -203,6 +234,26 @@ export function ModuleRoster({
             <XIcon className="size-3.5 mr-1" /> Reset
           </Button>
         )}
+        {manageable && addableManagers.length > 0 && (
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" size="sm">
+                <UserPlus className="size-3.5 mr-1.5" /> Add employee
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="start" className="max-h-72 overflow-y-auto">
+              {addableManagers.map((m) => (
+                <DropdownMenuItem
+                  key={m.id}
+                  onClick={() => handleAddInvitee(m.id, m.name)}
+                  disabled={busy === "add:" + m.id}
+                >
+                  {m.name}
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
+        )}
         <div className="ml-auto text-xs text-muted-foreground">
           <Filter className="size-3 inline mr-1" />
           {filtered.length} of {counts.expected}
@@ -259,7 +310,7 @@ export function ModuleRoster({
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
                         <Button variant="ghost" size="icon" className="size-8 shrink-0" disabled={busy === r.manager.id}>
-                          <ArrowUpRight className="size-4" />
+                          <MoreHorizontal className="size-4" />
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
@@ -279,6 +330,14 @@ export function ModuleRoster({
                         {(r.status === "passed" || r.status === "failed" || r.status === "didnt-attempt") && (
                           <DropdownMenuItem onClick={() => handleReset(r.manager.id, r.manager.name)}>
                             <RotateCcw className="mr-2 size-4" /> Reset for next delivery
+                          </DropdownMenuItem>
+                        )}
+                        {manageable && (
+                          <DropdownMenuItem
+                            className="text-rose-600"
+                            onClick={() => handleRemoveInvitee(r.manager.id, r.manager.name)}
+                          >
+                            <UserMinus className="mr-2 size-4" /> Remove from seminar
                           </DropdownMenuItem>
                         )}
                       </DropdownMenuContent>

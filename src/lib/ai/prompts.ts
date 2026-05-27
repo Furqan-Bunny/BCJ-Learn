@@ -9,40 +9,59 @@ Rules:
 - Avoid trick questions; test understanding, not gotchas.
 - Each question has a one-sentence explanation of why the correct answer is right.
 - Output strict JSON only — no preamble, no commentary, no markdown fences.
-- The JSON must be a single array of objects with this exact shape:
-  [
-    {
-      "text": "Question stem under 25 words?",
-      "options": [
-        {"text": "Option A", "correct": false},
-        {"text": "Option B", "correct": true},
-        {"text": "Option C", "correct": false},
-        {"text": "Option D", "correct": false}
-      ],
-      "explanation": "One sentence explaining the correct answer."
-    }
-  ]`;
+- The JSON must be a single object of this exact shape:
+  {
+    "questions": [
+      {
+        "text": "Question stem under 25 words?",
+        "options": [
+          {"text": "Option A", "correct": false},
+          {"text": "Option B", "correct": true},
+          {"text": "Option C", "correct": false},
+          {"text": "Option D", "correct": false}
+        ],
+        "explanation": "One sentence explaining the correct answer."
+      }
+    ]
+  }`;
 
 export function questionGenUserPrompt(
   content: string,
   pool: "first-attempt" | "retake",
   count: number,
+  avoidTexts?: string[],
 ): string {
   const difficultyHint =
     pool === "retake"
       ? "These questions are for an EASIER retake pool — phrase stems more directly, use simpler distractors, and lean on the most important concepts. Avoid edge cases or fine-print details."
       : "These questions are for the FIRST-attempt pool — they should fairly test mastery of the material. Mix factual recall with judgment/application scenarios.";
 
+  const avoidBlock =
+    avoidTexts && avoidTexts.length > 0
+      ? `\n\nDo NOT repeat or closely paraphrase any of these already-written questions:\n${avoidTexts.map((t) => `- ${t}`).join("\n")}\n`
+      : "";
+
   return `Generate exactly ${count} multiple-choice quiz questions from the source content below.
 
-Pool guidance: ${difficultyHint}
+Pool guidance: ${difficultyHint}${avoidBlock}
 
 Source content:
 """
 ${content}
 """
 
-Return ONLY the JSON array. No preamble.`;
+Return ONLY a JSON object with a "questions" array. No preamble.`;
+}
+
+export const SUMMARIZE_SYSTEM = `You are a training-content editor. You condense raw source material (documents, slide text, video transcripts) into a clear, well-structured study summary that captures every testable fact, procedure, policy, and key concept. Keep specifics (numbers, steps, names, rules). Output plain prose with short headings — no preamble.`;
+
+export function summarizeUserPrompt(source: string): string {
+  return `Summarize the following training material into a focused study guide that a quiz author can write questions from. Preserve all important facts, steps, thresholds, and definitions; drop only filler.
+
+Source material:
+"""
+${source}
+"""`;
 }
 
 export function questionRegenSystem(): string {

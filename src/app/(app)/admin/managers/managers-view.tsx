@@ -173,7 +173,10 @@ export function AdminManagersView({ managers }: { managers: Manager[] }) {
       {
         accessorKey: "lastActiveAt",
         header: "Last active",
-        cell: ({ getValue }) => <span className="text-muted-foreground text-sm">{fmtRelative(String(getValue()))}</span>,
+        cell: ({ row }) => {
+          const m = row.original;
+          return <span className="text-muted-foreground text-sm">{m.status === "pending" ? "—" : fmtRelative(m.lastActiveAt)}</span>;
+        },
       },
       {
         id: "actions",
@@ -189,7 +192,7 @@ export function AdminManagersView({ managers }: { managers: Manager[] }) {
                   <MoreHorizontal className="size-4" />
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
+              <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
                 <DropdownMenuItem onClick={() => router.push(`/admin/managers/${m.id}`)}>
                   View profile
                 </DropdownMenuItem>

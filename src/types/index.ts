@@ -87,6 +87,19 @@ export interface ModuleContent {
   flashcards: { front: string; back: string }[];
 }
 
+export interface CheckinState {
+  ok: boolean;
+  error?: string;
+  open: boolean;
+  code: string | null;
+  scheduledDate: string | null;
+  scheduledTime: string | null;
+  sessionStarted: boolean;
+  sessionEnded: boolean;
+  invited: number;
+  checkedIn: { id: string; name: string; at: string }[];
+}
+
 export interface ModuleDef {
   slug: string;
   number: number; // 1-5
@@ -94,6 +107,8 @@ export interface ModuleDef {
   description: string;
   scheduledMonth: string;
   scheduledDate: string;
+  /** Seminar start time, "HH:MM" (24h). Empty if not set. */
+  scheduledTime: string;
   /** One or more Teachers who own this module. The first is the "primary" owner. */
   ownerTeacherIds: string[];
   status: ModuleStatus;
