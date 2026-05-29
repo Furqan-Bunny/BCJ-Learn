@@ -37,7 +37,7 @@ interface ReminderRow {
 const DEFAULT_BRANDING: BrandingSettings = {
   name: "BCJ Learn",
   primaryColor: "#041D39",
-  accentColor: "#49FFAA",
+  accentColor: "#12D7CD",
   emailFrom: "noreply@bcj.com",
   logoPath: null,
   updatedAt: new Date().toISOString(),

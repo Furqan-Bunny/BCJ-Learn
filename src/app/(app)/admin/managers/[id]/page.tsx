@@ -1,5 +1,5 @@
 import { notFound } from "next/navigation";
-import { getProfile } from "@/lib/db/profiles";
+import { getProfile, listTeachers } from "@/lib/db/profiles";
 import { listModules } from "@/lib/db/modules";
 import { listAttemptsForManager } from "@/lib/db/attempts";
 import { listDeliveriesForModule, type DeliveryRecord } from "@/lib/db/deliveries";
@@ -11,10 +11,13 @@ export default async function ManagerDetailPage(props: PageProps<"/admin/manager
   const profile = await getProfile(id);
   if (!profile || profile.role !== "manager") return notFound();
 
-  const [modules, myAttempts] = await Promise.all([
+  const [modules, myAttempts, teachers] = await Promise.all([
     listModules(),
     listAttemptsForManager(id),
+    listTeachers(),
   ]);
+  const teacherNamesById: Record<string, string> = {};
+  for (const t of teachers) teacherNamesById[t.id] = t.name;
 
   // Compute derived stats.
   const passed = myAttempts.filter((a) => a.status === "passed");
@@ -57,6 +60,7 @@ export default async function ManagerDetailPage(props: PageProps<"/admin/manager
       modules={modules}
       myAttempts={myAttempts}
       deliveriesByModule={deliveriesByModule}
+      teacherNamesById={teacherNamesById}
     />
   );
 }

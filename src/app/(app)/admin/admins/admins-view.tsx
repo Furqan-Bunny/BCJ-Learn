@@ -109,7 +109,7 @@ export function AdminAdminsView({ admins, activityByActor }: AdminAdminsViewProp
                 <TableCell className="text-sm text-muted-foreground">{fmtRelative(a.lastActiveAt)}</TableCell>
                 <TableCell>
                   <DropdownMenu>
-                    <DropdownMenuTrigger>
+                    <DropdownMenuTrigger asChild>
                       <Button variant="ghost" size="icon" className="size-8">
                         <MoreHorizontal className="size-4" />
                       </Button>

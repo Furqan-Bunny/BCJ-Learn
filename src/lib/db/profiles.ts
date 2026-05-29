@@ -10,6 +10,7 @@ interface ProfileRow {
   email: string;
   role: Role;
   cohort: Cohort | null;
+  markets: string[] | null;
   avatar_color: string;
   avatar_url: string | null;
   status: ManagerStatus | null;
@@ -23,13 +24,23 @@ interface ProfileRow {
 }
 
 function toManager(r: ProfileRow): Manager {
+  // A profile's markets come from the new `markets` array; fall back to the
+  // legacy single `cohort` column so rows that haven't been migrated yet still
+  // work.
+  const markets =
+    r.markets && r.markets.length > 0
+      ? r.markets
+      : r.cohort
+        ? [r.cohort]
+        : [];
   return {
     id: r.id,
     name: r.name,
     email: r.email,
     avatarColor: r.avatar_color,
     role: "manager",
-    cohort: (r.cohort ?? "Atlanta") as Cohort,
+    cohort: (markets[0] ?? "Atlanta") as Cohort,
+    markets,
     joinedAt: r.joined_at,
     lastActiveAt: r.last_active_at,
     phone: r.phone,

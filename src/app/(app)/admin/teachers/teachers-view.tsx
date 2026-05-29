@@ -15,7 +15,7 @@ import {
   Search, Plus, MoreHorizontal, Mail, Edit3, Trash2, BookOpen, ListChecks, ArrowRight, Phone,
 } from "lucide-react";
 import { toast } from "sonner";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { deactivateUser } from "@/lib/server/admin-actions";
 import { AddStaffSheet } from "@/components/admin/add-staff-sheet";
 import type { Teacher, ModuleDef } from "@/types";
@@ -29,7 +29,10 @@ export interface AdminTeachersViewProps {
 
 export function AdminTeachersView({ teachers, modules, approvedByModule, totalByModule }: AdminTeachersViewProps) {
   const router = useRouter();
-  const [query, setQuery] = React.useState("");
+  const searchParams = useSearchParams();
+  // Pre-fill the search box from `?q=` so deep links from "module owners" land
+  // with the relevant teacher already filtered in.
+  const [query, setQuery] = React.useState(() => searchParams?.get("q") ?? "");
 
   const enriched = teachers.map((t) => {
     const ownedMods = modules.filter((m) => t.ownedModuleSlugs.includes(m.slug));
@@ -125,7 +128,7 @@ export function AdminTeachersView({ teachers, modules, approvedByModule, totalBy
                 <TableCell className="text-sm text-muted-foreground">{fmtRelative(t.lastActiveAt)}</TableCell>
                 <TableCell>
                   <DropdownMenu>
-                    <DropdownMenuTrigger>
+                    <DropdownMenuTrigger asChild>
                       <Button variant="ghost" size="icon" className="size-8">
                         <MoreHorizontal className="size-4" />
                       </Button>

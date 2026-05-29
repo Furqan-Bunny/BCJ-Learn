@@ -69,7 +69,22 @@ export interface AttemptRow {
 export function AdminResultsView({ rows, modules }: { rows: AttemptRow[]; modules: ModuleDef[] }) {
   const [globalFilter, setGlobalFilter] = React.useState("");
   const [sorting, setSorting] = React.useState<SortingState>([{ id: "startedAt", desc: true }]);
-  const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>([]);
+  // Pre-seed module + status filters from the URL so deep links from KPI cards
+  // ("Pass rate" → /admin/results?module=foo&status=passed) land already
+  // filtered. We read the query once on mount.
+  const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>(() => {
+    if (typeof window === "undefined") return [];
+    const p = new URLSearchParams(window.location.search);
+    const initial: ColumnFiltersState = [];
+    const moduleSlug = p.get("module");
+    if (moduleSlug) {
+      const m = modules.find((mm) => mm.slug === moduleSlug);
+      if (m) initial.push({ id: "moduleNumber", value: [m.number] });
+    }
+    const status = p.get("status");
+    if (status) initial.push({ id: "status", value: [status] });
+    return initial;
+  });
 
   const totalAttempts = rows.length;
   const passedCount = rows.filter((r) => r.status === "passed").length;

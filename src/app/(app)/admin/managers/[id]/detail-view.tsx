@@ -40,9 +40,10 @@ export interface ManagerDetailViewProps {
   myAttempts: Attempt[];
   /** Pre-fetched per-module delivery history (server-side). */
   deliveriesByModule: Record<string, DeliveryRecord[]>;
+  teacherNamesById: Record<string, string>;
 }
 
-export function ManagerDetailView({ m, modules, myAttempts, deliveriesByModule }: ManagerDetailViewProps) {
+export function ManagerDetailView({ m, modules, myAttempts, deliveriesByModule, teacherNamesById }: ManagerDetailViewProps) {
   const router = useRouter();
   const [busy, setBusy] = React.useState(false);
 
@@ -149,6 +150,20 @@ export function ManagerDetailView({ m, modules, myAttempts, deliveriesByModule }
       index: match.index,
       isCurrent: match.isCurrent,
     };
+  }
+
+  // Was this attempt taken DURING the live seminar (between session_started_at
+  // and session_ended_at)? Used to show a "Live session" vs "Async" badge.
+  function wasLiveSession(moduleSlug: string, attemptStartedAt: string): boolean {
+    const deliveries = deliveriesByModule[moduleSlug] ?? [];
+    const ts = new Date(attemptStartedAt).getTime();
+    for (const d of deliveries) {
+      if (!d.sessionStartedAt) continue;
+      const start = new Date(d.sessionStartedAt).getTime();
+      const end = d.sessionEndedAt ? new Date(d.sessionEndedAt).getTime() : Infinity;
+      if (ts >= start && ts <= end) return true;
+    }
+    return false;
   }
 
   return (
@@ -275,6 +290,14 @@ export function ManagerDetailView({ m, modules, myAttempts, deliveriesByModule }
                               : "Not scheduled yet"
                             : `${att.length} attempt${att.length === 1 ? "" : "s"}`}
                         </div>
+                        <div className="text-[11px] text-muted-foreground mt-0.5">
+                          {mod.ownerTeacherIds[0] && teacherNamesById[mod.ownerTeacherIds[0]] && (
+                            <>Lead: <span className="text-foreground">{teacherNamesById[mod.ownerTeacherIds[0]]}</span></>
+                          )}
+                          {mod.createdAt && (
+                            <> · Created {fmtDate(mod.createdAt)}</>
+                          )}
+                        </div>
                       </div>
                       <div className="flex items-center gap-3 shrink-0">
                         {att.map((a) => (
@@ -316,19 +339,27 @@ export function ManagerDetailView({ m, modules, myAttempts, deliveriesByModule }
                     {myAttempts.map((a) => {
                       const mod = modules.find((mm) => mm.slug === a.moduleSlug);
                       const dl = deliveryLabelFor(a.moduleSlug, a.startedAt);
+                      const live = wasLiveSession(a.moduleSlug, a.startedAt);
                       return (
-                        <tr key={a.id} className="hover:bg-accent/40">
+                        <tr key={a.id} className="hover:bg-accent/40 cursor-pointer" onClick={() => router.push(`/admin/results/${a.id}`)}>
                           <td className="px-5 py-3 font-medium">{mod?.title ?? a.moduleSlug}</td>
                           <td className="px-5 py-3">
-                            {dl ? (
-                              <Badge variant={dl.isCurrent ? "default" : "secondary"} className="font-mono text-[10px]">
-                                D{dl.index}{dl.isCurrent ? " · current" : ""}
+                            <div className="flex items-center gap-1.5">
+                              {dl ? (
+                                <Badge variant={dl.isCurrent ? "default" : "secondary"} className="font-mono text-[10px]">
+                                  D{dl.index}{dl.isCurrent ? " · current" : ""}
+                                </Badge>
+                              ) : (
+                                <span className="text-muted-foreground">—</span>
+                              )}
+                              <Badge variant={live ? "default" : "outline"} className={`text-[10px] ${live ? "bg-[var(--gold)]/15 text-[var(--gold)] border-[var(--gold)]/30 hover:bg-[var(--gold)]/15" : ""}`}>
+                                {live ? "Live session" : "Async"}
                               </Badge>
-                            ) : (
-                              <span className="text-muted-foreground">—</span>
-                            )}
+                            </div>
                           </td>
-                          <td className="px-5 py-3 text-muted-foreground">{fmtRelative(a.startedAt)}</td>
+                          <td className="px-5 py-3 text-muted-foreground whitespace-nowrap" title={fmtRelative(a.startedAt)}>
+                            {fmtDate(a.startedAt, "MMM d, yyyy 'at' h:mm a")}
+                          </td>
                           <td className="px-5 py-3"><StatusBadge variant={a.pool} /></td>
                           <td className="px-5 py-3 font-mono tabular-nums">{fmtPct(a.scorePct)}</td>
                           <td className="px-5 py-3 text-muted-foreground tabular-nums">{fmtDuration(a.durationSec)}</td>

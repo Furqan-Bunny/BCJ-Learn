@@ -112,10 +112,23 @@ export default function AcceptInvitePage() {
       }
     }
 
+    // 4. Route to the role-appropriate dashboard. (Going to "/" sent them
+    // through the login redirect and landed on a white screen.)
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("role")
+      .eq("id", data.user.id)
+      .single();
+    const role = (profile as { role?: "admin" | "teacher" | "manager" } | null)?.role ?? "manager";
+    const dashboard =
+      role === "admin" ? "/admin/dashboard" :
+      role === "teacher" ? "/teacher/dashboard" :
+      "/manager/dashboard";
+
     setDone(true);
     setSubmitting(false);
     toast.success("Welcome to BCJ Learn");
-    setTimeout(() => router.push("/"), 1000);
+    setTimeout(() => router.push(dashboard), 1000);
   }
 
   return (

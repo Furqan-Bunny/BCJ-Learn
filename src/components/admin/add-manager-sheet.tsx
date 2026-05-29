@@ -24,10 +24,14 @@ export function AddManagerSheet() {
   const [open, setOpen] = React.useState(false);
   const [name, setName] = React.useState("");
   const [email, setEmail] = React.useState("");
-  const [cohort, setCohort] = React.useState<Cohort | "">("");
+  const [markets, setMarkets] = React.useState<Cohort[]>([]);
   const [submitting, setSubmitting] = React.useState(false);
 
-  const canSubmit = name.trim() && email.trim() && cohort;
+  function toggleMarket(m: Cohort) {
+    setMarkets((prev) => (prev.includes(m) ? prev.filter((x) => x !== m) : [...prev, m]));
+  }
+
+  const canSubmit = name.trim() && email.trim() && markets.length > 0;
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -37,11 +41,11 @@ export function AddManagerSheet() {
     if (DEMO_MODE) {
       await new Promise((r) => setTimeout(r, 400));
       toast.success(`${name} added to BCJ Learn (demo)`, {
-        description: `Cohort: ${cohort} · Demo mode — no real invite sent.`,
+        description: `Markets: ${markets.join(", ")} · Demo mode — no real invite sent.`,
       });
       setSubmitting(false);
       setOpen(false);
-      setName(""); setEmail(""); setCohort("");
+      setName(""); setEmail(""); setMarkets([]);
       return;
     }
 
@@ -49,7 +53,8 @@ export function AddManagerSheet() {
       name: name.trim(),
       email: email.trim().toLowerCase(),
       role: "manager",
-      cohort: cohort as Cohort,
+      cohort: markets[0] as Cohort, // legacy single-value column
+      markets,
     });
     setSubmitting(false);
 
@@ -62,7 +67,7 @@ export function AddManagerSheet() {
       description: `Invitation email sent to ${email}. They have 7 days to set up their account.`,
     });
     setOpen(false);
-    setName(""); setEmail(""); setCohort("");
+    setName(""); setEmail(""); setMarkets([]);
     router.refresh();
   }
 
@@ -115,19 +120,30 @@ export function AddManagerSheet() {
           </div>
 
           <div className="space-y-1.5">
-            <Label htmlFor="m-cohort" className="text-xs flex items-center gap-1">
-              <Users className="size-3" /> Cohort
+            <Label className="text-xs flex items-center gap-1">
+              <Users className="size-3" /> Markets
+              <span className="text-muted-foreground/70 font-normal">(pick one or more)</span>
             </Label>
-            <Select value={cohort} onValueChange={(v) => setCohort(v as Cohort)}>
-              <SelectTrigger id="m-cohort" className="h-10 w-full">
-                <SelectValue placeholder="Pick a cohort" />
-              </SelectTrigger>
-              <SelectContent>
-                {COHORTS.map((c) => (
-                  <SelectItem key={c} value={c}>{c}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <div className="flex flex-wrap gap-2">
+              {COHORTS.map((c) => {
+                const sel = markets.includes(c);
+                return (
+                  <button
+                    key={c}
+                    type="button"
+                    onClick={() => toggleMarket(c)}
+                    aria-pressed={sel}
+                    className={`px-3 h-9 rounded-md border text-sm transition-colors ${
+                      sel
+                        ? "bg-primary text-primary-foreground border-primary"
+                        : "bg-card border-border hover:bg-accent"
+                    }`}
+                  >
+                    {c}
+                  </button>
+                );
+              })}
+            </div>
           </div>
 
           <div className="rounded-lg border border-[var(--ai)]/30 bg-[var(--ai)]/5 p-3 flex items-start gap-2">

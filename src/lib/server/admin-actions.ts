@@ -47,7 +47,10 @@ export interface InviteUserInput {
   name: string;
   email: string;
   role: Role;
+  /** @deprecated legacy single-market field — write `markets` instead. */
   cohort?: Cohort | null;
+  /** New: one employee can belong to multiple markets. */
+  markets?: string[] | null;
 }
 
 export async function inviteUser(input: InviteUserInput) {
@@ -76,11 +79,17 @@ export async function inviteUser(input: InviteUserInput) {
   // Status flips to 'active' when the user accepts (accept-invite page + the
   // track_last_active trigger on first sign-in).
   const invitedAt = new Date();
+  // Resolve markets: prefer the new array, fall back to the legacy single
+  // cohort for backwards-compatible callers.
+  const markets = input.role === "manager"
+    ? (input.markets?.length ? input.markets : input.cohort ? [input.cohort] : [])
+    : [];
   await admin
     .from("profiles")
     .update({
       name: input.name,
-      cohort: input.role === "manager" ? input.cohort ?? null : null,
+      cohort: input.role === "manager" ? (markets[0] ?? null) : null,
+      markets,
       status: "pending",
       invite_token: token,
       invite_sent_at: invitedAt.toISOString(),
@@ -120,7 +129,10 @@ export async function inviteUser(input: InviteUserInput) {
 export interface BulkInviteRow {
   name: string;
   email: string;
+  /** Legacy single-market value. */
   cohort: string;
+  /** Full markets list parsed from the CSV row. */
+  markets?: string[];
 }
 
 export async function bulkInviteUsers(rows: BulkInviteRow[]) {
@@ -146,9 +158,11 @@ export async function bulkInviteUsers(rows: BulkInviteRow[]) {
     }
 
     const invitedAt = new Date();
+    const rowMarkets = row.markets?.length ? row.markets : (row.cohort ? [row.cohort] : []);
     await admin.from("profiles").update({
       name: row.name,
-      cohort: row.cohort as Cohort,
+      cohort: (rowMarkets[0] ?? null) as Cohort | null,
+      markets: rowMarkets,
       status: "pending",
       invite_token: token,
       invite_sent_at: invitedAt.toISOString(),

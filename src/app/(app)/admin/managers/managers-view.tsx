@@ -119,11 +119,27 @@ export function AdminManagersView({ managers }: { managers: Manager[] }) {
         },
       },
       {
-        accessorKey: "cohort",
-        header: "Cohort",
-        cell: ({ getValue }) => <Badge variant="secondary" className="font-medium">{String(getValue())}</Badge>,
-        filterFn: (row, _id, value) =>
-          (value as Cohort[]).length === 0 || (value as Cohort[]).includes(row.original.cohort),
+        accessorKey: "markets",
+        header: "Markets",
+        cell: ({ row }) => {
+          const mkts = row.original.markets?.length ? row.original.markets : (row.original.cohort ? [row.original.cohort] : []);
+          if (mkts.length === 0) return <span className="text-muted-foreground">—</span>;
+          return (
+            <div className="flex flex-wrap gap-1">
+              {mkts.map((mk) => (
+                <Badge key={mk} variant="secondary" className="font-medium">{mk}</Badge>
+              ))}
+            </div>
+          );
+        },
+        // Multi-select filter: a row matches if ANY of its markets is in the
+        // selected value list (overlap).
+        filterFn: (row, _id, value) => {
+          const wanted = value as string[];
+          if (!wanted || wanted.length === 0) return true;
+          const mkts = row.original.markets?.length ? row.original.markets : (row.original.cohort ? [row.original.cohort] : []);
+          return mkts.some((m) => wanted.includes(m));
+        },
       },
       {
         accessorKey: "status",
@@ -265,7 +281,7 @@ export function AdminManagersView({ managers }: { managers: Manager[] }) {
     onGlobalFilterChange: setGlobalFilter,
     globalFilterFn: (row, _id, filter) => {
       const m = row.original;
-      const hay = `${m.name} ${m.email} ${m.cohort}`.toLowerCase();
+      const hay = `${m.name} ${m.email} ${(m.markets ?? [m.cohort]).join(" ")}`.toLowerCase();
       return hay.includes(String(filter).toLowerCase());
     },
     getCoreRowModel: getCoreRowModel(),
@@ -275,7 +291,7 @@ export function AdminManagersView({ managers }: { managers: Manager[] }) {
     initialState: { pagination: { pageSize: 10 } },
   });
 
-  const cohortFilter = (table.getColumn("cohort")?.getFilterValue() as Cohort[] | undefined) ?? [];
+  const cohortFilter = (table.getColumn("markets")?.getFilterValue() as Cohort[] | undefined) ?? [];
   const statusFilter = (table.getColumn("status")?.getFilterValue() as ManagerStatus[] | undefined) ?? [];
   const selectedRows = table.getFilteredSelectedRowModel().rows;
 
@@ -284,7 +300,7 @@ export function AdminManagersView({ managers }: { managers: Manager[] }) {
       <PageHeader
         eyebrow="People"
         title="Employees"
-        description={`${data.length} employees across ${COHORTS.length} cohorts. Search, filter, sort, and act in one place.`}
+        description={`${data.length} employees across ${COHORTS.length} markets. Search, filter, sort, and act in one place.`}
         actions={
           <div className="flex items-center gap-2">
             <BulkImportSheet />
@@ -299,7 +315,7 @@ export function AdminManagersView({ managers }: { managers: Manager[] }) {
           <Input
             value={globalFilter}
             onChange={(e) => setGlobalFilter(e.target.value)}
-            placeholder="Search by name, email, cohort…"
+            placeholder="Search by name, email, market…"
             className="pl-9 h-9 transition-shadow focus-visible:shadow-[0_0_0_4px_color-mix(in_srgb,var(--primary)_15%,transparent)]"
           />
           <SearchLoadingBar active={!!globalFilter} />
@@ -317,10 +333,10 @@ export function AdminManagersView({ managers }: { managers: Manager[] }) {
         </div>
 
         <FacetedFilter
-          label="Cohort"
+          label="Market"
           options={COHORTS}
           values={cohortFilter}
-          onChange={(v) => table.getColumn("cohort")?.setFilterValue(v.length ? v : undefined)}
+          onChange={(v) => table.getColumn("markets")?.setFilterValue(v.length ? v : undefined)}
         />
         <FacetedFilter
           label="Status"

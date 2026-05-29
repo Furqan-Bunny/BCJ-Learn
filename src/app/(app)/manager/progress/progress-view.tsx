@@ -93,34 +93,32 @@ export function ManagerProgressView({ me, modules, myAttempts }: ManagerProgress
                 const when = a.submittedAt ?? a.startedAt;
                 const duration = fmtDuration(a.durationSec);
                 return (
-                  <li key={a.id} className="py-4 flex items-start gap-4">
-                    <div className={`size-10 rounded-md flex items-center justify-center shrink-0 ${passed ? "bg-emerald-100 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400" : "bg-rose-100 dark:bg-rose-950/40 text-rose-600 dark:text-rose-400"}`}>
-                      {passed ? <CheckCircle2 className="size-5" /> : <XCircle className="size-5" />}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <span className="font-medium truncate">{m ? `M${m.number}: ${m.title}` : a.moduleSlug}</span>
-                        <Badge variant="outline" className="text-[10px] capitalize">
-                          {a.pool === "retake" ? "Retake" : "First attempt"}
-                        </Badge>
-                        <StatusBadge variant={a.status as "passed" | "failed"} />
+                  <li key={a.id}>
+                    <Link href={`/manager/attempts/${a.id}`} className="py-4 px-1 flex items-start gap-4 hover:bg-accent/40 rounded-md transition-colors -mx-1">
+                      <div className={`size-10 rounded-md flex items-center justify-center shrink-0 ${passed ? "bg-emerald-100 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400" : "bg-rose-100 dark:bg-rose-950/40 text-rose-600 dark:text-rose-400"}`}>
+                        {passed ? <CheckCircle2 className="size-5" /> : <XCircle className="size-5" />}
                       </div>
-                      <div className="text-xs text-muted-foreground mt-1 flex flex-wrap items-center gap-x-4 gap-y-1">
-                        <span className="flex items-center gap-1.5"><Calendar className="size-3.5" /> {fmtDateTime(when)}</span>
-                        <span className="flex items-center gap-1.5"><Target className="size-3.5" /> {a.correctCount}/{a.totalCount} correct</span>
-                        {duration && <span className="flex items-center gap-1.5"><Clock className="size-3.5" /> {duration}</span>}
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="font-medium truncate">{m ? `M${m.number}: ${m.title}` : a.moduleSlug}</span>
+                          <Badge variant="outline" className="text-[10px] capitalize">
+                            {a.pool === "retake" ? "Retake" : "First attempt"}
+                          </Badge>
+                          <StatusBadge variant={a.status as "passed" | "failed"} />
+                        </div>
+                        <div className="text-xs text-muted-foreground mt-1 flex flex-wrap items-center gap-x-4 gap-y-1">
+                          <span className="flex items-center gap-1.5"><Calendar className="size-3.5" /> {fmtDateTime(when)}</span>
+                          <span className="flex items-center gap-1.5"><Target className="size-3.5" /> {a.correctCount}/{a.totalCount} correct</span>
+                          {duration && <span className="flex items-center gap-1.5"><Clock className="size-3.5" /> {duration}</span>}
+                          <span className="text-primary">Review answers <ArrowUpRight className="size-3 inline" /></span>
+                        </div>
                       </div>
-                    </div>
-                    <div className="flex items-center gap-3 shrink-0">
-                      <span className={`font-mono text-lg font-bold tabular-nums w-14 text-right ${passed ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400"}`}>
-                        {fmtPct(a.scorePct)}
-                      </span>
-                      {m && (
-                        <Link href={`/manager/modules/${m.slug}`} className="text-primary hover:bg-accent rounded-md p-1.5">
-                          <ArrowUpRight className="size-4" />
-                        </Link>
-                      )}
-                    </div>
+                      <div className="flex items-center gap-3 shrink-0">
+                        <span className={`font-mono text-lg font-bold tabular-nums w-14 text-right ${passed ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400"}`}>
+                          {fmtPct(a.scorePct)}
+                        </span>
+                      </div>
+                    </Link>
                   </li>
                 );
               })}

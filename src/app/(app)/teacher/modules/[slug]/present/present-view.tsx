@@ -13,6 +13,7 @@ import type { ContentType, LessonContent, ModuleDef } from "@/types";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { startSession as startSessionAction, endSession as endSessionAction } from "@/lib/server/module-actions";
+import { recordContentView } from "@/lib/server/content-views";
 import { CheckinLobby } from "./checkin-lobby";
 
 const TYPE_META: Record<ContentType, { icon: React.ComponentType<{ className?: string }>; label: string; tint: string }> = {
@@ -22,13 +23,37 @@ const TYPE_META: Record<ContentType, { icon: React.ComponentType<{ className?: s
   link:     { icon: Link2,      label: "Link",     tint: "text-violet-400 bg-violet-500/15" },
 };
 
-export function PresenterView({ mod, startInPresentation = false }: { mod: ModuleDef; startInPresentation?: boolean }) {
+export function PresenterView({
+  mod,
+  startInPresentation = false,
+  initialViewedContentIds = [],
+}: {
+  mod: ModuleDef;
+  startInPresentation?: boolean;
+  initialViewedContentIds?: string[];
+}) {
   const slug = mod.slug;
   const router = useRouter();
 
   // Phase 1 = check-in lobby, Phase 2 = presentation. Start in the lobby unless
   // the session was already begun.
   const [phase, setPhase] = React.useState<"lobby" | "presenting">(startInPresentation ? "presenting" : "lobby");
+
+  // Content items the user has already viewed in this delivery. Hydrated from
+  // `content_views` on mount so completion persists across reloads / Back.
+  const [viewed, setViewed] = React.useState<Set<string>>(() => new Set(initialViewedContentIds));
+
+  function markViewed(contentId: string) {
+    setViewed((prev) => {
+      if (prev.has(contentId)) return prev;
+      const next = new Set(prev);
+      next.add(contentId);
+      return next;
+    });
+    // Persist in the background — failure is non-fatal (the local set still
+    // reflects current state; next reload will retry from server).
+    void recordContentView(slug, contentId);
+  }
 
   const playlist = React.useMemo(() => {
     return mod.lessons.flatMap((l) =>
@@ -107,6 +132,9 @@ export function PresenterView({ mod, startInPresentation = false }: { mod: Modul
   }, [idx, navOpen, isFullscreen]); // eslint-disable-line
 
   function next() {
+    // Leaving the current item — mark it viewed before advancing.
+    const leaving = playlist[idx]?.content?.id;
+    if (leaving) markViewed(leaving);
     setIdx((i) => Math.min(playlist.length - 1, i + 1));
     setRunning(true);
   }
@@ -115,6 +143,9 @@ export function PresenterView({ mod, startInPresentation = false }: { mod: Modul
     setRunning(true);
   }
   function jumpTo(i: number) {
+    // Record the item we're leaving so it stays checked off.
+    const leaving = playlist[idx]?.content?.id;
+    if (leaving && i !== idx) markViewed(leaving);
     setIdx(i);
     setNavOpen(false);
     setRunning(true);
@@ -235,8 +266,14 @@ export function PresenterView({ mod, startInPresentation = false }: { mod: Modul
         </Button>
       </header>
 
-      <div className="flex-1 grid grid-cols-[280px_1fr] min-h-0">
-        <aside className="border-r border-white/10 overflow-y-auto bg-slate-950/50">
+      <div className={cn(
+        "flex-1 grid min-h-0 transition-[grid-template-columns] duration-300 ease-out",
+        navOpen ? "grid-cols-[280px_1fr]" : "grid-cols-[0px_1fr]",
+      )}>
+        <aside className={cn(
+          "border-r border-white/10 overflow-y-auto bg-slate-950/50 transition-opacity duration-200",
+          !navOpen && "opacity-0 pointer-events-none",
+        )}>
           {mod.lessons.map((lesson, li) => {
             const isCurrentLesson = li === currentLessonIndex;
             return (
@@ -257,7 +294,9 @@ export function PresenterView({ mod, startInPresentation = false }: { mod: Modul
                     for (let k = 0; k < li; k++) absoluteIdx += mod.lessons[k].contents.length;
                     absoluteIdx += ci;
                     const isCurrent = absoluteIdx === idx;
-                    const isPast = absoluteIdx < idx;
+                    // Strike-through only when the item has actually been viewed
+                    // (persisted via content_views). Going Back no longer "uncrosses" it.
+                    const isViewed = viewed.has(c.id) && !isCurrent;
                     const meta = TYPE_META[c.type];
                     const Icon = meta.icon;
                     return (
@@ -273,7 +312,7 @@ export function PresenterView({ mod, startInPresentation = false }: { mod: Modul
                           <span className={cn("size-6 rounded flex items-center justify-center shrink-0", meta.tint)}>
                             <Icon className="size-3" />
                           </span>
-                          <span className={cn("flex-1 min-w-0 text-xs truncate", isCurrent ? "text-white font-medium" : isPast ? "text-slate-500 line-through" : "text-slate-300")}>
+                          <span className={cn("flex-1 min-w-0 text-xs truncate", isCurrent ? "text-white font-medium" : isViewed ? "text-slate-500 line-through" : "text-slate-300")}>
                             {c.title}
                           </span>
                           {c.durationMinutes && (

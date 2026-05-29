@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { AttemptQuestionReview } from "@/components/shared/attempt-question-review";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -48,6 +49,14 @@ export function AttemptDetailView({ attempt, m, mod, questions, deliveries }: At
     const endMs = d.endDate ? new Date(d.endDate).getTime() : Infinity;
     return ts >= startMs && ts < endMs;
   });
+  // Was this attempt taken during the live seminar (between session_started_at
+  // and session_ended_at) vs async/outside the live session?
+  const wasLive = deliveries.some((d) => {
+    if (!d.sessionStartedAt) return false;
+    const start = new Date(d.sessionStartedAt).getTime();
+    const end = d.sessionEndedAt ? new Date(d.sessionEndedAt).getTime() : Infinity;
+    return ts >= start && ts <= end;
+  });
 
   async function handleSendReminder() {
     setBusy(true);
@@ -89,7 +98,7 @@ export function AttemptDetailView({ attempt, m, mod, questions, deliveries }: At
       </Button>
 
       <PageHeader
-        eyebrow={`Attempt · ${fmtDate(attempt.startedAt, "MMM d, yyyy 'at' h:mm a")}${matchingDelivery ? ` · Delivery ${matchingDelivery.index}${matchingDelivery.isCurrent ? " (current)" : " (archived)"}` : ""}`}
+        eyebrow={`Attempt · ${fmtDate(attempt.startedAt, "MMM d, yyyy 'at' h:mm a")}${matchingDelivery ? ` · Delivery ${matchingDelivery.index}${matchingDelivery.isCurrent ? " (current)" : " (archived)"}` : ""} · ${wasLive ? "Live session" : "Async"}`}
         title={`${m.name} · ${mod.title}`}
         description={`Module ${mod.number} ${attempt.pool === "retake" ? "retake (easier pool)" : "first attempt"}.`}
         actions={
@@ -184,110 +193,16 @@ export function AttemptDetailView({ attempt, m, mod, questions, deliveries }: At
         </Card>
       </div>
 
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between">
-          <div>
-            <CardTitle className="text-base">Question-by-question breakdown</CardTitle>
-            <p className="text-xs text-muted-foreground mt-1">
-              The exact questions {m.name.split(" ")[0]} saw and how they answered each one.
-            </p>
-          </div>
-          <div className="flex items-center gap-2 text-xs">
-            <span className="flex items-center gap-1.5">
-              <span className="size-2 rounded-full bg-emerald-500" />
-              <span className="text-muted-foreground">{correctCount} correct</span>
-            </span>
-            <span className="flex items-center gap-1.5">
-              <span className="size-2 rounded-full bg-rose-500" />
-              <span className="text-muted-foreground">{wrongCount} wrong</span>
-            </span>
-          </div>
-        </CardHeader>
-        <CardContent className="p-0">
-          <ul className="divide-y">
-            {answeredQuestions.map((aq, idx) => (
-              <li key={aq.question.id} className="px-5 md:px-6 py-5">
-                <div className="flex items-start gap-4">
-                  <div className={cn(
-                    "size-8 rounded-md flex items-center justify-center shrink-0 mt-0.5",
-                    aq.correct ? "bg-emerald-100 text-emerald-600 dark:bg-emerald-950/40 dark:text-emerald-400"
-                               : "bg-rose-100 text-rose-600 dark:bg-rose-950/40 dark:text-rose-400",
-                  )}>
-                    {aq.correct ? <CheckCircle2 className="size-4" /> : <XCircle className="size-4" />}
-                  </div>
-
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-start gap-2 mb-3">
-                      <span className="text-[10px] font-mono text-muted-foreground tabular-nums shrink-0 mt-0.5">
-                        Q{String(idx + 1).padStart(2, "0")}
-                      </span>
-                      <Sparkles className="size-3 text-[var(--ai)] shrink-0 mt-0.5" />
-                      <div className="font-medium leading-snug">{aq.question.text}</div>
-                    </div>
-
-                    <div className="space-y-1.5 ml-6">
-                      {aq.question.options.map((o) => {
-                        const isSelected = aq.selectedOpt?.id === o.id;
-                        const isCorrect = o.correct;
-                        return (
-                          <div
-                            key={o.id}
-                            className={cn(
-                              "flex items-center gap-2 px-3 py-2 rounded-md border text-sm",
-                              isCorrect && "border-emerald-500/40 bg-emerald-50 dark:bg-emerald-950/20",
-                              isSelected && !isCorrect && "border-rose-500/40 bg-rose-50 dark:bg-rose-950/20",
-                              !isSelected && !isCorrect && "border-border",
-                            )}
-                          >
-                            <div className={cn(
-                              "size-4 rounded-full border-2 shrink-0 flex items-center justify-center",
-                              isCorrect ? "border-emerald-500 bg-emerald-500" :
-                              isSelected ? "border-rose-500 bg-rose-500" :
-                              "border-muted-foreground/30",
-                            )}>
-                              {(isCorrect || (isSelected && !isCorrect)) && (
-                                <span className="size-1.5 rounded-full bg-white" />
-                              )}
-                            </div>
-                            <span className={cn(
-                              "flex-1",
-                              isCorrect && "font-medium text-emerald-900 dark:text-emerald-200",
-                              isSelected && !isCorrect && "font-medium text-rose-900 dark:text-rose-200 line-through",
-                            )}>
-                              {o.text}
-                            </span>
-                            {isSelected && (
-                              <Badge variant="outline" className={cn(
-                                "text-[10px] shrink-0",
-                                isCorrect ? "border-emerald-500/40 text-emerald-700 dark:text-emerald-300" :
-                                            "border-rose-500/40 text-rose-700 dark:text-rose-300",
-                              )}>
-                                {m.name.split(" ")[0]}&apos;s answer
-                              </Badge>
-                            )}
-                            {isCorrect && !isSelected && (
-                              <Badge variant="outline" className="text-[10px] shrink-0 border-emerald-500/40 text-emerald-700 dark:text-emerald-300">
-                                Correct answer
-                              </Badge>
-                            )}
-                          </div>
-                        );
-                      })}
-                    </div>
-
-                    {aq.question.explanation && (
-                      <div className="ml-6 mt-3 rounded-md bg-muted/50 px-3 py-2 text-xs text-muted-foreground">
-                        <span className="font-semibold text-foreground/80">Why: </span>
-                        {aq.question.explanation}
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </li>
-            ))}
-          </ul>
-        </CardContent>
-      </Card>
+      <AttemptQuestionReview
+        reviewed={answeredQuestions.map((aq) => ({
+          question: aq.question,
+          selectedOpt: aq.selectedOpt,
+          correctOpt: aq.correctOpt,
+          correct: aq.correct,
+        }))}
+        answerBadge={`${m.name.split(" ")[0]}'s answer`}
+        subtitle={`The exact questions ${m.name.split(" ")[0]} saw and how they answered each one.`}
+      />
 
       {!passed && (
         <Card className="mt-6 border-amber-500/30 bg-amber-50/40 dark:bg-amber-950/15">

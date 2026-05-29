@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import { getModule } from "@/lib/db/modules";
 import { getCurrentDelivery } from "@/lib/db/deliveries";
 import { ensurePresentableContent, attachSignedMedia } from "@/lib/server/present-content";
+import { getViewedContentIds } from "@/lib/server/content-views";
 import { PresenterView } from "./present-view";
 
 export default async function PresenterPage(props: PageProps<"/teacher/modules/[slug]/present">) {
@@ -11,7 +12,11 @@ export default async function PresenterPage(props: PageProps<"/teacher/modules/[
   // only) so they render their actual content instead of a placeholder.
   await ensurePresentableContent(slug);
 
-  const [mod, delivery] = await Promise.all([getModule(slug), getCurrentDelivery(slug)]);
+  const [mod, delivery, viewedContentIds] = await Promise.all([
+    getModule(slug),
+    getCurrentDelivery(slug),
+    getViewedContentIds(slug),
+  ]);
   if (!mod) return notFound();
 
   // Mint signed URLs for uploaded video files so they play (done every render —
@@ -22,5 +27,11 @@ export default async function PresenterPage(props: PageProps<"/teacher/modules/[
   // presenter opens to the check-in lobby (phase 1).
   const alreadyPresenting = !!delivery?.sessionStartedAt;
 
-  return <PresenterView mod={mod} startInPresentation={alreadyPresenting} />;
+  return (
+    <PresenterView
+      mod={mod}
+      startInPresentation={alreadyPresenting}
+      initialViewedContentIds={viewedContentIds}
+    />
+  );
 }

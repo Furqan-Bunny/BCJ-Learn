@@ -95,7 +95,7 @@ export function ModuleRoster({
     return roster.filter((r) => {
       if (filter !== "all" && r.status !== filter) return false;
       if (search) {
-        const hay = `${r.manager.name} ${r.manager.email} ${r.manager.cohort}`.toLowerCase();
+        const hay = `${r.manager.name} ${r.manager.email} ${(r.manager.markets ?? [r.manager.cohort]).join(" ")}`.toLowerCase();
         if (!hay.includes(search.toLowerCase())) return false;
       }
       return true;
@@ -227,7 +227,7 @@ export function ModuleRoster({
       <div className="flex items-center gap-2 mb-3">
         <div className="relative flex-1 max-w-md">
           <Search className="size-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-          <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search by name, email, cohort…" className="pl-9 h-9" />
+          <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search by name, email, market…" className="pl-9 h-9" />
         </div>
         {(filter !== "all" || search) && (
           <Button variant="ghost" size="sm" onClick={() => { setFilter("all"); setSearch(""); }}>
@@ -237,7 +237,7 @@ export function ModuleRoster({
         {manageable && addableManagers.length > 0 && (
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="outline" size="sm">
+              <Button size="sm">
                 <UserPlus className="size-3.5 mr-1.5" /> Add employee
               </Button>
             </DropdownMenuTrigger>
@@ -283,7 +283,11 @@ export function ModuleRoster({
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 flex-wrap">
                         <span className="font-medium text-sm">{r.manager.name}</span>
-                        {showCohort && <Badge variant="secondary" className="text-[10px]">{r.manager.cohort}</Badge>}
+                        {showCohort && (
+                          (r.manager.markets?.length ? r.manager.markets : [r.manager.cohort]).map((mk) => (
+                            <Badge key={mk} variant="secondary" className="text-[10px]">{mk}</Badge>
+                          ))
+                        )}
                       </div>
                       <div className="text-xs text-muted-foreground truncate">
                         {r.manager.email} · last active {fmtRelative(r.manager.lastActiveAt)}

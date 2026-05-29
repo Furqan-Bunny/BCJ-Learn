@@ -17,7 +17,11 @@ const DEMO_MODE = process.env.NEXT_PUBLIC_DEMO_MODE === "true";
 interface ParsedRow {
   name: string;
   email: string;
+  /** First market (kept for back-compat with downstream code that expected
+   *  a single "cohort" value). */
   cohort: string;
+  /** Full markets list parsed from the row's semicolon-separated cell. */
+  markets: string[];
   ok: boolean;
   error?: string;
 }
@@ -32,19 +36,24 @@ function parseCsv(text: string): ParsedRow[] {
   const dataLines = first.includes("name") && first.includes("email") ? lines.slice(1) : lines;
   return dataLines.map((line) => {
     const cells = line.split(",").map((c) => c.trim().replace(/^"|"$/g, ""));
-    const [name = "", email = "", cohort = ""] = cells;
+    const [name = "", email = "", marketsCell = ""] = cells;
+    // markets cell may be "Atlanta;Dallas" or a single "Atlanta".
+    const markets = Array.from(
+      new Set(marketsCell.split(/[;|]/).map((s) => s.trim()).filter(Boolean)),
+    );
     let ok = true;
     let error: string | undefined;
     if (!name) { ok = false; error = "Missing name"; }
     else if (!email || !email.includes("@")) { ok = false; error = "Invalid email"; }
-    else if (!VALID_COHORTS.has(cohort)) { ok = false; error = `Cohort must be one of ${Array.from(VALID_COHORTS).join(", ")}`; }
-    return { name, email, cohort, ok, error };
+    else if (markets.length === 0) { ok = false; error = "At least one market is required"; }
+    else if (markets.some((m) => !VALID_COHORTS.has(m))) { ok = false; error = `Markets must be from ${Array.from(VALID_COHORTS).join(", ")}`; }
+    return { name, email, cohort: markets[0] ?? "", markets, ok, error };
   });
 }
 
-const SAMPLE_CSV = `name,email,cohort
+const SAMPLE_CSV = `name,email,markets
 Jordan Patel,jordan@bcj.com,Atlanta
-Maya Chen,maya@bcj.com,Dallas
+Maya Chen,maya@bcj.com,Dallas;Phoenix
 Sam Carter,sam@bcj.com,Phoenix`;
 
 export function BulkImportSheet() {
@@ -112,6 +121,7 @@ export function BulkImportSheet() {
       name: r.name,
       email: r.email.toLowerCase(),
       cohort: r.cohort,
+      markets: r.markets,
     }));
 
     const result = await bulkInviteUsers(validRows);
@@ -147,7 +157,7 @@ export function BulkImportSheet() {
           </Badge>
           <SheetTitle className="text-xl tracking-tight">Import employees from CSV</SheetTitle>
           <SheetDescription>
-            Upload a CSV with three columns: <span className="font-mono">name</span>, <span className="font-mono">email</span>, <span className="font-mono">cohort</span>. Each valid row creates a new Employee and queues a welcome email.
+            Upload a CSV with three columns: <span className="font-mono">name</span>, <span className="font-mono">email</span>, <span className="font-mono">markets</span> (one or more, separated by <span className="font-mono">;</span>). Each valid row creates a new Employee and queues a welcome email.
           </SheetDescription>
         </SheetHeader>
 
@@ -183,7 +193,7 @@ export function BulkImportSheet() {
               {fileName ? fileName : "Drop your CSV file here, or click to browse"}
             </div>
             <div className="text-[11px] text-muted-foreground mt-1">
-              Format: name, email, cohort (Atlanta · Dallas · Phoenix)
+              Format: name, email, markets (Atlanta · Dallas · Phoenix; combine with ;)
             </div>
           </div>
 
@@ -228,7 +238,7 @@ export function BulkImportSheet() {
                     </Badge>
                     <div className="flex-1 min-w-0">
                       <div className="font-medium truncate">{r.name || <span className="italic text-muted-foreground">(no name)</span>}</div>
-                      <div className="text-[11px] text-muted-foreground truncate">{r.email} · {r.cohort || "—"}</div>
+                      <div className="text-[11px] text-muted-foreground truncate">{r.email} · {r.markets.length ? r.markets.join(", ") : "—"}</div>
                       {r.error && (
                         <div className="text-[11px] text-rose-600 dark:text-rose-400 mt-0.5">{r.error}</div>
                       )}

@@ -118,7 +118,7 @@ export function BrandingView({ initial }: { initial: BrandingSettings }) {
                   </div>
                 </div>
                 <div className="space-y-1.5">
-                  <Label>Accent (gold)</Label>
+                  <Label>Accent (brand teal)</Label>
                   <div className="flex items-center gap-2">
                     <div className="size-9 rounded-md border" style={{ background: accent }} />
                     <Input value={accent} onChange={(e) => setAccent(e.target.value)} />

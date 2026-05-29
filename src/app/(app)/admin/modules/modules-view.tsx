@@ -3,7 +3,8 @@
 import * as React from "react";
 import Link from "next/link";
 import { Card, CardContent } from "@/components/ui/card";
-import { ArrowRight, Calendar, Users, Trophy, List, LayoutGrid } from "lucide-react";
+import { ArrowRight, Calendar, Users, Trophy, List, LayoutGrid, Search } from "lucide-react";
+import { Input } from "@/components/ui/input";
 import { PageHeader } from "@/components/shared/page-header";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { AddModuleSheet } from "@/components/admin/add-module-sheet";
@@ -35,6 +36,10 @@ export function AdminModulesView({ modules, attempts, teacherNamesById, teachers
     try { window.localStorage.setItem(VIEW_KEY, v); } catch { /* ignore */ }
   }
 
+  // Free-text search across the visible module fields (title, description,
+  // M-number, month, status, owners).
+  const [query, setQuery] = React.useState("");
+
   // Derive each module's display values once, reused by both views.
   const rows = modules.map((m) => {
     const ownerNames = m.ownerTeacherIds.map((id) => teacherNamesById[id]).filter(Boolean) as string[];
@@ -43,6 +48,16 @@ export function AdminModulesView({ modules, attempts, teacherNamesById, teachers
     const passRate = att.length ? Math.round((passed / att.length) * 100) : 0;
     return { m, ownerNames, attempts: att.length, passRate };
   });
+
+  const q = query.trim().toLowerCase();
+  const filteredRows = q
+    ? rows.filter(({ m, ownerNames }) =>
+        [`m${m.number}`, m.title, m.description, m.scheduledMonth, m.status, ownerNames.join(" ")]
+          .join(" ")
+          .toLowerCase()
+          .includes(q),
+      )
+    : rows;
 
   return (
     <>
@@ -58,9 +73,23 @@ export function AdminModulesView({ modules, attempts, teacherNamesById, teachers
         }
       />
 
-      {view === "cards" ? (
+      <div className="relative max-w-md mb-4">
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
+        <Input
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          placeholder="Search modules by title, owner, month…"
+          className="pl-9 h-9"
+        />
+      </div>
+
+      {filteredRows.length === 0 ? (
+        <div className="rounded-lg border border-dashed py-12 text-center text-sm text-muted-foreground">
+          No modules match &ldquo;{query}&rdquo;.
+        </div>
+      ) : view === "cards" ? (
         <Stagger className="grid lg:grid-cols-2 gap-4">
-          {rows.map(({ m, ownerNames, attempts: attCount, passRate }) => (
+          {filteredRows.map(({ m, ownerNames, attempts: attCount, passRate }) => (
             <StaggerItem key={m.slug} className="h-full">
               <Link href={`/admin/modules/${m.slug}`} className="block group h-full">
                 <Card className="card-lift card-glow group-hover:border-primary/40 h-full flex flex-col">
@@ -93,7 +122,7 @@ export function AdminModulesView({ modules, attempts, teacherNamesById, teachers
         </Stagger>
       ) : (
         <Stagger className="space-y-2.5">
-          {rows.map(({ m, ownerNames, attempts: attCount, passRate }) => (
+          {filteredRows.map(({ m, ownerNames, attempts: attCount, passRate }) => (
             <StaggerItem key={m.slug}>
               <Link href={`/admin/modules/${m.slug}`} className="block group">
                 <Card className="card-lift group-hover:border-primary/40">

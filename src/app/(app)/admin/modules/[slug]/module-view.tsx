@@ -1,13 +1,17 @@
 "use client";
 
+import * as React from "react";
 import Link from "next/link";
+import { useRouter, useSearchParams } from "next/navigation";
+import { motion } from "framer-motion";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import {
-  ArrowLeft, BookOpen, Calendar, Clock, Layers, Target, FileText, PlayCircle,
-  Link2, ListChecks, BarChart3, Trophy, Users, AlertTriangle, PresentationIcon, Sparkles,
+  ArrowLeft, ArrowUpRight, BookOpen, Calendar, Clock, Layers, Target, FileText, PlayCircle,
+  Link2, ListChecks, BarChart3, Trophy, Users, AlertTriangle, PresentationIcon, Sparkles, Loader2,
 } from "lucide-react";
 import { PageHeader } from "@/components/shared/page-header";
 import { StatusBadge } from "@/components/shared/status-badge";
@@ -17,7 +21,9 @@ import { DeliveryHistory } from "@/components/shared/delivery-history";
 import { ScheduleRedelivery } from "@/components/admin/schedule-redelivery";
 import { RescheduleSeminar } from "@/components/admin/reschedule-seminar";
 import { ModuleSetupPanel } from "@/components/admin/module-setup-panel";
+import { ContentViewer } from "@/components/manager/content-viewer";
 import { fmtDate, initials } from "@/lib/format";
+import type { LessonContent } from "@/types";
 import type { ContentType, ModuleDef, Attempt, Question, Teacher, Manager } from "@/types";
 import type { RosterRow, RosterCounts } from "@/lib/db/roster";
 import type { DeliveryRecord } from "@/lib/db/deliveries";
@@ -56,6 +62,75 @@ export function AdminModuleView({
   addableManagers = [],
 }: AdminModuleViewProps) {
   const slug = mod.slug;
+  // Inline content preview — click any content item to play / view it in the
+  // same ContentViewer the employees see, without leaving the module page.
+  const [previewing, setPreviewing] = React.useState<LessonContent | null>(null);
+
+  // Tab state — driven by a LOCAL state so the click switch happens
+  // instantly. `?tab=` is updated async in the background so deep-links +
+  // Back/Forward still work.
+  const sp = useSearchParams();
+  const router = useRouter();
+  const urlTab = sp?.get("tab") ?? "overview";
+  const [tab, setTabState] = React.useState(urlTab);
+  const [pending, setPending] = React.useState(false);
+
+  function setTab(v: string) {
+    if (v === tab) return;
+    // Flip the visible tab AND start the spinner in the SAME render so
+    // there's no perceptible "stuck" gap between click and loader.
+    setTabState(v);
+    setPending(true);
+    const p = new URLSearchParams(sp?.toString() ?? "");
+    p.set("tab", v);
+    router.replace(`?${p.toString()}`, { scroll: false });
+  }
+
+  // Browser Back / Forward updates the URL; mirror that into local state.
+  React.useEffect(() => {
+    if (urlTab !== tab) {
+      setTabState(urlTab);
+      setPending(true);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [urlTab]);
+
+  // Auto-clear the spinner shortly after a switch.
+  React.useEffect(() => {
+    if (!pending) return;
+    const t = window.setTimeout(() => setPending(false), 320);
+    return () => window.clearTimeout(t);
+  }, [pending, tab]);
+
+  // While pending → spinner with "Loading…". When ready → the real children
+  // fade in. Keyed by tab so the animation replays on every switch.
+  const TabBody = ({ children }: { children: React.ReactNode }) => {
+    if (pending) {
+      return (
+        <motion.div
+          key={`${tab}-loading`}
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ duration: 0.12 }}
+          className="flex items-center justify-center gap-2 py-20 text-sm text-muted-foreground"
+        >
+          <Loader2 className="size-4 animate-spin text-primary" />
+          Loading…
+        </motion.div>
+      );
+    }
+    return (
+      <motion.div
+        key={tab}
+        initial={{ opacity: 0, y: 8 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.24, ease: [0.16, 1, 0.3, 1] }}
+      >
+        {children}
+      </motion.div>
+    );
+  };
+
   const totalMinutes = mod.lessons.reduce((sum, l) => sum + l.durationMinutes, 0);
   const allContents = mod.lessons.flatMap((l) => l.contents);
   const contentCounts = {
@@ -123,11 +198,23 @@ export function AdminModuleView({
         attendeeCount={rosterCounts.expected}
       />
 
+      <Tabs value={tab} onValueChange={setTab} className="mb-6">
+        <TabsList variant="line" className="mb-6">
+          <TabsTrigger value="overview">Overview</TabsTrigger>
+          <TabsTrigger value="roster">Roster</TabsTrigger>
+          <TabsTrigger value="deliveries">Past deliveries</TabsTrigger>
+          <TabsTrigger value="reports">Reports</TabsTrigger>
+        </TabsList>
+
+        {/* ─── OVERVIEW — aggregate-safe, no private per-employee info ───── */}
+        <TabsContent value="overview">
+          <TabBody>
+
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
-        <KpiCard label="Attempts" value={attempts.length} icon={Users} />
-        <KpiCard label="Pass rate" value={attempts.length ? `${passRate}%` : "—"} icon={Trophy} accent="success" />
-        <KpiCard label="Avg score" value={attempts.length ? `${avgScore}%` : "—"} icon={Target} />
-        <KpiCard label="Failed attempts" value={failed} icon={AlertTriangle} accent="warning" />
+        <KpiCard label="Attempts" value={attempts.length} icon={Users} href={`/admin/modules/${slug}?tab=reports`} />
+        <KpiCard label="Pass rate" value={attempts.length ? `${passRate}%` : "—"} icon={Trophy} accent="success" href={`/admin/modules/${slug}?tab=reports&status=passed`} />
+        <KpiCard label="Avg score" value={attempts.length ? `${avgScore}%` : "—"} icon={Target} href={`/admin/modules/${slug}?tab=reports`} />
+        <KpiCard label="Failed attempts" value={failed} icon={AlertTriangle} accent="warning" href={`/admin/modules/${slug}?tab=reports&status=failed`} />
       </div>
 
       <div className="grid lg:grid-cols-[1fr_320px] gap-6">
@@ -161,12 +248,17 @@ export function AdminModuleView({
                         const meta = TYPE_META[c.type];
                         const Icon = meta.icon;
                         return (
-                          <div key={c.id} className="flex items-center gap-3 px-3 py-2 rounded-md border bg-card">
+                          <button
+                            key={c.id}
+                            type="button"
+                            onClick={() => setPreviewing(c)}
+                            className="w-full text-left flex items-center gap-3 px-3 py-2 rounded-md border bg-card hover:bg-accent/40 hover:border-primary/40 transition-colors group"
+                          >
                             <div className={cn("size-7 rounded flex items-center justify-center shrink-0", meta.tint)}>
                               <Icon className="size-3.5" />
                             </div>
                             <div className="flex-1 min-w-0">
-                              <div className="text-sm font-medium truncate">{c.title}</div>
+                              <div className="text-sm font-medium truncate group-hover:text-primary transition-colors">{c.title}</div>
                               <div className="text-[11px] text-muted-foreground flex items-center gap-2">
                                 <span>{meta.label}</span>
                                 {c.durationMinutes && (
@@ -189,7 +281,10 @@ export function AdminModuleView({
                                 )}
                               </div>
                             </div>
-                          </div>
+                            <Badge variant="outline" className="text-[10px] shrink-0 group-hover:border-primary/50 group-hover:text-primary transition-colors">
+                              {c.type === "link" ? "Open ↗" : "Preview"}
+                            </Badge>
+                          </button>
                         );
                       })}
                     </div>
@@ -197,46 +292,6 @@ export function AdminModuleView({
                 </div>
               </Card>
             ))}
-          </div>
-
-          <div className="mt-10">
-            <div className="flex items-center justify-between mb-3 flex-wrap gap-3">
-              <div>
-                <h3 className="text-lg font-semibold tracking-tight flex items-center gap-2">
-                  <Users className="size-5 text-muted-foreground" />
-                  Current roster
-                </h3>
-                <p className="text-xs text-muted-foreground mt-0.5">
-                  Who&rsquo;s expected for the current delivery
-                </p>
-              </div>
-              <div className="flex items-center gap-2">
-                {currentDeliveryStart && (
-                  <RescheduleSeminar
-                    moduleSlug={slug}
-                    moduleTitle={mod.title}
-                    attendeeCount={rosterCounts.expected}
-                  />
-                )}
-                <ScheduleRedelivery
-                  moduleSlug={slug}
-                  moduleTitle={mod.title}
-                  currentDeliveryStart={currentDeliveryStart}
-                  checkedInCount={rosterCounts.checkedIn}
-                />
-              </div>
-            </div>
-            <ModuleRoster moduleSlug={slug} roster={roster} counts={rosterCounts} manageable addableManagers={addableManagers} />
-          </div>
-
-          <div className="mt-10">
-            <h3 className="text-lg font-semibold tracking-tight mb-3">Past deliveries</h3>
-            <DeliveryHistory
-              moduleSlug={slug}
-              deliveries={deliveries}
-              managersById={managersById}
-              attempts={attempts}
-            />
           </div>
 
           <div className="mt-8 grid sm:grid-cols-3 gap-3">
@@ -291,7 +346,7 @@ export function AdminModuleView({
             </CardHeader>
             <CardContent className="space-y-3">
               {moduleTeachers.map((t) => (
-                <Link key={t.id} href="/admin/teachers" className="flex items-center gap-3 group">
+                <Link key={t.id} href={`/admin/teachers?q=${encodeURIComponent(t.name)}`} className="flex items-center gap-3 group">
                   <Avatar className="size-10 border">
                     <AvatarFallback style={{ background: t.avatarColor, color: "white" }} className="font-semibold">
                       {initials(t.name)}
@@ -343,6 +398,123 @@ export function AdminModuleView({
           </Card>
         </div>
       </div>
+
+          </TabBody>
+        </TabsContent>
+
+        {/* ─── ROSTER — private per-employee info, separated from Overview ── */}
+        <TabsContent value="roster">
+          <TabBody>
+          <div className="flex items-center justify-between mb-3 flex-wrap gap-3">
+            <div>
+              <h3 className="text-lg font-semibold tracking-tight flex items-center gap-2">
+                <Users className="size-5 text-muted-foreground" />
+                Current roster
+              </h3>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                Who&rsquo;s expected for the current delivery — private to admins and leads.
+              </p>
+            </div>
+            <div className="flex items-center gap-2">
+              {currentDeliveryStart && (
+                <RescheduleSeminar
+                  moduleSlug={slug}
+                  moduleTitle={mod.title}
+                  attendeeCount={rosterCounts.expected}
+                />
+              )}
+              <ScheduleRedelivery
+                moduleSlug={slug}
+                moduleTitle={mod.title}
+                currentDeliveryStart={currentDeliveryStart}
+                checkedInCount={rosterCounts.checkedIn}
+              />
+            </div>
+          </div>
+          <ModuleRoster moduleSlug={slug} roster={roster} counts={rosterCounts} manageable addableManagers={addableManagers} />
+          </TabBody>
+        </TabsContent>
+
+        {/* ─── PAST DELIVERIES ──────────────────────────────────────── */}
+        <TabsContent value="deliveries">
+          <TabBody>
+          <h3 className="text-lg font-semibold tracking-tight mb-3">Past deliveries</h3>
+          <DeliveryHistory
+            moduleSlug={slug}
+            deliveries={deliveries}
+            managersById={managersById}
+            attempts={attempts}
+          />
+          </TabBody>
+        </TabsContent>
+
+        {/* ─── REPORTS — detailed per-attempt results ──────────────── */}
+        <TabsContent value="reports">
+          <TabBody>
+          <div className="flex items-center justify-between mb-3 flex-wrap gap-3">
+            <div>
+              <h3 className="text-lg font-semibold tracking-tight">Reports</h3>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                Every attempt logged on this module. Drill into any row for the
+                question-by-question review.
+              </p>
+            </div>
+            <Button asChild variant="outline" size="sm">
+              <Link href={`/admin/results?module=${slug}`}>
+                Open full Test Results <ArrowUpRight className="size-3.5 ml-1" />
+              </Link>
+            </Button>
+          </div>
+          {attempts.length === 0 ? (
+            <Card>
+              <CardContent className="py-10 text-center text-sm text-muted-foreground">
+                No attempts yet for this module.
+              </CardContent>
+            </Card>
+          ) : (
+            <Card>
+              <CardContent className="p-0">
+                <table className="w-full text-sm">
+                  <thead className="border-b bg-muted/40 text-xs uppercase tracking-wider text-muted-foreground">
+                    <tr>
+                      <th className="text-left px-5 py-2.5 font-medium">Employee</th>
+                      <th className="text-left px-5 py-2.5 font-medium">Date</th>
+                      <th className="text-left px-5 py-2.5 font-medium">Pool</th>
+                      <th className="text-left px-5 py-2.5 font-medium">Score</th>
+                      <th className="text-left px-5 py-2.5 font-medium">Status</th>
+                      <th className="text-left px-5 py-2.5 font-medium"></th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y">
+                    {[...attempts]
+                      .sort((a, b) => +new Date(b.startedAt) - +new Date(a.startedAt))
+                      .map((a) => {
+                        const mgr = managersById[a.managerId];
+                        return (
+                          <tr key={a.id} className="hover:bg-accent/40 cursor-pointer" onClick={() => router.push(`/admin/results/${a.id}`)}>
+                            <td className="px-5 py-3 font-medium">{mgr?.name ?? "—"}</td>
+                            <td className="px-5 py-3 text-muted-foreground">{fmtDate(a.startedAt, "MMM d, yyyy")}</td>
+                            <td className="px-5 py-3">
+                              <Badge variant="outline" className="text-[10px] capitalize">
+                                {a.pool === "retake" ? "Retake" : "First attempt"}
+                              </Badge>
+                            </td>
+                            <td className="px-5 py-3 font-mono tabular-nums">{Math.round(a.scorePct)}%</td>
+                            <td className="px-5 py-3"><StatusBadge variant={a.status as "passed" | "failed"} /></td>
+                            <td className="px-5 py-3 text-right text-muted-foreground"><ArrowUpRight className="size-3.5 inline" /></td>
+                          </tr>
+                        );
+                      })}
+                  </tbody>
+                </table>
+              </CardContent>
+            </Card>
+          )}
+          </TabBody>
+        </TabsContent>
+      </Tabs>
+
+      <ContentViewer content={previewing} onClose={() => setPreviewing(null)} moduleSlug={mod.slug} />
     </>
   );
 }

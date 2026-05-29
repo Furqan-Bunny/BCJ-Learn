@@ -15,7 +15,10 @@ export interface User {
   email: string;
   avatarColor: string; // hex, derived from name
   role: Role;
+  /** @deprecated Kept for back-compat — use `markets` instead. */
   cohort?: Cohort;
+  /** A person can belong to one or more markets (BCJ's new term for cohort). */
+  markets?: string[];
   joinedAt: string; // ISO
   lastActiveAt: string; // ISO
   phone?: string | null;
@@ -23,7 +26,10 @@ export interface User {
 
 export interface Manager extends User {
   role: "manager";
+  /** @deprecated Use `markets` (multi) instead. Still populated with the first
+   *  market for legacy callers. */
   cohort: Cohort;
+  markets: string[];
   status: ManagerStatus;
   modulesCompleted: number;
   averageScore: number;
@@ -109,6 +115,8 @@ export interface ModuleDef {
   scheduledDate: string;
   /** Seminar start time, "HH:MM" (24h). Empty if not set. */
   scheduledTime: string;
+  /** When this module was created (ISO). */
+  createdAt?: string;
   /** One or more Teachers who own this module. The first is the "primary" owner. */
   ownerTeacherIds: string[];
   status: ModuleStatus;
