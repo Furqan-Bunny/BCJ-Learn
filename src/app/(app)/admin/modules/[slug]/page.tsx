@@ -5,6 +5,8 @@ import { listQuestionsForModule } from "@/lib/db/questions";
 import { listTeachers, listManagers } from "@/lib/db/profiles";
 import { listDeliveriesForModule, getCurrentDelivery } from "@/lib/db/deliveries";
 import { getModuleRoster, getModuleRosterCounts } from "@/lib/db/roster";
+import { listResourcesForModule } from "@/lib/db/module-resources";
+import { listResources } from "@/lib/db/resources";
 import { AdminModuleView } from "./module-view";
 import type { Teacher } from "@/types";
 import type { Metadata } from "next";
@@ -21,7 +23,7 @@ export default async function AdminModuleDetailPage(props: PageProps<"/admin/mod
   const mod = await getModule(slug);
   if (!mod) return notFound();
 
-  const [attempts, questions, allTeachers, allManagers, deliveries, roster, counts, currentDelivery] = await Promise.all([
+  const [attempts, questions, allTeachers, allManagers, deliveries, roster, counts, currentDelivery, linkedSops, allSops] = await Promise.all([
     listAttemptsForModule(slug),
     listQuestionsForModule(slug),
     listTeachers(),
@@ -30,6 +32,8 @@ export default async function AdminModuleDetailPage(props: PageProps<"/admin/mod
     getModuleRoster(slug),
     getModuleRosterCounts(slug),
     getCurrentDelivery(slug),
+    listResourcesForModule(slug),
+    listResources(),
   ]);
 
   const moduleTeachers: Teacher[] = allTeachers.filter((t) => mod.ownerTeacherIds.includes(t.id));
@@ -56,6 +60,8 @@ export default async function AdminModuleDetailPage(props: PageProps<"/admin/mod
       managersById={managersById}
       currentDeliveryStart={currentDelivery?.startedAt ?? null}
       addableManagers={addableManagers}
+      linkedSops={linkedSops}
+      allSops={allSops}
     />
   );
 }

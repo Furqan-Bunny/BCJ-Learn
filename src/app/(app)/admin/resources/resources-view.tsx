@@ -11,10 +11,12 @@ import { Switch } from "@/components/ui/switch";
 import {
   Sheet, SheetClose, SheetContent, SheetDescription, SheetFooter, SheetHeader, SheetTitle, SheetTrigger,
 } from "@/components/ui/sheet";
-import { FileText, Plus, Users, CheckCircle2, AlertCircle, Sparkles } from "lucide-react";
+import { FileText, Plus, Users, CheckCircle2, AlertCircle, Sparkles, Upload, X as XIcon, Loader2, Bold, Italic, List, Heading2 } from "lucide-react";
 import { fmtRelative } from "@/lib/format";
 import { Stagger, StaggerItem } from "@/components/shared/animations";
 import { createClient } from "@/lib/supabase/client";
+import { uploadResourceFile } from "@/lib/supabase/storage";
+import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 import type { Resource } from "@/lib/db/resources";
@@ -31,8 +33,51 @@ export function ResourcesAdminView({ initialResources }: { initialResources: Enr
   const [title, setTitle] = React.useState("");
   const [category, setCategory] = React.useState("General");
   const [description, setDescription] = React.useState("");
+  const [body, setBody] = React.useState("");
+  const [file, setFile] = React.useState<File | null>(null);
+  const [dragOver, setDragOver] = React.useState(false);
+  const fileInputRef = React.useRef<HTMLInputElement>(null);
+  const bodyRef = React.useRef<HTMLTextAreaElement>(null);
   const [requiresAck, setRequiresAck] = React.useState(true);
   const [submitting, setSubmitting] = React.useState(false);
+
+  // Lightweight markdown helpers — wrap the current selection (or insert at
+  // the caret) for the toolbar buttons in the SOP editor.
+  function wrapMarkdown(before: string, after = before) {
+    const ta = bodyRef.current;
+    if (!ta) return;
+    const start = ta.selectionStart;
+    const end = ta.selectionEnd;
+    const sel = body.slice(start, end);
+    const next = body.slice(0, start) + before + sel + after + body.slice(end);
+    setBody(next);
+    requestAnimationFrame(() => {
+      ta.focus();
+      ta.setSelectionRange(start + before.length, end + before.length);
+    });
+  }
+  function prefixLines(prefix: string) {
+    const ta = bodyRef.current;
+    if (!ta) return;
+    const start = ta.selectionStart;
+    const lineStart = body.lastIndexOf("\n", start - 1) + 1;
+    const next = body.slice(0, lineStart) + prefix + body.slice(lineStart);
+    setBody(next);
+    requestAnimationFrame(() => {
+      ta.focus();
+      ta.setSelectionRange(start + prefix.length, start + prefix.length);
+    });
+  }
+
+  function resetForm() {
+    setTitle(""); setDescription(""); setBody(""); setFile(null);
+  }
+
+  function handleFilesPicked(files: FileList | File[] | null) {
+    if (!files || files.length === 0) return;
+    const f = files instanceof FileList ? files[0] : files[0];
+    if (f) setFile(f);
+  }
 
   const byCategory = new Map<string, EnrichedResource[]>();
   for (const r of initialResources) {
@@ -51,8 +96,21 @@ export function ResourcesAdminView({ initialResources }: { initialResources: Enr
       toast.success(`Added "${title}" (demo)`);
       setSubmitting(false);
       setAddOpen(false);
-      setTitle(""); setDescription("");
+      resetForm();
       return;
+    }
+
+    // Upload any attached file first; failure aborts the whole add.
+    let storagePath: string | null = null;
+    if (file) {
+      try {
+        const { path } = await uploadResourceFile(file);
+        storagePath = path;
+      } catch (err) {
+        setSubmitting(false);
+        toast.error((err as Error)?.message ?? "File upload failed");
+        return;
+      }
     }
 
     const sb = createClient();
@@ -60,6 +118,8 @@ export function ResourcesAdminView({ initialResources }: { initialResources: Enr
       title: title.trim(),
       category,
       description: description.trim() || null,
+      body: body.trim() || null,
+      storage_path: storagePath,
       requires_ack: requiresAck,
       assigned_roles: ["manager"],
     });
@@ -72,7 +132,7 @@ export function ResourcesAdminView({ initialResources }: { initialResources: Enr
 
     toast.success(`Added "${title}"`);
     setAddOpen(false);
-    setTitle(""); setDescription("");
+    resetForm();
     router.refresh();
   }
 
@@ -118,16 +178,92 @@ export function ResourcesAdminView({ initialResources }: { initialResources: Enr
                 />
               </div>
               <div className="space-y-1.5">
-                <Label htmlFor="r-desc" className="text-xs">Description</Label>
+                <Label htmlFor="r-desc" className="text-xs">Short description</Label>
                 <Textarea
                   id="r-desc"
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
-                  placeholder="Short summary of what employees need to know."
-                  rows={4}
+                  placeholder="One-liner that shows on the SOP card."
+                  rows={2}
                   className="resize-none"
                 />
               </div>
+
+              {/* ─── File upload (drag-drop) ────────────────────────── */}
+              <div className="space-y-1.5">
+                <Label className="text-xs">Attach a file (PDF, Word, etc.)</Label>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  className="hidden"
+                  onChange={(e) => handleFilesPicked(e.target.files)}
+                />
+                {file ? (
+                  <div className="flex items-center gap-2 rounded-md border bg-card px-3 py-2">
+                    <FileText className="size-4 text-primary" />
+                    <div className="flex-1 min-w-0">
+                      <div className="text-sm font-medium truncate">{file.name}</div>
+                      <div className="text-[11px] text-muted-foreground">
+                        {(file.size / 1024).toFixed(1)} KB
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setFile(null)}
+                      className="text-muted-foreground hover:text-rose-600 p-1"
+                      aria-label="Remove file"
+                    >
+                      <XIcon className="size-4" />
+                    </button>
+                  </div>
+                ) : (
+                  <div
+                    onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
+                    onDragLeave={() => setDragOver(false)}
+                    onDrop={(e) => {
+                      e.preventDefault();
+                      setDragOver(false);
+                      handleFilesPicked(e.dataTransfer.files);
+                    }}
+                    onClick={() => fileInputRef.current?.click()}
+                    className={cn(
+                      "rounded-md border-2 border-dashed px-4 py-6 text-center cursor-pointer transition-colors",
+                      dragOver ? "border-primary bg-primary/5" : "border-border hover:border-primary/50 hover:bg-accent/30",
+                    )}
+                  >
+                    <Upload className="size-5 text-muted-foreground mx-auto mb-1.5" />
+                    <p className="text-sm font-medium">Drop a file here or click to pick</p>
+                    <p className="text-[11px] text-muted-foreground mt-0.5">PDF, Word, slides, images — anything employees need to read.</p>
+                  </div>
+                )}
+              </div>
+
+              {/* ─── Text editor (Markdown) ─────────────────────────── */}
+              <div className="space-y-1.5">
+                <Label htmlFor="r-body" className="text-xs">Or type the SOP here</Label>
+                <div className="rounded-md border bg-card">
+                  <div className="flex items-center gap-1 px-1.5 py-1 border-b bg-muted/40">
+                    <button type="button" onClick={() => wrapMarkdown("**")} className="p-1.5 rounded hover:bg-accent" title="Bold"><Bold className="size-3.5" /></button>
+                    <button type="button" onClick={() => wrapMarkdown("*")} className="p-1.5 rounded hover:bg-accent" title="Italic"><Italic className="size-3.5" /></button>
+                    <button type="button" onClick={() => prefixLines("## ")} className="p-1.5 rounded hover:bg-accent" title="Heading"><Heading2 className="size-3.5" /></button>
+                    <button type="button" onClick={() => prefixLines("- ")} className="p-1.5 rounded hover:bg-accent" title="Bulleted list"><List className="size-3.5" /></button>
+                    <span className="ml-auto text-[10px] text-muted-foreground pr-1.5">Markdown supported</span>
+                  </div>
+                  <Textarea
+                    id="r-body"
+                    ref={bodyRef}
+                    value={body}
+                    onChange={(e) => setBody(e.target.value)}
+                    placeholder={`Write the full SOP here. Examples:\n\n## Section title\nThis is a paragraph.\n\n- First step\n- Second step\n\n**Important:** safety note.`}
+                    rows={8}
+                    className="resize-y border-0 rounded-none rounded-b-md font-mono text-sm focus-visible:ring-0"
+                  />
+                </div>
+                <p className="text-[11px] text-muted-foreground">
+                  You can upload a file, type here, or both — employees will see all of it.
+                </p>
+              </div>
+
               <div className="flex items-center justify-between rounded-md border p-3">
                 <div className="flex-1">
                   <Label htmlFor="r-ack" className="text-sm font-medium">Require acknowledgement</Label>

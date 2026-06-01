@@ -4,6 +4,7 @@ import { getModule } from "@/lib/db/modules";
 import { getProfile } from "@/lib/db/profiles";
 import { listAttemptsForManager } from "@/lib/db/attempts";
 import { getCheckedInStatus, getCurrentDelivery } from "@/lib/db/deliveries";
+import { listModuleSopsForUser } from "@/lib/db/module-resources";
 import { ManagerModuleView } from "./module-view";
 import type { Metadata } from "next";
 
@@ -35,19 +36,24 @@ export default async function ManagerModulePage(props: PageProps<"/manager/modul
     }
   }
 
-  const [allMyAttempts, checkInStatus, delivery] = await Promise.all([
+  const [allMyAttempts, checkInStatus, delivery, moduleSops] = await Promise.all([
     listAttemptsForManager(me.id),
     getCheckedInStatus(slug, me.id),
     getCurrentDelivery(slug),
+    listModuleSopsForUser(slug, me.id),
   ]);
   const myAttempts = allMyAttempts.filter((a) => a.moduleSlug === slug);
+  const alreadyPassed = myAttempts.some((a) => a.status === "passed");
 
-  // Materials are seminar-only. Until the employee checks in at the live
-  // session (or has already passed), DON'T send the actual content to the
-  // browser at all — strip document text, slides, file paths, and media URLs so
-  // it can't be read from the page source / network. The outline (titles, type,
-  // duration) is kept so they can see what the seminar covers.
-  const canViewMaterials = checkInStatus.checkedIn || myAttempts.some((a) => a.status === "passed");
+  // Hard gate: every linked SOP for this module must be signed at its current
+  // version before the employee can open materials or take the quiz. Passing
+  // the module previously also unlocks (legacy back-fill).
+  const allSopsSigned = moduleSops.every((s) => s.signed);
+  const sopsCleared = allSopsSigned || alreadyPassed;
+
+  // Materials are seminar-only AND SOP-gated. Until both gates pass, strip the
+  // content so it can't be read from the page source / network.
+  const canViewMaterials = sopsCleared && (checkInStatus.checkedIn || alreadyPassed);
   const safeMod = canViewMaterials
     ? mod
     : {
@@ -75,6 +81,7 @@ export default async function ManagerModulePage(props: PageProps<"/manager/modul
       sessionEndedAt={delivery?.sessionEndedAt ?? null}
       checkinOpen={!!delivery?.checkinOpenedAt}
       managerName={me.name}
+      moduleSops={moduleSops}
     />
   );
 }

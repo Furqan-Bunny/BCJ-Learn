@@ -22,18 +22,22 @@ import { useRouter } from "next/navigation";
 import { LessonsBuilder, emptyLesson } from "@/components/admin/lessons-builder";
 import { QuestionReviewPanel } from "@/components/admin/question-review-panel";
 import { createModule, publishModule, getDueEmployees, scheduleSeminar, notifySeminar } from "@/lib/server/module-actions";
+import { linkResourceToModule } from "@/lib/server/module-resources-actions";
 import type { Lesson, Teacher } from "@/types";
+import type { Resource } from "@/lib/db/resources";
 
 interface AddModuleSheetProps {
   trigger?: React.ReactNode;
   teachers: Teacher[];
   defaultNumber?: number;
   lockedOwnerId?: string;
+  /** All existing SOPs that the admin can link to this new module. */
+  allSops?: Resource[];
 }
 
 type DueEmployee = { id: string; name: string; email: string; cohort: string | null };
 
-export function AddModuleSheet({ trigger, teachers, defaultNumber = 6, lockedOwnerId }: AddModuleSheetProps) {
+export function AddModuleSheet({ trigger, teachers, defaultNumber = 6, lockedOwnerId, allSops = [] }: AddModuleSheetProps) {
   const router = useRouter();
   const lockedOwner = lockedOwnerId ? teachers.find((t) => t.id === lockedOwnerId) : null;
   const [open, setOpen] = React.useState(false);
@@ -57,6 +61,12 @@ export function AddModuleSheet({ trigger, teachers, defaultNumber = 6, lockedOwn
     [title, number],
   );
   const [lessons, setLessons] = React.useState<Lesson[]>(() => [emptyLesson(draftSlug, 1)]);
+  // SOPs the admin wants to link as "required reading" — employees must sign
+  // each one before the module unlocks for them.
+  const [selectedSopIds, setSelectedSopIds] = React.useState<Set<string>>(new Set());
+  function toggleSop(id: string) {
+    setSelectedSopIds((prev) => { const n = new Set(prev); if (n.has(id)) n.delete(id); else n.add(id); return n; });
+  }
   const totalLessonMinutes = lessons.reduce((s, l) => s + (l.durationMinutes || 0), 0);
 
   // Step 2 — generation (the interactive panel reports how many were added)
@@ -82,6 +92,7 @@ export function AddModuleSheet({ trigger, teachers, defaultNumber = 6, lockedOwn
     setTitle(""); setDescription(""); setScheduledDate(""); setScheduledTime("");
     setOwnerTeacherIds(lockedOwnerId ? [lockedOwnerId] : []);
     setLessons([emptyLesson(`m-${number + 1}`, 1)]);
+    setSelectedSopIds(new Set());
     setGenAdded(0);
     setEmployees([]); setSelected(new Set()); setNotify(null); setEmpSearch("");
   }
@@ -102,8 +113,15 @@ export function AddModuleSheet({ trigger, teachers, defaultNumber = 6, lockedOwn
       timeLimitMinutes: hasTimeLimit ? timeLimitMinutes : null,
       ownerTeacherIds, lessons,
     });
+    if (!res.ok) { setSubmitting(false); toast.error(res.error ?? "Could not create module"); return; }
+    // Link any SOPs the admin picked — fire them in parallel; the module is
+    // already created, so a failure here only affects the SOP gating.
+    if (selectedSopIds.size > 0) {
+      await Promise.all(
+        Array.from(selectedSopIds).map((id) => linkResourceToModule(draftSlug, id)),
+      );
+    }
     setSubmitting(false);
-    if (!res.ok) { toast.error(res.error ?? "Could not create module"); return; }
     setCreatedSlug(draftSlug);
     setStep(2);
     router.refresh();
@@ -309,6 +327,41 @@ export function AddModuleSheet({ trigger, teachers, defaultNumber = 6, lockedOwn
               <p className="text-[11px] text-muted-foreground px-1">Upload videos, documents (Word/PDF), slides, or links. AI reads these to write the quiz.</p>
               <LessonsBuilder lessons={lessons} onChange={setLessons} moduleSlug={draftSlug} />
             </div>
+
+            {/* Optional: link required SOPs to this module. Employees must
+                sign each one before the module unlocks for them. */}
+            {allSops.length > 0 && (
+              <div className="space-y-2 -mx-2 px-2 py-3 rounded-lg bg-amber-50/40 dark:bg-amber-950/15 border border-amber-500/20">
+                <Label className="text-xs font-semibold uppercase tracking-wider flex items-center gap-1.5 px-1 text-amber-700 dark:text-amber-300">
+                  Required SOPs <span className="text-muted-foreground/70 font-normal lowercase">(optional)</span>
+                </Label>
+                <p className="text-[11px] text-muted-foreground px-1">
+                  Employees will have to sign every SOP picked here before they can open this module.
+                </p>
+                <div className="max-h-40 overflow-y-auto space-y-1 mt-2">
+                  {allSops.map((s) => {
+                    const sel = selectedSopIds.has(s.id);
+                    return (
+                      <label
+                        key={s.id}
+                        className={`flex items-center gap-2 px-2.5 py-1.5 rounded-md border cursor-pointer transition-colors ${sel ? "border-amber-500/40 bg-card" : "border-border bg-card/50 hover:bg-card"}`}
+                      >
+                        <Checkbox checked={sel} onCheckedChange={() => toggleSop(s.id)} />
+                        <div className="flex-1 min-w-0">
+                          <div className="text-sm font-medium truncate">{s.title}</div>
+                          <div className="text-[10px] text-muted-foreground truncate">{s.category}</div>
+                        </div>
+                      </label>
+                    );
+                  })}
+                </div>
+                {selectedSopIds.size > 0 && (
+                  <p className="text-[11px] text-amber-700 dark:text-amber-300 px-1">
+                    {selectedSopIds.size} SOP{selectedSopIds.size === 1 ? "" : "s"} will be linked to this module.
+                  </p>
+                )}
+              </div>
+            )}
 
             <div className="sticky bottom-0 -mx-6 px-6 py-3 flex justify-end gap-2 border-t bg-background/95 backdrop-blur">
               <Button type="submit" disabled={!canCreate || submitting}>

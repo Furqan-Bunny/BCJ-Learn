@@ -10,6 +10,8 @@ export interface Resource {
   title: string;
   category: string;
   description: string | null;
+  /** Rich-text body (Markdown) when the admin types the SOP inline. */
+  body: string | null;
   storagePath: string | null;
   externalUrl: string | null;
   version: number;
@@ -27,6 +29,7 @@ interface ResourceRow {
   title: string;
   category: string;
   description: string | null;
+  body: string | null;
   storage_path: string | null;
   external_url: string | null;
   version: number;
@@ -45,6 +48,7 @@ function rowToResource(r: ResourceRow): Resource {
     title: r.title,
     category: r.category,
     description: r.description,
+    body: r.body,
     storagePath: r.storage_path,
     externalUrl: r.external_url,
     version: r.version,

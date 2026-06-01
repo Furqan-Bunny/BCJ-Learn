@@ -4,9 +4,11 @@ import * as React from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { acknowledgeResource } from "@/lib/server/resource-actions";
+import type { ModuleSopStatus } from "@/lib/db/module-resources";
 import {
   Calendar, Target, Clock, Layers, PlayCircle, FileText, Link2,
-  BookOpen, Sparkles, Info, Lock,
+  BookOpen, Sparkles, Info, Lock, CheckCircle2,
 } from "lucide-react";
 import { toast } from "sonner";
 import { PageHeader } from "@/components/shared/page-header";
@@ -36,6 +38,7 @@ export interface ManagerModuleViewProps {
   sessionEndedAt: string | null;
   checkinOpen?: boolean;
   managerName?: string;
+  moduleSops?: ModuleSopStatus[];
 }
 
 export function ManagerModuleView({
@@ -49,17 +52,28 @@ export function ManagerModuleView({
   sessionEndedAt,
   checkinOpen = false,
   managerName = "",
+  moduleSops = [],
 }: ManagerModuleViewProps) {
   const [previewing, setPreviewing] = React.useState<LessonContent | null>(null);
+  // Locally-tracked signed status — flips optimistically when the employee
+  // signs an SOP so the gate unlocks without a page refresh.
+  const [sopsState, setSopsState] = React.useState<ModuleSopStatus[]>(moduleSops);
+  React.useEffect(() => { setSopsState(moduleSops); }, [moduleSops]);
+  const pendingSops = sopsState.filter((s) => !s.signed);
 
-  // Materials are seminar-only: an employee can view/preview the content ONLY
-  // after they've checked in at the live session (or already passed it — they
-  // attended before). This stops people from studying/sharing the material
-  // without attending.
+  // Materials are seminar-only AND SOP-gated. SOP-gate is hard: the entire
+  // module page locks until every linked SOP is signed.
   const alreadyPassed = myAttempts.some((a) => a.status === "passed");
-  const canViewMaterials = isCheckedIn || alreadyPassed;
+  const sopsCleared = pendingSops.length === 0 || alreadyPassed;
+  const canViewMaterials = sopsCleared && (isCheckedIn || alreadyPassed);
 
   function openContent(item: LessonContent) {
+    if (!sopsCleared) {
+      toast.info("Please sign the SOPs first", {
+        description: "All required SOPs must be signed before opening the module.",
+      });
+      return;
+    }
     if (!canViewMaterials) {
       toast.info("Materials open at the seminar", {
         description: "Check in at the live session to view the content.",
@@ -67,6 +81,19 @@ export function ManagerModuleView({
       return;
     }
     setPreviewing(item);
+  }
+
+  async function signSop(sop: ModuleSopStatus) {
+    // Optimistic flip — page unlocks immediately while the row is written.
+    setSopsState((prev) => prev.map((s) => (s.id === sop.id ? { ...s, signed: true, signedAt: new Date().toISOString() } : s)));
+    const res = await acknowledgeResource(sop.id);
+    if (!res.ok) {
+      // Roll back if the server rejected
+      setSopsState((prev) => prev.map((s) => (s.id === sop.id ? { ...s, signed: false, signedAt: null } : s)));
+      toast.error(res.error ?? "Could not record your signature");
+      return;
+    }
+    toast.success(`Signed: ${sop.title}`);
   }
 
   return (
@@ -82,6 +109,81 @@ export function ManagerModuleView({
         title={mod.title}
         description={mod.description}
       />
+
+      {/* ─── SOP gate ──────────────────────────────────────────────
+          The module is fully locked until every required SOP for it is
+          signed. Hides materials, hides the check-in / quiz card, shows
+          only this banner + the list of SOPs to sign. */}
+      {!sopsCleared && pendingSops.length > 0 && (
+        <Card className="mb-6 border-amber-500/40 bg-amber-50/40 dark:bg-amber-950/15 overflow-hidden">
+          <div className="h-1 bg-amber-500" />
+          <CardContent className="p-5">
+            <div className="flex items-start gap-3 mb-4">
+              <div className="size-10 rounded-md bg-amber-500/15 text-amber-700 dark:text-amber-300 flex items-center justify-center shrink-0">
+                <Lock className="size-5" />
+              </div>
+              <div>
+                <div className="font-semibold text-lg">Please sign the SOPs before you start this module</div>
+                <p className="text-sm text-muted-foreground mt-1">
+                  These Standard Operating Procedures are required reading. Open each one, read it, then sign to confirm. The module unlocks the moment everything is signed.
+                </p>
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              {sopsState.map((sop) => (
+                <div
+                  key={sop.id}
+                  className={`flex items-center gap-3 px-3 py-2.5 rounded-md border ${
+                    sop.signed
+                      ? "border-emerald-500/40 bg-emerald-50/50 dark:bg-emerald-950/20"
+                      : "border-border bg-card"
+                  }`}
+                >
+                  <div className={`size-9 rounded flex items-center justify-center shrink-0 ${
+                    sop.signed
+                      ? "bg-emerald-500 text-white"
+                      : "bg-muted text-muted-foreground"
+                  }`}>
+                    {sop.signed ? <CheckCircle2 className="size-4" /> : <FileText className="size-4" />}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="font-medium text-sm truncate">{sop.title}</div>
+                    <div className="text-xs text-muted-foreground truncate">
+                      {sop.category}{sop.description ? ` · ${sop.description}` : ""}
+                    </div>
+                  </div>
+                  {sop.externalUrl && (
+                    <Button asChild variant="ghost" size="sm">
+                      <a href={sop.externalUrl} target="_blank" rel="noreferrer">
+                        Open
+                      </a>
+                    </Button>
+                  )}
+                  {sop.signed ? (
+                    <Badge variant="outline" className="text-[10px] border-emerald-500/40 text-emerald-700 dark:text-emerald-300">
+                      ✓ Signed
+                    </Badge>
+                  ) : (
+                    <Button size="sm" onClick={() => signSop(sop)}>
+                      I have read and understood
+                    </Button>
+                  )}
+                </div>
+              ))}
+            </div>
+
+            <div className="mt-4 pt-3 border-t text-xs text-muted-foreground flex items-center gap-2">
+              <Lock className="size-3" />
+              {pendingSops.length} of {sopsState.length} SOP{sopsState.length === 1 ? "" : "s"} still to sign. The module stays locked until all are signed.
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Everything below stays hidden until the SOP gate is cleared, so the
+          employee can't peek at the check-in / quiz / materials section. */}
+      {sopsCleared && (<>
 
       {/* Check-in (only meaningful on the seminar day, once the trainer opens
           it). Lets the employee enter the room code right from the module. */}
@@ -238,6 +340,8 @@ export function ManagerModuleView({
           {teacher?.bio && ` · ${teacher.bio}`}
         </span>
       </div>
+
+      </>)}
 
       <ContentViewer content={canViewMaterials ? previewing : null} onClose={() => setPreviewing(null)} moduleSlug={mod.slug} />
     </>

@@ -23,7 +23,13 @@ import { RescheduleSeminar } from "@/components/admin/reschedule-seminar";
 import { ModuleSetupPanel } from "@/components/admin/module-setup-panel";
 import { ContentViewer } from "@/components/manager/content-viewer";
 import { fmtDate, initials } from "@/lib/format";
+import { toast } from "sonner";
+import { linkResourceToModule, unlinkResourceFromModule } from "@/lib/server/module-resources-actions";
+import {
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import type { LessonContent } from "@/types";
+import type { Resource } from "@/lib/db/resources";
 import type { ContentType, ModuleDef, Attempt, Question, Teacher, Manager } from "@/types";
 import type { RosterRow, RosterCounts } from "@/lib/db/roster";
 import type { DeliveryRecord } from "@/lib/db/deliveries";
@@ -47,6 +53,8 @@ export interface AdminModuleViewProps {
   managersById: Record<string, Pick<Manager, "id" | "name" | "avatarColor" | "cohort">>;
   currentDeliveryStart: string | null;
   addableManagers?: { id: string; name: string }[];
+  linkedSops?: Resource[];
+  allSops?: Resource[];
 }
 
 export function AdminModuleView({
@@ -60,11 +68,42 @@ export function AdminModuleView({
   managersById,
   currentDeliveryStart,
   addableManagers = [],
+  linkedSops = [],
+  allSops = [],
 }: AdminModuleViewProps) {
   const slug = mod.slug;
   // Inline content preview — click any content item to play / view it in the
   // same ContentViewer the employees see, without leaving the module page.
   const [previewing, setPreviewing] = React.useState<LessonContent | null>(null);
+
+  // SOPs linked to this module — admins can add/remove them. Optimistic local
+  // state so the list reacts instantly without a full page refresh.
+  const [sops, setSops] = React.useState<Resource[]>(linkedSops);
+  React.useEffect(() => { setSops(linkedSops); }, [linkedSops]);
+  const linkedIds = new Set(sops.map((s) => s.id));
+  const unlinkedSops = allSops.filter((s) => !linkedIds.has(s.id));
+
+  async function handleLinkSop(sop: Resource) {
+    setSops((prev) => [...prev, sop]);
+    const res = await linkResourceToModule(slug, sop.id);
+    if (!res.ok) {
+      setSops((prev) => prev.filter((s) => s.id !== sop.id));
+      toast.error(res.error ?? "Could not link the SOP");
+      return;
+    }
+    toast.success(`Linked: ${sop.title}`);
+  }
+
+  async function handleUnlinkSop(sop: Resource) {
+    setSops((prev) => prev.filter((s) => s.id !== sop.id));
+    const res = await unlinkResourceFromModule(slug, sop.id);
+    if (!res.ok) {
+      setSops((prev) => [...prev, sop]);
+      toast.error(res.error ?? "Could not unlink the SOP");
+      return;
+    }
+    toast.success(`Unlinked: ${sop.title}`);
+  }
 
   // Tab state — driven by a LOCAL state so the click switch happens
   // instantly. `?tab=` is updated async in the background so deep-links +
@@ -340,6 +379,61 @@ export function AdminModuleView({
         </div>
 
         <div className="space-y-4">
+          {/* Required SOPs — employees must sign every linked SOP before this
+              module unlocks for them. */}
+          <Card>
+            <CardHeader className="pb-2 flex flex-row items-center justify-between">
+              <CardTitle className="text-sm flex items-center gap-1.5">
+                <FileText className="size-3.5 text-amber-600 dark:text-amber-400" />
+                Required SOPs
+              </CardTitle>
+              {unlinkedSops.length > 0 && (
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button size="xs" variant="outline">+ Link SOP</Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="max-h-72 overflow-y-auto">
+                    {unlinkedSops.map((s) => (
+                      <DropdownMenuItem key={s.id} onClick={() => handleLinkSop(s)}>
+                        <span className="truncate">{s.title}</span>
+                      </DropdownMenuItem>
+                    ))}
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              )}
+            </CardHeader>
+            <CardContent className="space-y-2">
+              {sops.length === 0 ? (
+                <p className="text-xs text-muted-foreground">
+                  No SOPs linked. Employees can start this module without signing anything.
+                </p>
+              ) : (
+                <>
+                  {sops.map((s) => (
+                    <div key={s.id} className="flex items-center gap-2 rounded-md border px-2.5 py-2 bg-card">
+                      <FileText className="size-3.5 text-muted-foreground shrink-0" />
+                      <div className="flex-1 min-w-0">
+                        <div className="text-xs font-medium truncate">{s.title}</div>
+                        <div className="text-[10px] text-muted-foreground truncate">{s.category}</div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => handleUnlinkSop(s)}
+                        className="text-[10px] text-muted-foreground hover:text-rose-600"
+                        title="Remove from module"
+                      >
+                        Remove
+                      </button>
+                    </div>
+                  ))}
+                  <p className="text-[10px] text-muted-foreground pt-1">
+                    Employees must sign all {sops.length} before this module unlocks.
+                  </p>
+                </>
+              )}
+            </CardContent>
+          </Card>
+
           <Card>
             <CardHeader className="pb-2">
               <CardTitle className="text-sm">Module {moduleTeachers.length > 1 ? "owners" : "owner"}</CardTitle>

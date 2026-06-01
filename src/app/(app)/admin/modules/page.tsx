@@ -1,15 +1,17 @@
 import { listModules } from "@/lib/db/modules";
 import { listAttempts } from "@/lib/db/attempts";
 import { listTeachers } from "@/lib/db/profiles";
+import { listResources } from "@/lib/db/resources";
 import { dbClient } from "@/lib/supabase/db-client";
 import { AdminModulesView } from "./modules-view";
 import type { Teacher } from "@/types";
 
 export default async function AdminModulesPage() {
-  const [modules, attempts, teachers] = await Promise.all([
+  const [modules, attempts, teachers, allSops] = await Promise.all([
     listModules(),
     listAttempts(),
     listTeachers(),
+    listResources(),
   ]);
 
   // Enrich teachers with owned-module counts so AddModuleSheet shows "X modules owned" hints.
@@ -38,6 +40,7 @@ export default async function AdminModulesPage() {
       teacherNamesById={teacherNamesById}
       teachers={enrichedTeachers}
       defaultNumber={defaultNumber}
+      allSops={allSops}
     />
   );
 }

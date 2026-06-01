@@ -102,6 +102,18 @@ export async function uploadModuleContentResumable(
   });
 }
 
+/** Upload an SOP / resource file into the module-content bucket. */
+export async function uploadResourceFile(file: File): Promise<{ path: string }> {
+  const supabase = createClient();
+  const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, "_");
+  const path = `sop/${Date.now()}-${safeName}`;
+  const { error } = await supabase.storage
+    .from("module-content")
+    .upload(path, file, { upsert: false, cacheControl: "3600" });
+  if (error) throw error;
+  return { path };
+}
+
 /** Generate a short-lived signed URL for reading from the private bucket. */
 export async function signedUrlForContent(path: string): Promise<string> {
   const supabase = createClient();

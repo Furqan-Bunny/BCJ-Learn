@@ -12,6 +12,7 @@ import { Stagger, StaggerItem, CountUp } from "@/components/shared/animations";
 import { fmtDate } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import type { ModuleDef, Attempt, Teacher } from "@/types";
+import type { Resource } from "@/lib/db/resources";
 
 export interface AdminModulesViewProps {
   modules: ModuleDef[];
@@ -19,12 +20,13 @@ export interface AdminModulesViewProps {
   teacherNamesById: Record<string, string>;
   teachers: Teacher[];
   defaultNumber: number;
+  allSops?: Resource[];
 }
 
 type View = "list" | "cards";
 const VIEW_KEY = "bcj.modulesView";
 
-export function AdminModulesView({ modules, attempts, teacherNamesById, teachers, defaultNumber }: AdminModulesViewProps) {
+export function AdminModulesView({ modules, attempts, teacherNamesById, teachers, defaultNumber, allSops = [] }: AdminModulesViewProps) {
   // Default to the list view; remember the user's choice between visits.
   const [view, setView] = React.useState<View>("list");
   React.useEffect(() => {
@@ -68,7 +70,7 @@ export function AdminModulesView({ modules, attempts, teacherNamesById, teachers
         actions={
           <div className="flex items-center gap-2">
             <ViewToggle view={view} onChange={changeView} />
-            <AddModuleSheet teachers={teachers} defaultNumber={defaultNumber} />
+            <AddModuleSheet teachers={teachers} defaultNumber={defaultNumber} allSops={allSops} />
           </div>
         }
       />
