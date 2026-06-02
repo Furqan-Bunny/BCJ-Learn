@@ -857,3 +857,215 @@ export async function resetManagerForModule(
   revalidatePath(`/admin/managers/${managerId}`);
   return { ok: true };
 }
+
+// ─── updateModuleMetadata (admin) ──────────────────────────────────────
+// Edit a module's details after creation. Content/lessons are edited
+// separately via updateModuleLessons.
+
+export interface UpdateModuleMetadataInput {
+  number?: number;
+  title?: string;
+  description?: string;
+  scheduledMonth?: string | null;
+  scheduledDate?: string | null;
+  scheduledTime?: string | null;
+  passThreshold?: number;
+  questionCount?: number;
+  timeLimitMinutes?: number | null;
+}
+
+export async function updateModuleMetadata(
+  slug: string,
+  patch: UpdateModuleMetadataInput,
+): Promise<{ ok: boolean; error?: string }> {
+  const guard = await requireAdmin();
+  if (!guard.ok) return { ok: false, error: guard.error };
+
+  if (patch.title !== undefined && !patch.title.trim()) {
+    return { ok: false, error: "Title can't be empty" };
+  }
+  if (patch.passThreshold !== undefined && !(patch.passThreshold > 0 && patch.passThreshold <= 1)) {
+    return { ok: false, error: "Pass threshold must be between 0 and 1 (e.g. 0.85)" };
+  }
+  if (patch.questionCount !== undefined && patch.questionCount < 1) {
+    return { ok: false, error: "Question count must be at least 1" };
+  }
+  if (patch.number !== undefined && patch.number < 1) {
+    return { ok: false, error: "Module number must be at least 1" };
+  }
+
+  if (DEMO_MODE) return { ok: true };
+
+  const update: Record<string, unknown> = {};
+  if (patch.number !== undefined) update.number = patch.number;
+  if (patch.title !== undefined) update.title = patch.title.trim();
+  if (patch.description !== undefined) update.description = patch.description;
+  if (patch.scheduledMonth !== undefined) update.scheduled_month = patch.scheduledMonth;
+  if (patch.scheduledDate !== undefined) update.scheduled_date = patch.scheduledDate;
+  if (patch.scheduledTime !== undefined) update.scheduled_time = patch.scheduledTime;
+  if (patch.passThreshold !== undefined) update.pass_threshold = patch.passThreshold;
+  if (patch.questionCount !== undefined) update.question_count = patch.questionCount;
+  if (patch.timeLimitMinutes !== undefined) update.time_limit_minutes = patch.timeLimitMinutes;
+  if (Object.keys(update).length === 0) return { ok: true };
+
+  const admin = createAdminClient();
+  const { error } = await admin.from("modules").update(update).eq("slug", slug);
+  if (error) {
+    // The unique constraint on modules.number gives a clearer message.
+    if (error.message.toLowerCase().includes("unique") || error.code === "23505") {
+      return { ok: false, error: "That module number is already in use" };
+    }
+    return { ok: false, error: error.message };
+  }
+
+  await admin.from("activity").insert({
+    kind: "module_published",
+    actor_id: guard.userId,
+    target_id: null,
+    message: `${guard.userName} updated module ${patch.title?.trim() ?? slug}`,
+  });
+
+  revalidatePath("/admin/modules");
+  revalidatePath(`/admin/modules/${slug}`);
+  revalidatePath(`/teacher/modules/${slug}`);
+  revalidatePath("/teacher/modules");
+  return { ok: true };
+}
+
+// ─── updateModuleOwners (admin) ────────────────────────────────────────
+// Replace a module's owning Department Lead(s). At least one is required;
+// `primaryId` (if among the list) becomes the primary owner.
+
+export async function updateModuleOwners(
+  slug: string,
+  teacherIds: string[],
+  primaryId?: string,
+): Promise<{ ok: boolean; error?: string }> {
+  const guard = await requireAdmin();
+  if (!guard.ok) return { ok: false, error: guard.error };
+
+  const ids = Array.from(new Set(teacherIds.filter(Boolean)));
+  if (ids.length === 0) return { ok: false, error: "Assign at least one Department Lead" };
+
+  if (DEMO_MODE) return { ok: true };
+
+  const admin = createAdminClient();
+
+  // Validate every id is actually a teacher.
+  const { data: profs } = await admin.from("profiles").select("id, role").in("id", ids);
+  const teacherSet = new Set(
+    ((profs ?? []) as { id: string; role: string }[]).filter((p) => p.role === "teacher").map((p) => p.id),
+  );
+  if (teacherSet.size !== ids.length) {
+    return { ok: false, error: "Every owner must be a Department Lead" };
+  }
+
+  const primary = primaryId && ids.includes(primaryId) ? primaryId : ids[0];
+
+  await admin.from("module_owners").delete().eq("module_slug", slug);
+  const rows = ids.map((tid) => ({ module_slug: slug, teacher_id: tid, is_primary: tid === primary }));
+  const { error } = await admin.from("module_owners").insert(rows);
+  if (error) return { ok: false, error: error.message };
+
+  revalidatePath("/admin/modules");
+  revalidatePath(`/admin/modules/${slug}`);
+  revalidatePath("/admin/teachers");
+  revalidatePath("/teacher/modules");
+  return { ok: true };
+}
+
+// ─── archive / unarchive (admin) ───────────────────────────────────────
+// Archiving is the safe "delete": the module + its history stay in the DB
+// but managers no longer see it (manager RLS only exposes 'published').
+
+export async function archiveModule(slug: string): Promise<{ ok: boolean; error?: string }> {
+  const guard = await requireAdmin();
+  if (!guard.ok) return { ok: false, error: guard.error };
+  if (DEMO_MODE) return { ok: true };
+
+  const admin = createAdminClient();
+  const { error } = await admin.from("modules").update({ status: "archived" }).eq("slug", slug);
+  if (error) return { ok: false, error: error.message };
+
+  await admin.from("activity").insert({
+    kind: "module_published",
+    actor_id: guard.userId,
+    target_id: null,
+    message: `${guard.userName} archived module ${slug}`,
+  });
+
+  revalidatePath("/admin/modules");
+  revalidatePath(`/admin/modules/${slug}`);
+  revalidatePath("/teacher/modules");
+  return { ok: true };
+}
+
+export async function unarchiveModule(slug: string): Promise<{ ok: boolean; error?: string }> {
+  const guard = await requireAdmin();
+  if (!guard.ok) return { ok: false, error: guard.error };
+  if (DEMO_MODE) return { ok: true };
+
+  const admin = createAdminClient();
+  // Unarchive back to draft — admin re-publishes when ready.
+  const { error } = await admin.from("modules").update({ status: "draft" }).eq("slug", slug);
+  if (error) return { ok: false, error: error.message };
+
+  await admin.from("activity").insert({
+    kind: "module_published",
+    actor_id: guard.userId,
+    target_id: null,
+    message: `${guard.userName} restored module ${slug} from archive`,
+  });
+
+  revalidatePath("/admin/modules");
+  revalidatePath(`/admin/modules/${slug}`);
+  revalidatePath("/teacher/modules");
+  return { ok: true };
+}
+
+// ─── deleteModule (admin) ──────────────────────────────────────────────
+// Hard delete. Only allowed when the module has NO attempts (otherwise it
+// would destroy results history — archive instead). Requires the caller to
+// echo the module title to guard against accidents. Cascades to lessons,
+// questions, deliveries, invitees, attendance, etc. via FK ON DELETE CASCADE.
+
+export async function deleteModule(
+  slug: string,
+  confirmTitle: string,
+): Promise<{ ok: boolean; error?: string }> {
+  const guard = await requireAdmin();
+  if (!guard.ok) return { ok: false, error: guard.error };
+
+  const admin = createAdminClient();
+
+  const { data: mod } = await admin.from("modules").select("title").eq("slug", slug).maybeSingle();
+  const title = (mod as { title?: string } | null)?.title;
+  if (!title) return { ok: false, error: "Module not found" };
+  if (confirmTitle.trim() !== title.trim()) {
+    return { ok: false, error: "Type the module's exact title to confirm deletion" };
+  }
+
+  const { count: attemptCount } = await admin
+    .from("attempts")
+    .select("*", { count: "exact", head: true })
+    .eq("module_slug", slug);
+  if ((attemptCount ?? 0) > 0) {
+    return { ok: false, error: "This module has quiz attempts — archive it instead of deleting (keeps history)." };
+  }
+
+  if (DEMO_MODE) return { ok: true };
+
+  const { error } = await admin.from("modules").delete().eq("slug", slug);
+  if (error) return { ok: false, error: error.message };
+
+  await admin.from("activity").insert({
+    kind: "module_published",
+    actor_id: guard.userId,
+    target_id: null,
+    message: `${guard.userName} permanently deleted module ${title}`,
+  });
+
+  revalidatePath("/admin/modules");
+  revalidatePath("/teacher/modules");
+  return { ok: true };
+}
