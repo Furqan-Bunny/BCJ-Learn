@@ -2,8 +2,6 @@
 
 import * as React from "react";
 import { createClient } from "@/lib/supabase/client";
-import { useRoleStore } from "@/store/role-store";
-import { allUsers as mockUsers } from "@/data/users";
 import type { Role } from "@/types";
 
 const DEMO_MODE = process.env.NEXT_PUBLIC_DEMO_MODE === "true";
@@ -24,28 +22,19 @@ export interface CurrentUser {
 interface UseCurrentUserResult {
   user: CurrentUser | null;
   loading: boolean;
-  /** True in demo mode (Zustand-backed, no real session). */
+  /** Kept for callers that branch on it; always false now that mock data is gone. */
   isDemoMode: boolean;
 }
 
 /**
- * Returns the currently active user + profile.
- *
- *   • Demo mode  → reads role + authedUserId from Zustand role-store,
- *                  looks up the matching mock user from src/data/users.ts.
- *   • Production → subscribes to Supabase auth session, fetches the matching
- *                  profile from the `profiles` table.
+ * Returns the currently active user + profile by subscribing to the Supabase
+ * auth session and fetching the matching `profiles` row.
  */
 export function useCurrentUser(): UseCurrentUserResult {
-  const role = useRoleStore((s) => s.role);
-  const authedUserId = useRoleStore((s) => s.authedUserId);
-
-  const [supaUser, setSupaUser] = React.useState<CurrentUser | null>(null);
-  const [loading, setLoading] = React.useState(!DEMO_MODE);
+  const [user, setUser] = React.useState<CurrentUser | null>(null);
+  const [loading, setLoading] = React.useState(true);
 
   React.useEffect(() => {
-    if (DEMO_MODE) return;
-
     const supabase = createClient();
     let active = true;
 
@@ -59,13 +48,13 @@ export function useCurrentUser(): UseCurrentUserResult {
       if (!active) return;
 
       if (error || !data) {
-        setSupaUser(null);
+        setUser(null);
         setLoading(false);
         return;
       }
 
       const row = data as Record<string, unknown>;
-      setSupaUser({
+      setUser({
         id: userId,
         name: (row.name as string) ?? email,
         email,
@@ -86,7 +75,7 @@ export function useCurrentUser(): UseCurrentUserResult {
       if (user) {
         void loadProfile(user.id, user.email ?? "");
       } else {
-        setSupaUser(null);
+        setUser(null);
         setLoading(false);
       }
     });
@@ -97,7 +86,7 @@ export function useCurrentUser(): UseCurrentUserResult {
       if (session?.user) {
         void loadProfile(session.user.id, session.user.email ?? "");
       } else {
-        setSupaUser(null);
+        setUser(null);
         setLoading(false);
       }
     });
@@ -108,28 +97,5 @@ export function useCurrentUser(): UseCurrentUserResult {
     };
   }, []);
 
-  // Demo-mode user — derived from the mock-data tables and the role-store.
-  const demoUser = React.useMemo<CurrentUser | null>(() => {
-    if (!DEMO_MODE) return null;
-    const m = mockUsers.find((u) => u.id === authedUserId);
-    if (!m) return null;
-    return {
-      id: m.id,
-      name: m.name,
-      email: m.email,
-      role,
-      cohort: ("cohort" in m && typeof m.cohort === "string") ? m.cohort : null,
-      avatarColor: m.avatarColor,
-      avatarUrl: null,
-      status: ("status" in m && typeof m.status === "string") ? m.status : null,
-      bio: ("bio" in m && typeof m.bio === "string") ? m.bio : null,
-      title: ("title" in m && typeof m.title === "string") ? m.title : null,
-    };
-  }, [authedUserId, role]);
-
-  return {
-    user: DEMO_MODE ? demoUser : supaUser,
-    loading,
-    isDemoMode: DEMO_MODE,
-  };
+  return { user, loading, isDemoMode: DEMO_MODE };
 }

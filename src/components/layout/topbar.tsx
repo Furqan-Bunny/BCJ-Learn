@@ -3,7 +3,6 @@
 import * as React from "react";
 import { Search, Command as CmdIcon } from "lucide-react";
 import { RoleSwitcher } from "./role-switcher";
-import { UserSwitcher } from "./user-switcher";
 import { ThemeToggle } from "./theme-toggle";
 import { CommandPalette } from "./command-palette";
 import { UserMenu } from "./user-menu";
@@ -51,7 +50,6 @@ export function Topbar({ userId, initialNotifications, initialUnreadCount }: Top
         </button>
 
         <div className="ml-auto flex items-center gap-2">
-          <UserSwitcher />
           <RoleSwitcher />
           {userId && (
             <NotificationsBell

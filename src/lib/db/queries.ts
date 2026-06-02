@@ -1,6 +1,5 @@
-// Aggregate queries — mirror src/data/queries.ts function signatures so
-// page-level callers can swap `from "@/data/queries"` to `from "@/lib/db/queries"`
-// without changing anything else.
+// Aggregate queries — program-wide stats, cohort/module breakdowns, score
+// distribution, and at-risk/manager filtering, all backed by Supabase.
 
 import { dbClient } from "@/lib/supabase/db-client";
 import { listAttempts } from "./attempts";

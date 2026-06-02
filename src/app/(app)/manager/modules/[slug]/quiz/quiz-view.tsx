@@ -8,7 +8,6 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ArrowRight, ArrowLeft, Check, X, AlertCircle, Sparkles, Target, Clock, Layers, Loader2 } from "lucide-react";
 import { PageHeader } from "@/components/shared/page-header";
-import { questionsForModule } from "@/data/questions";
 import { toast } from "sonner";
 import type { ModuleDef, QuestionPool } from "@/types";
 import { ConfettiBurst, CountUp, DrawCheck, motion, AnimatePresence } from "@/components/shared/animations";
@@ -17,8 +16,6 @@ import {
   submitQuiz,
   type QuizQuestion,
 } from "@/lib/server/quiz-actions";
-
-const DEMO_MODE = process.env.NEXT_PUBLIC_DEMO_MODE === "true";
 
 type Phase = "intro" | "in-progress" | "submitted";
 
@@ -31,24 +28,6 @@ interface RenderQuestion {
 export function ManagerQuizView({ mod }: { mod: ModuleDef }) {
   const router = useRouter();
   const slug = mod.slug;
-
-  // Demo-mode pool selection — falls back to first-attempt since the real
-  // delivery cutoffs now live in the DB. Demo mode is for screenshots, not
-  // for behavior verification.
-  const demoActivePool: QuestionPool = "first-attempt";
-
-  const demoQuestions: RenderQuestion[] = React.useMemo(
-    () =>
-      questionsForModule(slug, demoActivePool)
-        .filter((q) => q.status === "approved")
-        .slice(0, mod.questionCount)
-        .map((q) => ({
-          id: q.id,
-          text: q.text,
-          options: q.options.map((o) => ({ id: o.id, text: o.text, correct: o.correct })),
-        })),
-    [slug, mod.questionCount, demoActivePool],
-  );
 
   const [phase, setPhase] = React.useState<Phase>("intro");
   const [idx, setIdx] = React.useState(0);
@@ -63,8 +42,8 @@ export function ManagerQuizView({ mod }: { mod: ModuleDef }) {
   const [submitting, setSubmitting] = React.useState(false);
   const [startError, setStartError] = React.useState<string | null>(null);
 
-  const activePool: QuestionPool = DEMO_MODE ? demoActivePool : (serverPool ?? "first-attempt");
-  const allQuestions: RenderQuestion[] = DEMO_MODE ? demoQuestions : (serverQuestions ?? []);
+  const activePool: QuestionPool = serverPool ?? "first-attempt";
+  const allQuestions: RenderQuestion[] = serverQuestions ?? [];
 
   React.useEffect(() => {
     if (phase !== "in-progress") return;
@@ -78,14 +57,6 @@ export function ManagerQuizView({ mod }: { mod: ModuleDef }) {
 
   async function start() {
     setStartError(null);
-
-    if (DEMO_MODE) {
-      setPhase("in-progress");
-      setIdx(0);
-      setAnswers({});
-      setSecondsLeft((mod.timeLimitMinutes ?? 30) * 60);
-      return;
-    }
 
     setStarting(true);
     const res = await startQuiz(slug);
@@ -107,18 +78,6 @@ export function ManagerQuizView({ mod }: { mod: ModuleDef }) {
   }
 
   async function submit() {
-    if (DEMO_MODE) {
-      let correct = 0;
-      for (const q of allQuestions) {
-        const correctOpt = q.options.find((o) => o.correct);
-        if (correctOpt && answers[q.id] === correctOpt.id) correct++;
-      }
-      const score = allQuestions.length > 0 ? Math.round((correct / allQuestions.length) * 100) : 0;
-      const passed = score >= Math.round(mod.passThreshold * 100);
-      finishWithResult({ score, correct, total: allQuestions.length, passed });
-      return;
-    }
-
     if (!attemptId) {
       toast.error("Lost the attempt session — please reload and start again.");
       return;
@@ -166,7 +125,7 @@ export function ManagerQuizView({ mod }: { mod: ModuleDef }) {
   }
 
   if (phase === "intro") {
-    const introQuestionCount = DEMO_MODE ? demoQuestions.length : mod.questionCount;
+    const introQuestionCount = mod.questionCount;
     return (
       <>
         <PageHeader

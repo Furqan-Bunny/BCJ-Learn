@@ -1,15 +1,10 @@
 // Server-side current user resolution.
 //
-// In demo mode we fall back to a deterministic mock user (Luke, the first
-// seeded manager) so server components render without a real Supabase
-// session. In production we read the cookie-bound auth session and look
-// up the corresponding profile row.
+// Reads the cookie-bound auth session and looks up the corresponding profile
+// row in `profiles`.
 
 import { createClient } from "@/lib/supabase/server";
-import { managers as mockManagers, teachers as mockTeachers, admins as mockAdmins } from "@/data/users";
 import type { Role, Cohort, ManagerStatus } from "@/types";
-
-const DEMO_MODE = process.env.NEXT_PUBLIC_DEMO_MODE === "true";
 
 export interface CurrentUser {
   id: string;
@@ -38,22 +33,6 @@ interface ProfileRow {
 }
 
 export async function getCurrentUser(): Promise<CurrentUser | null> {
-  if (DEMO_MODE) {
-    const m = mockManagers[0];
-    return {
-      id: m.id,
-      name: m.name,
-      email: m.email,
-      role: "manager",
-      cohort: m.cohort,
-      avatarColor: m.avatarColor,
-      avatarUrl: null,
-      status: m.status,
-      bio: null,
-      title: null,
-    };
-  }
-
   const sb = await createClient();
   const {
     data: { user },
@@ -79,55 +58,10 @@ export async function getCurrentUser(): Promise<CurrentUser | null> {
 }
 
 /**
- * Resolve a demo-mode user by role. Useful for pages that always need a
- * specific role of mock user (e.g. teacher pages should default to a
- * teacher, not a manager).
+ * Resolve the current user. The `role` argument is accepted for call-site
+ * clarity (e.g. teacher pages pass "teacher") but the real role always comes
+ * from the authenticated profile.
  */
-export async function getCurrentUserForRole(role: Role): Promise<CurrentUser | null> {
-  if (DEMO_MODE) {
-    if (role === "manager") {
-      const m = mockManagers[0];
-      return {
-        id: m.id,
-        name: m.name,
-        email: m.email,
-        role: "manager",
-        cohort: m.cohort,
-        avatarColor: m.avatarColor,
-        avatarUrl: null,
-        status: m.status,
-        bio: null,
-        title: null,
-      };
-    }
-    if (role === "teacher") {
-      const t = mockTeachers[0];
-      return {
-        id: t.id,
-        name: t.name,
-        email: t.email,
-        role: "teacher",
-        cohort: null,
-        avatarColor: t.avatarColor,
-        avatarUrl: null,
-        status: null,
-        bio: t.bio,
-        title: null,
-      };
-    }
-    const a = mockAdmins[0];
-    return {
-      id: a.id,
-      name: a.name,
-      email: a.email,
-      role: "admin",
-      cohort: null,
-      avatarColor: a.avatarColor,
-      avatarUrl: null,
-      status: null,
-      bio: null,
-      title: a.title,
-    };
-  }
+export async function getCurrentUserForRole(_role: Role): Promise<CurrentUser | null> {
   return getCurrentUser();
 }
