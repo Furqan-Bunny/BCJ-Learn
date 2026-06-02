@@ -5,7 +5,7 @@ import { AttemptQuestionReview } from "@/components/shared/attempt-question-revi
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   ArrowLeft,
   CheckCircle2,
@@ -155,6 +155,7 @@ export function AttemptDetailView({ attempt, m, mod, questions, deliveries }: At
         <Card>
           <CardContent className="p-5 flex items-center gap-4">
             <Avatar className="size-12 border">
+              <AvatarImage src={m.avatarUrl ?? undefined} alt={m.name} className="object-cover" />
               <AvatarFallback style={{ background: m.avatarColor, color: "white" }} className="font-semibold">
                 {initials(m.name)}
               </AvatarFallback>

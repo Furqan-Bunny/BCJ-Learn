@@ -11,7 +11,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   Plus, BookOpen, Calendar, Target, Clock, Layers, Lock, Check, Users, Loader2,
   ArrowRight, ArrowLeft, ListChecks, Rocket, Mail,
@@ -268,7 +268,7 @@ export function AddModuleSheet({ trigger, teachers, defaultNumber = 6, lockedOwn
                   <Badge variant="outline" className="ml-auto text-[10px] gap-1"><Lock className="size-2.5" /> You — locked</Badge>
                 </div>
                 <div className="flex items-center gap-3 p-3 rounded-md border bg-card">
-                  <Avatar className="size-10 border shrink-0"><AvatarFallback style={{ background: lockedOwner.avatarColor, color: "white" }} className="text-sm font-semibold">{initials(lockedOwner.name)}</AvatarFallback></Avatar>
+                  <Avatar className="size-10 border shrink-0"><AvatarImage src={lockedOwner.avatarUrl ?? undefined} alt={lockedOwner.name} className="object-cover" /><AvatarFallback style={{ background: lockedOwner.avatarColor, color: "white" }} className="text-sm font-semibold">{initials(lockedOwner.name)}</AvatarFallback></Avatar>
                   <div className="flex-1 min-w-0"><div className="font-semibold text-sm truncate">{lockedOwner.name}</div><div className="text-xs text-muted-foreground truncate">{lockedOwner.email}</div></div>
                 </div>
               </div>
@@ -288,7 +288,7 @@ export function AddModuleSheet({ trigger, teachers, defaultNumber = 6, lockedOwn
                     return (
                       <button key={t.id} type="button" onClick={() => toggleTeacher(t.id)} aria-pressed={sel}
                         className={`flex items-center gap-3 p-3 rounded-lg border transition-all text-left ${sel ? "border-primary bg-primary/10 ring-2 ring-primary/20" : "border-border bg-card hover:bg-accent/40 hover:border-primary/40"}`}>
-                        <Avatar className="size-9 border shrink-0"><AvatarFallback style={{ background: t.avatarColor, color: "white" }} className="text-xs font-semibold">{initials(t.name)}</AvatarFallback></Avatar>
+                        <Avatar className="size-9 border shrink-0"><AvatarImage src={t.avatarUrl ?? undefined} alt={t.name} className="object-cover" /><AvatarFallback style={{ background: t.avatarColor, color: "white" }} className="text-xs font-semibold">{initials(t.name)}</AvatarFallback></Avatar>
                         <div className="flex-1 min-w-0"><div className="font-medium text-sm truncate">{t.name}</div></div>
                         <div className={`size-4 rounded shrink-0 flex items-center justify-center ${sel ? "bg-primary border-2 border-primary" : "border-2 border-muted-foreground/30"}`}>{sel && <Check className="size-3 text-primary-foreground" strokeWidth={3} />}</div>
                       </button>
