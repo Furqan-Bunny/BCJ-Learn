@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { PageHeader } from "@/components/shared/page-header";
 import { StatusBadge } from "@/components/shared/status-badge";
@@ -106,6 +106,7 @@ export function MyProfileView({
           <Card>
             <CardContent className="p-5 text-center">
               <Avatar className="size-24 mx-auto border-2 border-primary/20">
+                <AvatarImage src={me.avatarUrl ?? undefined} alt={me.name} className="object-cover" />
                 <AvatarFallback
                   style={{ background: me.avatarColor, color: "white" }}
                   className="text-3xl font-bold"
