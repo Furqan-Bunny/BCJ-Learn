@@ -69,16 +69,16 @@ export function useCurrentUser(): UseCurrentUserResult {
       setLoading(false);
     }
 
-    // Initial session load
-    supabase.auth.getUser().then(({ data: { user } }) => {
+    // Re-read the session + profile. Called on mount, on auth changes, and
+    // whenever something (e.g. an avatar upload) fires "bcj:user-refresh".
+    async function syncFromSession() {
+      const { data: { user } } = await supabase.auth.getUser();
       if (!active) return;
-      if (user) {
-        void loadProfile(user.id, user.email ?? "");
-      } else {
-        setUser(null);
-        setLoading(false);
-      }
-    });
+      if (user) void loadProfile(user.id, user.email ?? "");
+      else { setUser(null); setLoading(false); }
+    }
+
+    void syncFromSession();
 
     // Subscribe to auth state changes (sign-in / sign-out / token refresh).
     const { data: sub } = supabase.auth.onAuthStateChange((_event, session) => {
@@ -91,9 +91,15 @@ export function useCurrentUser(): UseCurrentUserResult {
       }
     });
 
+    // Lets any component (profile photo upload, settings save) refresh the
+    // current-user across the app without a full reload.
+    const onRefresh = () => { void syncFromSession(); };
+    window.addEventListener("bcj:user-refresh", onRefresh);
+
     return () => {
       active = false;
       sub.subscription.unsubscribe();
+      window.removeEventListener("bcj:user-refresh", onRefresh);
     };
   }, []);
 

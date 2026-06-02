@@ -107,6 +107,7 @@ export function ProfileForm({ initial }: ProfileFormProps) {
       await sb.from("profiles").update({ avatar_url: url }).eq("id", initial.id);
       setAvatarUrl(url);
       toast.success("Profile photo updated");
+      window.dispatchEvent(new Event("bcj:user-refresh"));
       router.refresh();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Upload failed");
@@ -247,6 +248,7 @@ export function ProfileForm({ initial }: ProfileFormProps) {
                   await sb.from("profiles").update({ avatar_url: null }).eq("id", initial.id);
                   setAvatarUrl(null);
                   toast.success("Photo removed");
+                  window.dispatchEvent(new Event("bcj:user-refresh"));
                   router.refresh();
                 }}
               >

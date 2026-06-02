@@ -95,7 +95,9 @@ export function UserMenu() {
       if (profErr) throw profErr;
 
       toast.success("Profile photo updated");
-      // Refresh to pick up the new avatar across the UI.
+      // Update the avatar everywhere immediately (topbar, menu) without a reload,
+      // then refresh server components too.
+      window.dispatchEvent(new Event("bcj:user-refresh"));
       router.refresh();
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Upload failed";
