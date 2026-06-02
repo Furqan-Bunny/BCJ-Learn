@@ -41,5 +41,5 @@ export async function resendFromAddress(): Promise<string> {
   } catch {
     // fall through to env / default
   }
-  return envFrom ?? "BCJ Learn <noreply@bcj.com>";
+  return envFrom ?? "BCJ Learn <noreply@app.bcjbuildingservices.com>";
 }

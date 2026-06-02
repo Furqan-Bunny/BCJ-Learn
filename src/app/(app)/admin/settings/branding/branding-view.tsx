@@ -190,7 +190,7 @@ export function BrandingView({ initial }: { initial: BrandingSettings }) {
             <CardContent>
               <div className="space-y-1.5">
                 <Label>Sender address</Label>
-                <Input type="email" value={emailFrom} onChange={(e) => setEmailFrom(e.target.value)} />
+                <Input type="email" value={emailFrom} onChange={(e) => setEmailFrom(e.target.value)} placeholder="noreply@app.bcjbuildingservices.com" />
                 <p className="text-xs text-muted-foreground">All BCJ Learn emails go out from this address. It must be on your verified Resend sending domain, or emails will be rejected.</p>
               </div>
             </CardContent>
