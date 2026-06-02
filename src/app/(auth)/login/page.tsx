@@ -277,7 +277,7 @@ export default function LoginPage() {
                 src={logoUrl}
                 alt="BCJ Building Services"
                 onError={() => setLogoOk(false)}
-                className="h-9 w-auto object-contain"
+                className="h-9 w-auto object-contain rounded-md bg-white px-2 py-1"
               />
             ) : (
               <>

@@ -236,7 +236,11 @@ export function Sidebar({ logoUrl, brandName = "BCJ Learn" }: SidebarProps) {
           <img
             src={logoUrl}
             alt={brandName}
-            className={cn("w-auto object-contain", collapsed ? "h-7 mx-auto" : "h-9")}
+            // White chip so a dark/navy logo stays visible on the dark sidebar.
+            className={cn(
+              "w-auto object-contain rounded-md bg-white p-1.5",
+              collapsed ? "h-8 mx-auto" : "h-9",
+            )}
           />
         ) : (
           <>
