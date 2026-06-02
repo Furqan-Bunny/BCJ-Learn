@@ -15,7 +15,7 @@ import type { Role } from "@/types";
 import { cn } from "@/lib/utils";
 import { motion } from "framer-motion";
 import { createClient } from "@/lib/supabase/client";
-import { requestLoginOtp, verifyLoginOtp } from "@/lib/server/auth-actions";
+import { requestLoginOtp, verifyLoginOtp, requestPasswordReset } from "@/lib/server/auth-actions";
 import { toast } from "sonner";
 import { MeshGradient } from "@/components/shared/mesh-gradient";
 import { MagneticButton, TiltCard, DrawCheck } from "@/components/shared/animations";
@@ -89,9 +89,9 @@ export default function LoginPage() {
       return;
     }
 
-    const supabase = createClient();
-    const redirectTo = `${window.location.origin}/auth/reset-password`;
-    await supabase.auth.resetPasswordForEmail(forgotEmail, { redirectTo });
+    // Reset email is sent through our own Resend template (not Supabase Auth):
+    // requestPasswordReset mints the recovery link server-side and emails it.
+    await requestPasswordReset(forgotEmail, window.location.origin);
     // Always show success (don't leak whether email exists).
     setForgotSent(true);
     setForgotSubmitting(false);

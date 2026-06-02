@@ -90,3 +90,72 @@ export async function verifyLoginOtp(email: string, code: string) {
   await admin.from("email_otps").delete().eq("id", row.id);
   return { ok: true as const };
 }
+
+// ─── Password reset via our own Resend template ───────────────────────────
+// Instead of letting Supabase Auth send the recovery email, we mint the
+// recovery link with the admin API (generateLink) and send it ourselves with
+// the editable `password_reset` template through Resend. The existing
+// /auth/reset-password page consumes the link unchanged.
+
+const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "";
+
+/**
+ * Generate a Supabase recovery link for `email` and email it via our Resend
+ * `password_reset` template. Returns the real outcome (caller decides what to
+ * surface to the user).
+ */
+export async function sendPasswordResetEmail(opts: {
+  email: string;
+  /** Origin to return to (e.g. window.location.origin). Defaults to NEXT_PUBLIC_APP_URL. */
+  redirectBase?: string;
+}): Promise<{ ok: boolean; error?: string }> {
+  const email = opts.email.trim().toLowerCase();
+  if (!email) return { ok: false, error: "Email is required." };
+
+  const admin = createAdminClient();
+
+  const { data: profile } = await admin
+    .from("profiles")
+    .select("id, name")
+    .ilike("email", email)
+    .maybeSingle();
+  const p = profile as { id: string; name: string | null } | null;
+
+  const base = (opts.redirectBase || APP_URL || "").replace(/\/$/, "");
+  const redirectTo = `${base}/auth/reset-password`;
+
+  const { data, error } = await admin.auth.admin.generateLink({
+    type: "recovery",
+    email,
+    options: { redirectTo },
+  });
+  const actionLink = (data as { properties?: { action_link?: string } } | null)?.properties?.action_link;
+  if (error || !actionLink) {
+    return { ok: false, error: error?.message ?? "Could not generate a reset link." };
+  }
+
+  const sent = await sendEmail({
+    to: email,
+    templateKey: "password_reset",
+    recipientUserId: p?.id,
+    href: "/auth/reset-password",
+    variables: {
+      name: p?.name ?? "there",
+      reset_link: actionLink,
+    },
+  });
+  if (!sent.ok) return { ok: false, error: sent.error ?? "Could not send the reset email." };
+  return { ok: true };
+}
+
+/**
+ * Public "Forgot password" entry. Always returns ok so it never reveals
+ * whether an account exists for the given email.
+ */
+export async function requestPasswordReset(email: string, redirectBase?: string) {
+  const normalized = (email ?? "").trim().toLowerCase();
+  if (normalized) {
+    await sendPasswordResetEmail({ email: normalized, redirectBase }).catch(() => {});
+  }
+  return { ok: true as const };
+}

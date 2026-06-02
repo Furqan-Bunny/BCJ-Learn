@@ -5,6 +5,7 @@ import { createClient, createAdminClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
 import { pushInAppNotification } from "@/lib/notifications/push";
 import { sendEmail } from "@/lib/emails/send";
+import { sendPasswordResetEmail } from "@/lib/server/auth-actions";
 import type { Cohort, ManagerStatus, Role } from "@/types";
 
 // Invites expire after 7 days (keep in sync with the Supabase Auth OTP/invite
@@ -351,9 +352,9 @@ export async function forceResetPassword(userId: string) {
   const p = profile as { email?: string; name?: string } | null;
   if (!p?.email) return { ok: false as const, error: "User not found" };
 
-  const redirectTo = `${process.env.NEXT_PUBLIC_APP_URL ?? ""}/auth/reset-password`;
-  const { error } = await admin.auth.resetPasswordForEmail(p.email, { redirectTo });
-  if (error) return { ok: false as const, error: error.message };
+  // Send via our own Resend `password_reset` template (not Supabase Auth email).
+  const result = await sendPasswordResetEmail({ email: p.email });
+  if (!result.ok) return { ok: false as const, error: result.error };
 
   await logActivity(
     "password_reset_requested",
