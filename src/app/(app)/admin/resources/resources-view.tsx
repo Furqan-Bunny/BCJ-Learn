@@ -11,17 +11,26 @@ import { Switch } from "@/components/ui/switch";
 import {
   Sheet, SheetClose, SheetContent, SheetDescription, SheetFooter, SheetHeader, SheetTitle, SheetTrigger,
 } from "@/components/ui/sheet";
-import { FileText, Plus, Users, CheckCircle2, AlertCircle, Sparkles, Upload, X as XIcon, Loader2, Bold, Italic, List, Heading2 } from "lucide-react";
+import {
+  Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
+} from "@/components/ui/dialog";
+import { FileText, Plus, Users, CheckCircle2, AlertCircle, Sparkles, Upload, X as XIcon, Bold, Italic, List, Heading2, Pencil, Trash2 } from "lucide-react";
 import { fmtRelative } from "@/lib/format";
 import { Stagger, StaggerItem } from "@/components/shared/animations";
-import { createClient } from "@/lib/supabase/client";
 import { uploadResourceFile } from "@/lib/supabase/storage";
+import { createResource, editResource, deleteResource } from "@/lib/server/resource-actions";
+import { MARKETS } from "@/types/markets";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 import type { Resource } from "@/lib/db/resources";
+import type { Role } from "@/types";
 
-const DEMO_MODE = process.env.NEXT_PUBLIC_DEMO_MODE === "true";
+const ROLES: { value: Role; label: string }[] = [
+  { value: "manager", label: "Employees" },
+  { value: "teacher", label: "Department Leads" },
+  { value: "admin", label: "Admins" },
+];
 
 interface EnrichedResource extends Resource {
   ackCount: { acked: number; total: number };
@@ -29,48 +38,70 @@ interface EnrichedResource extends Resource {
 
 export function ResourcesAdminView({ initialResources }: { initialResources: EnrichedResource[] }) {
   const router = useRouter();
-  const [addOpen, setAddOpen] = React.useState(false);
+
+  // Sheet is dual-mode: editingId === null → create, otherwise edit that id.
+  const [sheetOpen, setSheetOpen] = React.useState(false);
+  const [editingId, setEditingId] = React.useState<string | null>(null);
   const [title, setTitle] = React.useState("");
   const [category, setCategory] = React.useState("General");
   const [description, setDescription] = React.useState("");
   const [body, setBody] = React.useState("");
   const [file, setFile] = React.useState<File | null>(null);
+  const [existingPath, setExistingPath] = React.useState<string | null>(null);
+  const [externalUrl, setExternalUrl] = React.useState("");
   const [dragOver, setDragOver] = React.useState(false);
-  const fileInputRef = React.useRef<HTMLInputElement>(null);
-  const bodyRef = React.useRef<HTMLTextAreaElement>(null);
   const [requiresAck, setRequiresAck] = React.useState(true);
+  const [assignedRoles, setAssignedRoles] = React.useState<Role[]>(["manager"]);
+  const [markets, setMarkets] = React.useState<string[]>([]); // [] = all markets
+  const [notifyOnUpdate, setNotifyOnUpdate] = React.useState(true);
+  const [requireReack, setRequireReack] = React.useState(false);
   const [submitting, setSubmitting] = React.useState(false);
 
-  // Lightweight markdown helpers — wrap the current selection (or insert at
-  // the caret) for the toolbar buttons in the SOP editor.
+  const [deleteTarget, setDeleteTarget] = React.useState<EnrichedResource | null>(null);
+  const [deleting, setDeleting] = React.useState(false);
+
+  const fileInputRef = React.useRef<HTMLInputElement>(null);
+  const bodyRef = React.useRef<HTMLTextAreaElement>(null);
+
   function wrapMarkdown(before: string, after = before) {
     const ta = bodyRef.current;
     if (!ta) return;
-    const start = ta.selectionStart;
-    const end = ta.selectionEnd;
+    const start = ta.selectionStart, end = ta.selectionEnd;
     const sel = body.slice(start, end);
-    const next = body.slice(0, start) + before + sel + after + body.slice(end);
-    setBody(next);
-    requestAnimationFrame(() => {
-      ta.focus();
-      ta.setSelectionRange(start + before.length, end + before.length);
-    });
+    setBody(body.slice(0, start) + before + sel + after + body.slice(end));
+    requestAnimationFrame(() => { ta.focus(); ta.setSelectionRange(start + before.length, end + before.length); });
   }
   function prefixLines(prefix: string) {
     const ta = bodyRef.current;
     if (!ta) return;
     const start = ta.selectionStart;
     const lineStart = body.lastIndexOf("\n", start - 1) + 1;
-    const next = body.slice(0, lineStart) + prefix + body.slice(lineStart);
-    setBody(next);
-    requestAnimationFrame(() => {
-      ta.focus();
-      ta.setSelectionRange(start + prefix.length, start + prefix.length);
-    });
+    setBody(body.slice(0, lineStart) + prefix + body.slice(lineStart));
+    requestAnimationFrame(() => { ta.focus(); ta.setSelectionRange(start + prefix.length, start + prefix.length); });
   }
 
-  function resetForm() {
-    setTitle(""); setDescription(""); setBody(""); setFile(null);
+  function openCreate() {
+    setEditingId(null);
+    setTitle(""); setCategory("General"); setDescription(""); setBody("");
+    setFile(null); setExistingPath(null); setExternalUrl("");
+    setRequiresAck(true); setAssignedRoles(["manager"]); setMarkets([]);
+    setNotifyOnUpdate(true); setRequireReack(false);
+    setSheetOpen(true);
+  }
+  function openEdit(r: EnrichedResource) {
+    setEditingId(r.id);
+    setTitle(r.title); setCategory(r.category); setDescription(r.description ?? ""); setBody(r.body ?? "");
+    setFile(null); setExistingPath(r.storagePath ?? null); setExternalUrl(r.externalUrl ?? "");
+    setRequiresAck(r.requiresAck); setAssignedRoles(r.assignedRoles?.length ? r.assignedRoles : ["manager"]);
+    setMarkets(r.assignedCohorts ?? []); setNotifyOnUpdate(r.notifyOnUpdate); setRequireReack(false);
+    setSheetOpen(true);
+  }
+
+  function toggleRole(role: Role) {
+    setAssignedRoles((prev) => (prev.includes(role) ? prev.filter((r) => r !== role) : [...prev, role]));
+  }
+  function toggleMarket(m: string) {
+    setMarkets((prev) => (prev.includes(m) ? prev.filter((x) => x !== m) : [...prev, m]));
   }
 
   function handleFilesPicked(files: FileList | File[] | null) {
@@ -86,22 +117,14 @@ export function ResourcesAdminView({ initialResources }: { initialResources: Enr
     byCategory.set(r.category, list);
   }
 
-  async function handleAdd(e: React.FormEvent) {
-    e.preventDefault();
-    if (!title.trim()) return;
+  async function handleSubmit(e?: React.FormEvent | React.MouseEvent) {
+    if (e && "preventDefault" in e) e.preventDefault();
+    if (!title.trim()) { toast.error("Title is required"); return; }
+    if (assignedRoles.length === 0) { toast.error("Pick at least one audience"); return; }
     setSubmitting(true);
 
-    if (DEMO_MODE) {
-      await new Promise((r) => setTimeout(r, 300));
-      toast.success(`Added "${title}" (demo)`);
-      setSubmitting(false);
-      setAddOpen(false);
-      resetForm();
-      return;
-    }
-
-    // Upload any attached file first; failure aborts the whole add.
-    let storagePath: string | null = null;
+    // Upload a newly-picked file; otherwise keep the existing path.
+    let storagePath: string | null = existingPath;
     if (file) {
       try {
         const { path } = await uploadResourceFile(file);
@@ -113,26 +136,38 @@ export function ResourcesAdminView({ initialResources }: { initialResources: Enr
       }
     }
 
-    const sb = createClient();
-    const { error } = await sb.from("resources").insert({
+    const payload = {
       title: title.trim(),
-      category,
+      category: category.trim() || "General",
       description: description.trim() || null,
       body: body.trim() || null,
-      storage_path: storagePath,
-      requires_ack: requiresAck,
-      assigned_roles: ["manager"],
-    });
+      storagePath,
+      externalUrl: externalUrl.trim() || null,
+      requiresAck,
+      assignedRoles,
+      assignedCohorts: markets.length ? markets : null,
+      notifyOnUpdate,
+    };
+
+    const result = editingId
+      ? await editResource(editingId, { ...payload, requireReack })
+      : await createResource(payload);
     setSubmitting(false);
 
-    if (error) {
-      toast.error(error.message);
-      return;
-    }
+    if (!result.ok) { toast.error(result.error ?? "Could not save"); return; }
+    toast.success(editingId ? `Updated "${title.trim()}"` : `Added "${title.trim()}"`);
+    setSheetOpen(false);
+    router.refresh();
+  }
 
-    toast.success(`Added "${title}"`);
-    setAddOpen(false);
-    resetForm();
+  async function confirmDelete() {
+    if (!deleteTarget) return;
+    setDeleting(true);
+    const result = await deleteResource(deleteTarget.id);
+    setDeleting(false);
+    if (!result.ok) { toast.error(result.error ?? "Could not delete"); return; }
+    toast.success(`Deleted "${deleteTarget.title}"`);
+    setDeleteTarget(null);
     router.refresh();
   }
 
@@ -142,158 +177,155 @@ export function ResourcesAdminView({ initialResources }: { initialResources: Enr
         <p className="text-sm text-muted-foreground">
           {initialResources.length} resource{initialResources.length === 1 ? "" : "s"} across {byCategory.size} categor{byCategory.size === 1 ? "y" : "ies"}
         </p>
-        <Sheet open={addOpen} onOpenChange={setAddOpen}>
-          <SheetTrigger asChild>
-            <Button>
-              <Plus className="size-4 mr-1.5" /> Add resource
-            </Button>
-          </SheetTrigger>
-          <SheetContent className="w-full sm:max-w-md">
-            <SheetHeader>
-              <SheetTitle>Add a resource</SheetTitle>
-              <SheetDescription>
-                SOPs, policies, safety updates. Optionally require employees to acknowledge.
-              </SheetDescription>
-            </SheetHeader>
-            <form onSubmit={handleAdd} className="px-4 pb-4 space-y-4">
-              <div className="space-y-1.5">
-                <Label htmlFor="r-title" className="text-xs">Title</Label>
-                <Input
-                  id="r-title"
-                  value={title}
-                  onChange={(e) => setTitle(e.target.value)}
-                  placeholder="e.g., Updated safety protocol — Oct 2026"
-                  className="h-10"
-                  autoFocus
-                />
-              </div>
-              <div className="space-y-1.5">
-                <Label htmlFor="r-category" className="text-xs">Category</Label>
-                <Input
-                  id="r-category"
-                  value={category}
-                  onChange={(e) => setCategory(e.target.value)}
-                  placeholder="HR / Safety / Operations / General"
-                  className="h-10"
-                />
-              </div>
-              <div className="space-y-1.5">
-                <Label htmlFor="r-desc" className="text-xs">Short description</Label>
-                <Textarea
-                  id="r-desc"
-                  value={description}
-                  onChange={(e) => setDescription(e.target.value)}
-                  placeholder="One-liner that shows on the SOP card."
-                  rows={2}
-                  className="resize-none"
-                />
-              </div>
-
-              {/* ─── File upload (drag-drop) ────────────────────────── */}
-              <div className="space-y-1.5">
-                <Label className="text-xs">Attach a file (PDF, Word, etc.)</Label>
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  className="hidden"
-                  onChange={(e) => handleFilesPicked(e.target.files)}
-                />
-                {file ? (
-                  <div className="flex items-center gap-2 rounded-md border bg-card px-3 py-2">
-                    <FileText className="size-4 text-primary" />
-                    <div className="flex-1 min-w-0">
-                      <div className="text-sm font-medium truncate">{file.name}</div>
-                      <div className="text-[11px] text-muted-foreground">
-                        {(file.size / 1024).toFixed(1)} KB
-                      </div>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => setFile(null)}
-                      className="text-muted-foreground hover:text-rose-600 p-1"
-                      aria-label="Remove file"
-                    >
-                      <XIcon className="size-4" />
-                    </button>
-                  </div>
-                ) : (
-                  <div
-                    onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
-                    onDragLeave={() => setDragOver(false)}
-                    onDrop={(e) => {
-                      e.preventDefault();
-                      setDragOver(false);
-                      handleFilesPicked(e.dataTransfer.files);
-                    }}
-                    onClick={() => fileInputRef.current?.click()}
-                    className={cn(
-                      "rounded-md border-2 border-dashed px-4 py-6 text-center cursor-pointer transition-colors",
-                      dragOver ? "border-primary bg-primary/5" : "border-border hover:border-primary/50 hover:bg-accent/30",
-                    )}
-                  >
-                    <Upload className="size-5 text-muted-foreground mx-auto mb-1.5" />
-                    <p className="text-sm font-medium">Drop a file here or click to pick</p>
-                    <p className="text-[11px] text-muted-foreground mt-0.5">PDF, Word, slides, images — anything employees need to read.</p>
-                  </div>
-                )}
-              </div>
-
-              {/* ─── Text editor (Markdown) ─────────────────────────── */}
-              <div className="space-y-1.5">
-                <Label htmlFor="r-body" className="text-xs">Or type the SOP here</Label>
-                <div className="rounded-md border bg-card">
-                  <div className="flex items-center gap-1 px-1.5 py-1 border-b bg-muted/40">
-                    <button type="button" onClick={() => wrapMarkdown("**")} className="p-1.5 rounded hover:bg-accent" title="Bold"><Bold className="size-3.5" /></button>
-                    <button type="button" onClick={() => wrapMarkdown("*")} className="p-1.5 rounded hover:bg-accent" title="Italic"><Italic className="size-3.5" /></button>
-                    <button type="button" onClick={() => prefixLines("## ")} className="p-1.5 rounded hover:bg-accent" title="Heading"><Heading2 className="size-3.5" /></button>
-                    <button type="button" onClick={() => prefixLines("- ")} className="p-1.5 rounded hover:bg-accent" title="Bulleted list"><List className="size-3.5" /></button>
-                    <span className="ml-auto text-[10px] text-muted-foreground pr-1.5">Markdown supported</span>
-                  </div>
-                  <Textarea
-                    id="r-body"
-                    ref={bodyRef}
-                    value={body}
-                    onChange={(e) => setBody(e.target.value)}
-                    placeholder={`Write the full SOP here. Examples:\n\n## Section title\nThis is a paragraph.\n\n- First step\n- Second step\n\n**Important:** safety note.`}
-                    rows={8}
-                    className="resize-y border-0 rounded-none rounded-b-md font-mono text-sm focus-visible:ring-0"
-                  />
-                </div>
-                <p className="text-[11px] text-muted-foreground">
-                  You can upload a file, type here, or both — employees will see all of it.
-                </p>
-              </div>
-
-              <div className="flex items-center justify-between rounded-md border p-3">
-                <div className="flex-1">
-                  <Label htmlFor="r-ack" className="text-sm font-medium">Require acknowledgement</Label>
-                  <p className="text-[11px] text-muted-foreground mt-0.5">
-                    Employees must click &ldquo;I have read and understood&rdquo; before the resource is marked complete.
-                  </p>
-                </div>
-                <Switch id="r-ack" checked={requiresAck} onCheckedChange={setRequiresAck} />
-              </div>
-            </form>
-            <SheetFooter>
-              <SheetClose asChild>
-                <Button variant="outline">Cancel</Button>
-              </SheetClose>
-              <Button onClick={handleAdd as unknown as React.MouseEventHandler<HTMLButtonElement>} disabled={!title.trim() || submitting}>
-                {submitting ? "Adding…" : "Add resource"}
-              </Button>
-            </SheetFooter>
-          </SheetContent>
-        </Sheet>
+        <Button onClick={openCreate}>
+          <Plus className="size-4 mr-1.5" /> Add resource
+        </Button>
       </div>
+
+      <Sheet open={sheetOpen} onOpenChange={setSheetOpen}>
+        <SheetContent className="w-full sm:max-w-md overflow-y-auto">
+          <SheetHeader>
+            <SheetTitle>{editingId ? "Edit resource" : "Add a resource"}</SheetTitle>
+            <SheetDescription>
+              SOPs, policies, safety updates. Choose who sees it and whether they must acknowledge.
+            </SheetDescription>
+          </SheetHeader>
+          <form onSubmit={handleSubmit} className="px-4 pb-4 space-y-4">
+            <div className="space-y-1.5">
+              <Label htmlFor="r-title" className="text-xs">Title</Label>
+              <Input id="r-title" value={title} onChange={(e) => setTitle(e.target.value)}
+                placeholder="e.g., Floor care SOP" className="h-10" autoFocus />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="r-category" className="text-xs">Category</Label>
+              <Input id="r-category" value={category} onChange={(e) => setCategory(e.target.value)}
+                placeholder="HR / Safety / Operations / General" className="h-10" />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="r-desc" className="text-xs">Short description</Label>
+              <Textarea id="r-desc" value={description} onChange={(e) => setDescription(e.target.value)}
+                placeholder="One-liner that shows on the SOP card." rows={2} className="resize-none" />
+            </div>
+
+            {/* Audience: roles + markets */}
+            <div className="space-y-1.5">
+              <Label className="text-xs flex items-center gap-1"><Users className="size-3" /> Who sees this</Label>
+              <div className="flex flex-wrap gap-2">
+                {ROLES.map((r) => {
+                  const sel = assignedRoles.includes(r.value);
+                  return (
+                    <button key={r.value} type="button" onClick={() => toggleRole(r.value)} aria-pressed={sel}
+                      className={cn("px-3 h-9 rounded-md border text-sm transition-colors",
+                        sel ? "bg-primary text-primary-foreground border-primary" : "bg-card border-border hover:bg-accent")}>
+                      {r.label}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs">Markets <span className="text-muted-foreground/70 font-normal">(none = all markets)</span></Label>
+              <div className="flex flex-wrap gap-2">
+                {MARKETS.map((m) => {
+                  const sel = markets.includes(m);
+                  return (
+                    <button key={m} type="button" onClick={() => toggleMarket(m)} aria-pressed={sel}
+                      className={cn("px-3 h-9 rounded-md border text-sm transition-colors",
+                        sel ? "bg-primary text-primary-foreground border-primary" : "bg-card border-border hover:bg-accent")}>
+                      {m}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* File upload */}
+            <div className="space-y-1.5">
+              <Label className="text-xs">Attach a file (PDF, Word, etc.)</Label>
+              <input ref={fileInputRef} type="file" className="hidden" onChange={(e) => handleFilesPicked(e.target.files)} />
+              {file || existingPath ? (
+                <div className="flex items-center gap-2 rounded-md border bg-card px-3 py-2">
+                  <FileText className="size-4 text-primary" />
+                  <div className="flex-1 min-w-0">
+                    <div className="text-sm font-medium truncate">{file ? file.name : "Current attachment"}</div>
+                    <div className="text-[11px] text-muted-foreground">{file ? `${(file.size / 1024).toFixed(1)} KB` : "Keep, or pick a new file to replace"}</div>
+                  </div>
+                  <button type="button" onClick={() => { setFile(null); setExistingPath(null); }}
+                    className="text-muted-foreground hover:text-rose-600 p-1" aria-label="Remove file">
+                    <XIcon className="size-4" />
+                  </button>
+                </div>
+              ) : (
+                <div
+                  onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
+                  onDragLeave={() => setDragOver(false)}
+                  onDrop={(e) => { e.preventDefault(); setDragOver(false); handleFilesPicked(e.dataTransfer.files); }}
+                  onClick={() => fileInputRef.current?.click()}
+                  className={cn("rounded-md border-2 border-dashed px-4 py-6 text-center cursor-pointer transition-colors",
+                    dragOver ? "border-primary bg-primary/5" : "border-border hover:border-primary/50 hover:bg-accent/30")}>
+                  <Upload className="size-5 text-muted-foreground mx-auto mb-1.5" />
+                  <p className="text-sm font-medium">Drop a file here or click to pick</p>
+                  <p className="text-[11px] text-muted-foreground mt-0.5">PDF, Word, slides, images.</p>
+                </div>
+              )}
+            </div>
+
+            <div className="space-y-1.5">
+              <Label htmlFor="r-url" className="text-xs">Or link to an external doc (optional)</Label>
+              <Input id="r-url" value={externalUrl} onChange={(e) => setExternalUrl(e.target.value)}
+                placeholder="https://…" className="h-10" />
+            </div>
+
+            {/* Markdown body */}
+            <div className="space-y-1.5">
+              <Label htmlFor="r-body" className="text-xs">Or type the SOP here</Label>
+              <div className="rounded-md border bg-card">
+                <div className="flex items-center gap-1 px-1.5 py-1 border-b bg-muted/40">
+                  <button type="button" onClick={() => wrapMarkdown("**")} className="p-1.5 rounded hover:bg-accent" title="Bold"><Bold className="size-3.5" /></button>
+                  <button type="button" onClick={() => wrapMarkdown("*")} className="p-1.5 rounded hover:bg-accent" title="Italic"><Italic className="size-3.5" /></button>
+                  <button type="button" onClick={() => prefixLines("## ")} className="p-1.5 rounded hover:bg-accent" title="Heading"><Heading2 className="size-3.5" /></button>
+                  <button type="button" onClick={() => prefixLines("- ")} className="p-1.5 rounded hover:bg-accent" title="Bulleted list"><List className="size-3.5" /></button>
+                  <span className="ml-auto text-[10px] text-muted-foreground pr-1.5">Markdown supported</span>
+                </div>
+                <Textarea id="r-body" ref={bodyRef} value={body} onChange={(e) => setBody(e.target.value)}
+                  placeholder={"## Section\nText…\n\n- Step one\n- Step two"} rows={7}
+                  className="resize-y border-0 rounded-none rounded-b-md font-mono text-sm focus-visible:ring-0" />
+              </div>
+            </div>
+
+            <div className="flex items-center justify-between rounded-md border p-3">
+              <div className="flex-1">
+                <Label htmlFor="r-ack" className="text-sm font-medium">Require acknowledgement</Label>
+                <p className="text-[11px] text-muted-foreground mt-0.5">Employees must confirm they&rsquo;ve read it.</p>
+              </div>
+              <Switch id="r-ack" checked={requiresAck} onCheckedChange={setRequiresAck} />
+            </div>
+
+            {editingId && (
+              <div className="flex items-center justify-between rounded-md border border-amber-500/30 bg-amber-50/40 dark:bg-amber-950/20 p-3">
+                <div className="flex-1">
+                  <Label htmlFor="r-reack" className="text-sm font-medium">Require re-acknowledgement</Label>
+                  <p className="text-[11px] text-muted-foreground mt-0.5">Bumps the version — everyone must sign again and gets notified.</p>
+                </div>
+                <Switch id="r-reack" checked={requireReack} onCheckedChange={setRequireReack} />
+              </div>
+            )}
+          </form>
+          <SheetFooter>
+            <SheetClose asChild><Button variant="outline">Cancel</Button></SheetClose>
+            <Button onClick={handleSubmit} disabled={!title.trim() || submitting}>
+              {submitting ? "Saving…" : editingId ? "Save changes" : "Add resource"}
+            </Button>
+          </SheetFooter>
+        </SheetContent>
+      </Sheet>
 
       {initialResources.length === 0 && (
         <Card>
           <CardContent className="p-12 text-center">
             <FileText className="size-10 mx-auto opacity-30 mb-3" />
             <div className="font-medium">No resources yet</div>
-            <div className="text-sm text-muted-foreground mt-1">
-              Add an SOP, safety document, or policy to get started.
-            </div>
+            <div className="text-sm text-muted-foreground mt-1">Add an SOP, safety document, or policy to get started.</div>
           </CardContent>
         </Card>
       )}
@@ -303,9 +335,7 @@ export function ResourcesAdminView({ initialResources }: { initialResources: Enr
           <h3 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground mb-3">{cat}</h3>
           <Stagger className="grid lg:grid-cols-2 gap-3">
             {list.map((r) => {
-              const ackPct = r.ackCount.total > 0
-                ? Math.round((r.ackCount.acked / r.ackCount.total) * 100)
-                : 0;
+              const ackPct = r.ackCount.total > 0 ? Math.round((r.ackCount.acked / r.ackCount.total) * 100) : 0;
               return (
                 <StaggerItem key={r.id} className="h-full">
                   <Card className="card-lift h-full">
@@ -317,21 +347,27 @@ export function ResourcesAdminView({ initialResources }: { initialResources: Enr
                           </div>
                           <div className="flex-1 min-w-0">
                             <div className="font-semibold truncate">{r.title}</div>
-                            {r.description && (
-                              <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">{r.description}</p>
-                            )}
+                            {r.description && <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">{r.description}</p>}
                             <div className="flex items-center gap-3 mt-2 text-[11px] text-muted-foreground">
-                              <span>v{r.version}</span>
-                              <span>·</span>
-                              <span>Updated {fmtRelative(r.updatedAt)}</span>
+                              <span>v{r.version}</span><span>·</span><span>Updated {fmtRelative(r.updatedAt)}</span>
                             </div>
                           </div>
                         </div>
-                        {r.requiresAck && (
-                          <Badge variant="outline" className="text-[10px] gap-1 shrink-0">
-                            <Sparkles className="size-2.5" /> Ack required
-                          </Badge>
-                        )}
+                        <div className="flex items-center gap-1 shrink-0">
+                          {r.requiresAck && (
+                            <Badge variant="outline" className="text-[10px] gap-1">
+                              <Sparkles className="size-2.5" /> Ack
+                            </Badge>
+                          )}
+                          <button type="button" onClick={() => openEdit(r)} title="Edit"
+                            className="p-1.5 rounded-md text-muted-foreground hover:bg-accent hover:text-foreground">
+                            <Pencil className="size-3.5" />
+                          </button>
+                          <button type="button" onClick={() => setDeleteTarget(r)} title="Delete"
+                            className="p-1.5 rounded-md text-muted-foreground hover:bg-rose-500/10 hover:text-rose-600">
+                            <Trash2 className="size-3.5" />
+                          </button>
+                        </div>
                       </div>
                       {r.requiresAck && (
                         <div className="mt-3 pt-3 border-t flex items-center justify-between text-xs">
@@ -362,6 +398,24 @@ export function ResourcesAdminView({ initialResources }: { initialResources: Enr
           </Stagger>
         </section>
       ))}
+
+      {/* Delete confirmation */}
+      <Dialog open={!!deleteTarget} onOpenChange={(o) => !o && setDeleteTarget(null)}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Delete resource?</DialogTitle>
+            <DialogDescription>
+              &ldquo;{deleteTarget?.title}&rdquo; will be permanently removed and unlinked from any modules. Past acknowledgements are kept for the record. This can&rsquo;t be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDeleteTarget(null)}>Cancel</Button>
+            <Button variant="destructive" onClick={confirmDelete} disabled={deleting}>
+              {deleting ? "Deleting…" : "Delete resource"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </>
   );
 }

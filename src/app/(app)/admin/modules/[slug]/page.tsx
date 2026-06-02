@@ -52,6 +52,7 @@ export default async function AdminModuleDetailPage(props: PageProps<"/admin/mod
     <AdminModuleView
       mod={mod}
       moduleTeachers={moduleTeachers}
+      allTeachers={allTeachers.map((t) => ({ id: t.id, name: t.name }))}
       attempts={attempts}
       questions={questions}
       roster={roster}

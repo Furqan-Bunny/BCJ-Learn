@@ -21,6 +21,7 @@ import { DeliveryHistory } from "@/components/shared/delivery-history";
 import { ScheduleRedelivery } from "@/components/admin/schedule-redelivery";
 import { RescheduleSeminar } from "@/components/admin/reschedule-seminar";
 import { ModuleSetupPanel } from "@/components/admin/module-setup-panel";
+import { EditModuleSheet } from "@/components/admin/edit-module-sheet";
 import { ContentViewer } from "@/components/manager/content-viewer";
 import { fmtDate, initials } from "@/lib/format";
 import { toast } from "sonner";
@@ -45,6 +46,7 @@ const TYPE_META: Record<ContentType, { icon: React.ComponentType<{ className?: s
 export interface AdminModuleViewProps {
   mod: ModuleDef;
   moduleTeachers: Teacher[];
+  allTeachers?: { id: string; name: string }[];
   attempts: Attempt[];
   questions: Question[];
   roster: RosterRow[];
@@ -60,6 +62,7 @@ export interface AdminModuleViewProps {
 export function AdminModuleView({
   mod,
   moduleTeachers,
+  allTeachers = [],
   attempts,
   questions,
   roster,
@@ -210,6 +213,7 @@ export function AdminModuleView({
               </Badge>
             )}
             <StatusBadge variant={mod.status} />
+            <EditModuleSheet mod={mod} allTeachers={allTeachers} />
             <Button asChild variant="outline">
               <Link href={`/teacher/modules/${slug}/content`}>
                 <BookOpen className="mr-2 size-4" /> Edit content
