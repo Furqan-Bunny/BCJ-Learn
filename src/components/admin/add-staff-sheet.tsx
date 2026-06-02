@@ -61,6 +61,7 @@ export function AddStaffSheet({ role, triggerLabel }: AddStaffSheetProps) {
   const [open, setOpen] = React.useState(false);
   const [name, setName] = React.useState("");
   const [email, setEmail] = React.useState("");
+  const [title, setTitle] = React.useState("");
   const [submitting, setSubmitting] = React.useState(false);
 
   const canSubmit = name.trim().length > 0 && /\S+@\S+\.\S+/.test(email.trim());
@@ -68,6 +69,7 @@ export function AddStaffSheet({ role, triggerLabel }: AddStaffSheetProps) {
   function reset() {
     setName("");
     setEmail("");
+    setTitle("");
   }
 
   async function handleSubmit(e?: React.FormEvent | React.MouseEvent) {
@@ -90,6 +92,7 @@ export function AddStaffSheet({ role, triggerLabel }: AddStaffSheetProps) {
       name: name.trim(),
       email: email.trim().toLowerCase(),
       role,
+      title: title.trim() || undefined,
     });
     setSubmitting(false);
 
@@ -152,6 +155,20 @@ export function AddStaffSheet({ role, triggerLabel }: AddStaffSheetProps) {
               className="h-10"
             />
             <p className="text-[11px] text-muted-foreground">Used for sign-in + all platform emails.</p>
+          </div>
+
+          <div className="space-y-1.5">
+            <Label htmlFor={`s-title-${role}`} className="text-xs flex items-center gap-1">
+              <Icon className="size-3" /> Title{" "}
+              <span className="text-muted-foreground/70 font-normal">(optional)</span>
+            </Label>
+            <Input
+              id={`s-title-${role}`}
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              placeholder={role === "admin" ? "e.g., Director of Operations" : "e.g., Senior Trainer"}
+              className="h-10"
+            />
           </div>
 
           <div className="rounded-lg border bg-muted/40 p-3 flex items-start gap-2">

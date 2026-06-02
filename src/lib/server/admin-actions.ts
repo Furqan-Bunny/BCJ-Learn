@@ -52,6 +52,8 @@ export interface InviteUserInput {
   cohort?: Cohort | null;
   /** New: one employee can belong to multiple markets. */
   markets?: string[] | null;
+  /** Optional job title (shown for admins / department leads). */
+  title?: string | null;
 }
 
 export async function inviteUser(input: InviteUserInput) {
@@ -89,6 +91,7 @@ export async function inviteUser(input: InviteUserInput) {
     .from("profiles")
     .update({
       name: input.name,
+      title: input.title?.trim() ? input.title.trim() : null,
       cohort: input.role === "manager" ? (markets[0] ?? null) : null,
       markets,
       status: "pending",
