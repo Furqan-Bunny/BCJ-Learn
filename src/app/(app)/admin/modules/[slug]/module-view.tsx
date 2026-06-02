@@ -10,7 +10,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import {
-  ArrowLeft, ArrowUpRight, BookOpen, Calendar, Clock, Layers, Target, FileText, PlayCircle,
+  ArrowLeft, ArrowUpRight, Calendar, Clock, Layers, Target, FileText, PlayCircle,
   Link2, ListChecks, BarChart3, Trophy, Users, AlertTriangle, PresentationIcon, Sparkles, Loader2,
 } from "lucide-react";
 import { PageHeader } from "@/components/shared/page-header";
@@ -214,11 +214,6 @@ export function AdminModuleView({
             )}
             <StatusBadge variant={mod.status} />
             <EditModuleSheet mod={mod} allTeachers={allTeachers} />
-            <Button asChild variant="outline">
-              <Link href={`/teacher/modules/${slug}/content`}>
-                <BookOpen className="mr-2 size-4" /> Edit content
-              </Link>
-            </Button>
             <Button asChild>
               <Link href={`/teacher/modules/${slug}/present`}>
                 <PresentationIcon className="mr-2 size-4" /> Open presenter
