@@ -93,7 +93,7 @@ export function ModuleSetupPanel({
             desc={hasContent ? `${lessonCount} lessons · ${contentItemCount} items` : "Upload videos / documents — AI uses these to write the quiz."}
           >
             <Button asChild variant="outline" size="sm">
-              <Link href={`/teacher/modules/${slug}/content`}>
+              <Link href={`/teacher/modules/${slug}/content?from=admin`}>
                 <BookOpen className="size-3.5 mr-1.5" /> Edit content
               </Link>
             </Button>

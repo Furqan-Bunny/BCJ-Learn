@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -31,6 +31,9 @@ const REASON_LABEL: Record<string, string> = {
 export function TeacherContentView({ mod }: { mod: ModuleDef }) {
   const router = useRouter();
   const slug = mod.slug;
+  // Return to wherever the editor was opened from (admin vs teacher module page).
+  const from = useSearchParams().get("from");
+  const backHref = from === "admin" ? `/admin/modules/${slug}` : `/teacher/modules/${slug}`;
   const [lessons, setLessons] = React.useState<Lesson[]>(mod.lessons);
   const [saving, setSaving] = React.useState(false);
   const [historyOpen, setHistoryOpen] = React.useState(false);
@@ -56,7 +59,7 @@ export function TeacherContentView({ mod }: { mod: ModuleDef }) {
   return (
     <>
       <Button asChild variant="ghost" size="sm" className="mb-4 -ml-2">
-        <Link href={`/teacher/modules/${slug}`}><ArrowLeft className="size-4 mr-1" /> Back to module</Link>
+        <Link href={backHref}><ArrowLeft className="size-4 mr-1" /> Back to module</Link>
       </Button>
 
       <PageHeader
