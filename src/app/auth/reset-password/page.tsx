@@ -23,21 +23,67 @@ export default function ResetPasswordPage() {
   const [submitting, setSubmitting] = React.useState(false);
   const [done, setDone] = React.useState(false);
 
-  // The reset email lands here with a recovery token in the URL hash. @supabase/ssr
-  // middleware exchanges it for a session. We just wait for the session to be ready.
+  // The reset email lands here with the recovery credentials in the URL. Two
+  // shapes are possible depending on the project's auth flow:
+  //   • implicit  → "#access_token=…&refresh_token=…&type=recovery" (hash)
+  //   • PKCE      → "?code=…" (query)
+  // We handle both explicitly (rather than racing the client's auto-detect),
+  // establish the session, then scrub the credentials from the address bar.
+  const INVALID_MSG = "Reset link is invalid or expired. Request a new one from the login page.";
   React.useEffect(() => {
     let cancelled = false;
-    supabase.auth.getSession().then(({ data, error }) => {
-      if (cancelled) return;
-      if (error || !data.session) {
-        setSessionError("Reset link is invalid or expired. Request a new one from the login page.");
-      } else {
+
+    async function init() {
+      const hash = window.location.hash.replace(/^#/, "");
+      const hashParams = new URLSearchParams(hash);
+      const accessToken = hashParams.get("access_token");
+      const refreshToken = hashParams.get("refresh_token");
+      const url = new URL(window.location.href);
+      const code = url.searchParams.get("code");
+      const errDesc = hashParams.get("error_description") || url.searchParams.get("error_description");
+
+      const finish = (ok: boolean) => {
+        if (cancelled) return;
+        if (ok) {
+          setSessionReady(true);
+          // Drop the token/code from the URL so a refresh or back-nav can't
+          // replay it and it isn't left visible in the address bar.
+          window.history.replaceState(null, "", url.pathname);
+        } else {
+          setSessionError(INVALID_MSG);
+        }
+      };
+
+      if (errDesc) return finish(false);
+
+      if (accessToken && refreshToken) {
+        const { error } = await supabase.auth.setSession({
+          access_token: accessToken,
+          refresh_token: refreshToken,
+        });
+        return finish(!error);
+      }
+
+      if (code) {
+        const { error } = await supabase.auth.exchangeCodeForSession(code);
+        return finish(!error);
+      }
+
+      // No credentials in the URL — only valid if a recovery session already exists.
+      const { data } = await supabase.auth.getSession();
+      return finish(!!data.session);
+    }
+
+    void init();
+
+    // Backstop: if the client emits PASSWORD_RECOVERY (auto-detect), accept it.
+    const { data: sub } = supabase.auth.onAuthStateChange((event) => {
+      if (event === "PASSWORD_RECOVERY" && !cancelled) {
+        setSessionError(null);
         setSessionReady(true);
       }
     });
-    const { data: sub } = supabase.auth.onAuthStateChange((event) => {
-      if (event === "PASSWORD_RECOVERY") setSessionReady(true);
-    });
+
     return () => {
       cancelled = true;
       sub.subscription.unsubscribe();
