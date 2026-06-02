@@ -118,7 +118,7 @@ export async function sendEmail(input: SendEmailInput): Promise<SendEmailResult>
   try {
     const client = resendClient();
     const { data, error } = await client.emails.send({
-      from: resendFromAddress(),
+      from: await resendFromAddress(),
       to: recipients,
       subject,
       html: bodyHtml,

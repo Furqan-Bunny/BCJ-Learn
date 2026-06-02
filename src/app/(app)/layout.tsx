@@ -7,18 +7,20 @@ import { WelcomeModal } from "@/components/onboarding/welcome-modal";
 import { getCurrentUser } from "@/lib/supabase/current-user";
 import { listMyNotifications, getMyUnreadCount } from "@/lib/db/notifications";
 import { getBrandingSettings } from "@/lib/db/settings";
-import { resolveBrandingLogoUrl } from "@/lib/branding";
+import { resolveBrandingLogoUrl, buildBrandingCss } from "@/lib/branding";
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const user = await getCurrentUser();
   const branding = await getBrandingSettings();
   const logoUrl = resolveBrandingLogoUrl(branding.logoPath);
+  const brandingCss = buildBrandingCss(branding.primaryColor, branding.accentColor);
   const [items, unreadCount] = user
     ? await Promise.all([listMyNotifications(20), getMyUnreadCount()])
     : [[], 0];
 
   return (
     <div className="flex min-h-screen">
+      {brandingCss && <style dangerouslySetInnerHTML={{ __html: brandingCss }} />}
       <RouteProgress />
       <Sidebar logoUrl={logoUrl} brandName={branding.name} />
       <div className="flex-1 flex flex-col min-w-0">

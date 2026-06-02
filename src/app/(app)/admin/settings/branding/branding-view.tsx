@@ -97,7 +97,7 @@ export function BrandingView({ initial }: { initial: BrandingSettings }) {
               <div className="space-y-1.5">
                 <Label>Displayed name</Label>
                 <Input value={name} onChange={(e) => setName(e.target.value)} className="h-11" />
-                <p className="text-xs text-muted-foreground">Shows in the sidebar logo, login page, and browser tab.</p>
+                <p className="text-xs text-muted-foreground">Shows next to the sidebar logo across the app.</p>
               </div>
             </CardContent>
           </Card>
@@ -125,6 +125,9 @@ export function BrandingView({ initial }: { initial: BrandingSettings }) {
                   </div>
                 </div>
               </div>
+              <p className="text-xs text-muted-foreground">
+                Applies to the app in light mode (buttons, links, highlights). Use a dark primary so button text stays readable. Dark mode keeps its tuned palette.
+              </p>
             </CardContent>
           </Card>
 
@@ -188,7 +191,7 @@ export function BrandingView({ initial }: { initial: BrandingSettings }) {
               <div className="space-y-1.5">
                 <Label>Sender address</Label>
                 <Input type="email" value={emailFrom} onChange={(e) => setEmailFrom(e.target.value)} />
-                <p className="text-xs text-muted-foreground">All BCJ Learn emails go out from this address.</p>
+                <p className="text-xs text-muted-foreground">All BCJ Learn emails go out from this address. It must be on your verified Resend sending domain, or emails will be rejected.</p>
               </div>
             </CardContent>
           </Card>

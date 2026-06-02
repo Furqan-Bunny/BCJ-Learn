@@ -33,6 +33,14 @@ export async function updateBrandingSettings(input: UpdateBrandingInput): Promis
   const guard = await requireAdmin();
   if (!guard.ok) return { ok: false, error: guard.error };
 
+  const HEX = /^#[0-9a-fA-F]{6}$/;
+  if (!HEX.test(input.primaryColor.trim()) || !HEX.test(input.accentColor.trim())) {
+    return { ok: false, error: "Colors must be 6-digit hex (e.g. #041D39)" };
+  }
+  if (input.emailFrom.trim() && !input.emailFrom.includes("@")) {
+    return { ok: false, error: "Enter a valid sender email address" };
+  }
+
   if (DEMO_MODE) return { ok: true };
 
   const admin = createAdminClient();
