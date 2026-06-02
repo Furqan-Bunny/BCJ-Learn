@@ -75,30 +75,29 @@ export function AuditLogView({ events, actorsById }: AuditLogViewProps) {
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0 }}
                     transition={{ duration: 0.3, delay: Math.min(idx * 0.025, 0.4), ease: [0.16, 1, 0.3, 1] }}
-                    className="px-5 py-3.5 flex items-center gap-4 hover:bg-accent/30 transition-colors"
+                    className="px-4 sm:px-5 py-3.5 flex items-start gap-3 sm:gap-4 hover:bg-accent/30 transition-colors"
                   >
-                    <div className={`size-9 rounded-md ${meta.bg} flex items-center justify-center shrink-0`}>
+                    <div className={`size-9 rounded-md ${meta.bg} flex items-center justify-center shrink-0 mt-0.5`}>
                       <meta.Icon className={`size-4 ${meta.text}`} />
                     </div>
                     <div className="flex-1 min-w-0">
-                      <div className="text-sm">{e.message}</div>
-                      <div className="text-xs text-muted-foreground mt-0.5 flex items-center gap-2">
+                      <div className="text-sm break-words">{e.message}</div>
+                      {/* Meta wraps on small screens instead of crowding into a fixed right column. */}
+                      <div className="text-xs text-muted-foreground mt-1 flex flex-wrap items-center gap-x-2 gap-y-1">
                         <Badge variant="outline" className="text-[10px] capitalize">{e.kind.replace(/_/g, " ")}</Badge>
-                        <span>{fmtDate(e.occurredAt, "MMM d, h:mm a")}</span>
+                        <span className="whitespace-nowrap">{fmtDate(e.occurredAt, "MMM d, h:mm a")}</span>
+                        {actor && (
+                          <span className="inline-flex items-center gap-1.5 min-w-0">
+                            <Avatar className="size-5 border shrink-0">
+                              <AvatarFallback style={{ background: actor.avatarColor, color: "white" }} className="text-[9px]">
+                                {initials(actor.name)}
+                              </AvatarFallback>
+                            </Avatar>
+                            <span className="truncate">{actor.name}</span>
+                          </span>
+                        )}
+                        <span className="tabular-nums whitespace-nowrap">· {fmtRelative(e.occurredAt)}</span>
                       </div>
-                    </div>
-                    <div className="flex items-center gap-2 shrink-0">
-                      {actor && (
-                        <>
-                          <Avatar className="size-7 border">
-                            <AvatarFallback style={{ background: actor.avatarColor, color: "white" }} className="text-[10px]">
-                              {initials(actor.name)}
-                            </AvatarFallback>
-                          </Avatar>
-                          <span className="text-xs text-muted-foreground hidden md:inline">{actor.name}</span>
-                        </>
-                      )}
-                      <span className="text-xs text-muted-foreground tabular-nums whitespace-nowrap text-right">{fmtRelative(e.occurredAt)}</span>
                     </div>
                   </motion.li>
                 );

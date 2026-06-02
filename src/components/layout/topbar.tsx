@@ -38,15 +38,18 @@ export function Topbar({ userId, initialNotifications, initialUnreadCount }: Top
         <button
           onClick={() => setPaletteOpen(true)}
           className={cn(
-            "group flex items-center gap-2 px-3 h-9 w-full max-w-md rounded-md border bg-card text-sm",
+            "group flex items-center gap-2 px-3 h-9 w-full max-w-md min-w-0 rounded-md border bg-card text-sm",
             "text-muted-foreground hover:bg-accent hover:border-primary/40 transition-all",
             "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40",
           )}
           aria-label="Open command palette"
         >
-          <Search className="size-4 transition-transform group-hover:scale-110 group-hover:text-primary" />
-          <span className="flex-1 text-left">Search employees, modules, actions…</span>
-          <kbd className="ml-auto inline-flex items-center gap-1 rounded border bg-muted px-1.5 py-0.5 font-mono text-[10px] transition-colors group-hover:border-primary/40">
+          <Search className="size-4 shrink-0 transition-transform group-hover:scale-110 group-hover:text-primary" />
+          <span className="flex-1 min-w-0 text-left truncate">
+            <span className="sm:hidden">Search…</span>
+            <span className="hidden sm:inline">Search employees, modules, actions…</span>
+          </span>
+          <kbd className="ml-auto hidden sm:inline-flex items-center gap-1 rounded border bg-muted px-1.5 py-0.5 font-mono text-[10px] transition-colors group-hover:border-primary/40">
             <CmdIcon className="size-3" /> K
           </kbd>
         </button>
