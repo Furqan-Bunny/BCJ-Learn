@@ -29,7 +29,7 @@ export default async function TeacherModulePage(props: PageProps<"/teacher/modul
   ]);
 
   const managersById = Object.fromEntries(
-    allManagers.map((m) => [m.id, { id: m.id, name: m.name, avatarColor: m.avatarColor, cohort: m.cohort }]),
+    allManagers.map((m) => [m.id, { id: m.id, name: m.name, avatarColor: m.avatarColor, avatarUrl: m.avatarUrl, cohort: m.cohort }]),
   );
 
   const rosterIds = new Set(roster.map((r) => r.manager.id));

@@ -3,7 +3,7 @@
 import * as React from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { CheckCircle2, X, Sparkles, Users, Bell, FileText, AlertTriangle, Search, RotateCcw, UserCheck, Play, Square } from "lucide-react";
 import { PageHeader } from "@/components/shared/page-header";
@@ -31,7 +31,7 @@ const ICONS = {
 
 export interface AuditLogViewProps {
   events: ActivityEvent[];
-  actorsById: Record<string, { id: string; name: string; avatarColor: string }>;
+  actorsById: Record<string, { id: string; name: string; avatarColor: string; avatarUrl?: string | null }>;
 }
 
 export function AuditLogView({ events, actorsById }: AuditLogViewProps) {
@@ -89,6 +89,7 @@ export function AuditLogView({ events, actorsById }: AuditLogViewProps) {
                         {actor && (
                           <span className="inline-flex items-center gap-1.5 min-w-0">
                             <Avatar className="size-5 border shrink-0">
+                              <AvatarImage src={actor.avatarUrl ?? undefined} alt={actor.name} className="object-cover" />
                               <AvatarFallback style={{ background: actor.avatarColor, color: "white" }} className="text-[9px]">
                                 {initials(actor.name)}
                               </AvatarFallback>

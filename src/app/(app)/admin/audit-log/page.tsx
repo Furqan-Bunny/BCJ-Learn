@@ -5,9 +5,9 @@ import { AuditLogView } from "./audit-log-view";
 export default async function AuditLogPage() {
   const [events, profiles] = await Promise.all([listActivity(), listAllProfiles()]);
 
-  const actorsById: Record<string, { id: string; name: string; avatarColor: string }> = {};
+  const actorsById: Record<string, { id: string; name: string; avatarColor: string; avatarUrl: string | null }> = {};
   for (const p of profiles) {
-    actorsById[p.id] = { id: p.id, name: p.name, avatarColor: p.avatarColor };
+    actorsById[p.id] = { id: p.id, name: p.name, avatarColor: p.avatarColor, avatarUrl: p.avatarUrl ?? null };
   }
 
   return <AuditLogView events={events} actorsById={actorsById} />;

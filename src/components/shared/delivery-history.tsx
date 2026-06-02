@@ -4,7 +4,7 @@ import * as React from "react";
 import Link from "next/link";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   History, Calendar, Users, Trophy, AlertTriangle, ChevronDown, ChevronUp,
   ArrowUpRight, Clock,
@@ -17,7 +17,7 @@ import type { Manager, Attempt } from "@/types";
 interface DeliveryHistoryProps {
   moduleSlug: string;
   deliveries: DeliveryRecord[];
-  managersById: Record<string, Pick<Manager, "id" | "name" | "avatarColor" | "cohort">>;
+  managersById: Record<string, Pick<Manager, "id" | "name" | "avatarColor" | "cohort" | "avatarUrl">>;
   attempts: Attempt[];
   managerLinkBase?: string;
 }
@@ -159,6 +159,7 @@ export function DeliveryHistory({
                                   className="flex items-center gap-2 px-2.5 py-2 rounded-md border bg-card hover:bg-accent/40 transition-colors"
                                 >
                                   <Avatar className="size-7 border shrink-0">
+                                    <AvatarImage src={m.avatarUrl ?? undefined} alt={m.name} className="object-cover" />
                                     <AvatarFallback style={{ background: m.avatarColor, color: "white" }} className="text-[10px] font-semibold">
                                       {initials(m.name)}
                                     </AvatarFallback>

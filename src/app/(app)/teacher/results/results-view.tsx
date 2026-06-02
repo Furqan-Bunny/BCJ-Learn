@@ -20,7 +20,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -65,6 +65,7 @@ export function TeacherResultsView({ rows, myModules }: TeacherResultsViewProps)
           return (
             <div className="flex items-center gap-3">
               <Avatar className="size-8 border">
+                <AvatarImage src={r.managerAvatarUrl ?? undefined} alt={r.managerName} className="object-cover" />
                 <AvatarFallback style={{ background: r.managerAvatarColor, color: "white" }} className="text-[10px] font-semibold">
                   {initials(r.managerName)}
                 </AvatarFallback>

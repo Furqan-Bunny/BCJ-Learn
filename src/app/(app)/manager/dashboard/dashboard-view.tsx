@@ -4,7 +4,7 @@ import * as React from "react";
 import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { ArrowRight, BookOpen, CheckCircle2, Sparkles, Target, Trophy } from "lucide-react";
 import { PageHeader } from "@/components/shared/page-header";
 import { StatusBadge } from "@/components/shared/status-badge";
@@ -23,6 +23,7 @@ export interface ManagerDashboardProps {
     cohort: Cohort | null;
     status: ManagerStatus;
     avatarColor: string;
+    avatarUrl?: string | null;
     modulesCompleted: number;
     averageScore: number;
   };
@@ -191,6 +192,7 @@ export function ManagerDashboardView({
                 {myActivity.map((e) => (
                   <li key={e.id} className="py-3 flex items-start gap-3">
                     <Avatar className="size-8 border">
+                      <AvatarImage src={me.avatarUrl ?? undefined} alt={me.name} className="object-cover" />
                       <AvatarFallback style={{ background: me.avatarColor, color: "white" }} className="text-xs">
                         {initials(me.name)}
                       </AvatarFallback>

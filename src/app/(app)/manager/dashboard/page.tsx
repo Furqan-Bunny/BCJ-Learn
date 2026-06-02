@@ -46,6 +46,7 @@ export default async function ManagerDashboardPage() {
         cohort: me.cohort as Cohort | null,
         status: (me.status ?? "active") as ManagerStatus,
         avatarColor: me.avatarColor,
+        avatarUrl: me.avatarUrl ?? null,
         modulesCompleted,
         averageScore,
       }}

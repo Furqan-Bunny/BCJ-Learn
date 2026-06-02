@@ -40,6 +40,7 @@ export default async function TeacherResultsPage() {
         managerName: m.name,
         managerEmail: m.email,
         managerAvatarColor: m.avatarColor,
+        managerAvatarUrl: m.avatarUrl ?? null,
         managerId: m.id,
         cohort: m.cohort,
         moduleSlug: mod.slug,

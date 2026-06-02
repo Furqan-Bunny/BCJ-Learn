@@ -210,6 +210,7 @@ export function AdminDashboardView({
                     </div>
                     {actor && (
                       <Avatar className="size-7 border shrink-0">
+                        <AvatarImage src={actor.avatarUrl ?? undefined} alt={actor.name} className="object-cover" />
                         <AvatarFallback style={{ background: actor.avatarColor, color: "white" }} className="text-[10px]">
                           {initials(actor.name)}
                         </AvatarFallback>

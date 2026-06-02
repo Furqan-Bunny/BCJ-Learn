@@ -38,7 +38,7 @@ export default async function AdminModuleDetailPage(props: PageProps<"/admin/mod
 
   const moduleTeachers: Teacher[] = allTeachers.filter((t) => mod.ownerTeacherIds.includes(t.id));
   const managersById = Object.fromEntries(
-    allManagers.map((m) => [m.id, { id: m.id, name: m.name, avatarColor: m.avatarColor, cohort: m.cohort }]),
+    allManagers.map((m) => [m.id, { id: m.id, name: m.name, avatarColor: m.avatarColor, avatarUrl: m.avatarUrl, cohort: m.cohort }]),
   );
 
   // Active employees not already on the current seminar roster — for the
