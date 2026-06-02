@@ -14,7 +14,6 @@ import {
   Bell,
   Settings,
   History,
-  Sparkles,
   PlayCircle,
   ListChecks,
   Trophy,
@@ -48,7 +47,7 @@ interface NavGroup {
 
 type NavNode = NavLink | NavGroup;
 
-const NAV_BY_ROLE: Record<Role, NavNode[]> = {
+export const NAV_BY_ROLE: Record<Role, NavNode[]> = {
   manager: [
     { kind: "link", label: "Dashboard", href: "/manager/dashboard", icon: LayoutDashboard },
     { kind: "link", label: "Modules", href: "/manager/modules", icon: BookOpen },
@@ -116,7 +115,7 @@ const NAV_BY_ROLE: Record<Role, NavNode[]> = {
   ],
 };
 
-const ROLE_ICON: Record<Role, IconType> = {
+export const ROLE_ICON: Record<Role, IconType> = {
   manager: GraduationCap,
   teacher: BookOpen,
   admin: ShieldCheck,
@@ -125,7 +124,7 @@ const ROLE_ICON: Record<Role, IconType> = {
 const COLLAPSED_KEY = "bcj-sidebar-collapsed";
 const OPEN_GROUPS_KEY = "bcj-sidebar-open-groups";
 
-function isActive(pathname: string, href: string): boolean {
+export function isActive(pathname: string, href: string): boolean {
   if (pathname === href) return true;
   if (href === "/") return false;
   return pathname.startsWith(href);
@@ -242,7 +241,7 @@ export function Sidebar({ logoUrl, brandName = "BCJ Learn" }: SidebarProps) {
         ) : (
           <>
             <div className="flex items-center justify-center size-9 rounded-lg bg-primary text-primary-foreground shrink-0">
-              <Sparkles className="size-4" />
+              <span className="text-[11px] font-bold tracking-tight">BCJ</span>
             </div>
             {!collapsed && (
               <div className="flex flex-col min-w-0 flex-1">

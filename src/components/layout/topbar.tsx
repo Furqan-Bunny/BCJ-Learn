@@ -3,6 +3,7 @@
 import * as React from "react";
 import { Search, Command as CmdIcon } from "lucide-react";
 import { RoleSwitcher } from "./role-switcher";
+import { MobileNav } from "./mobile-nav";
 import { ThemeToggle } from "./theme-toggle";
 import { CommandPalette } from "./command-palette";
 import { UserMenu } from "./user-menu";
@@ -33,6 +34,7 @@ export function Topbar({ userId, initialNotifications, initialUnreadCount }: Top
   return (
     <header className="sticky top-0 z-40 border-b bg-background/80 backdrop-blur-md supports-[backdrop-filter]:bg-background/60">
       <div className="flex items-center gap-3 px-4 md:px-6 h-14">
+        <MobileNav />
         <button
           onClick={() => setPaletteOpen(true)}
           className={cn(
