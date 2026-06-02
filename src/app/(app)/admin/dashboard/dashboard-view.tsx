@@ -4,7 +4,7 @@ import * as React from "react";
 import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   Users,
   AlertTriangle,
@@ -240,6 +240,7 @@ export function AdminDashboardView({
                 <Link href={`/admin/managers/${m.id}`}>
                   <div className="rounded-lg border p-3 hover:border-primary/40 hover:bg-accent/40 transition-all flex items-start gap-3">
                     <Avatar className="size-9 border shrink-0">
+                      <AvatarImage src={m.avatarUrl ?? undefined} alt={m.name} className="object-cover" />
                       <AvatarFallback style={{ background: m.avatarColor, color: "white" }} className="text-xs">
                         {initials(m.name)}
                       </AvatarFallback>

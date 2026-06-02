@@ -30,7 +30,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
@@ -106,6 +106,7 @@ export function AdminManagersView({ managers }: { managers: Manager[] }) {
           return (
             <div className="flex items-center gap-3">
               <Avatar className="size-9 border">
+                <AvatarImage src={m.avatarUrl ?? undefined} alt={m.name} className="object-cover" />
                 <AvatarFallback style={{ background: m.avatarColor, color: "white" }} className="text-xs font-semibold">
                   {initials(m.name)}
                 </AvatarFallback>

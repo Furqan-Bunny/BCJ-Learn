@@ -4,7 +4,7 @@ import * as React from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
@@ -89,6 +89,7 @@ export function AdminAdminsView({ admins, activityByActor }: AdminAdminsViewProp
                 <TableCell>
                   <div className="flex items-center gap-3">
                     <Avatar className="size-9 border">
+                      <AvatarImage src={a.avatarUrl ?? undefined} alt={a.name} className="object-cover" />
                       <AvatarFallback style={{ background: a.avatarColor, color: "white" }} className="text-xs font-semibold">
                         {initials(a.name)}
                       </AvatarFallback>
@@ -157,6 +158,7 @@ export function AdminAdminsView({ admins, activityByActor }: AdminAdminsViewProp
               <CardContent className="p-5 h-full">
                 <div className="flex items-center gap-3 mb-4 pb-4 border-b">
                   <Avatar className="size-10 border">
+                    <AvatarImage src={a.avatarUrl ?? undefined} alt={a.name} className="object-cover" />
                     <AvatarFallback style={{ background: a.avatarColor, color: "white" }} className="font-semibold">
                       {initials(a.name)}
                     </AvatarFallback>

@@ -105,7 +105,19 @@ export async function getModuleRoster(slug: string): Promise<RosterRow[]> {
     .select("*")
     .eq("module_slug", slug)
     .order("name");
-  return ((data ?? []) as RosterViewRow[]).map(viewRowToRoster);
+  const rows = ((data ?? []) as RosterViewRow[]).map(viewRowToRoster);
+
+  // The roster view doesn't expose avatar_url — batch-fetch + merge so the
+  // roster shows uploaded profile photos (not just initials).
+  const ids = rows.map((r) => r.manager.id);
+  if (ids.length > 0) {
+    const { data: pics } = await sb.from("profiles").select("id, avatar_url").in("id", ids);
+    const byId = new Map(
+      ((pics ?? []) as { id: string; avatar_url: string | null }[]).map((p) => [p.id, p.avatar_url]),
+    );
+    for (const r of rows) r.manager.avatarUrl = byId.get(r.manager.id) ?? null;
+  }
+  return rows;
 }
 
 export async function getModuleRosterCounts(slug: string): Promise<RosterCounts> {

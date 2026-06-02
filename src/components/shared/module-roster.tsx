@@ -11,7 +11,7 @@ import {
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
@@ -276,6 +276,7 @@ export function ModuleRoster({
                 return (
                   <li key={r.manager.id} className="px-4 py-3 flex items-center gap-3 hover:bg-accent/30 transition-colors">
                     <Avatar className="size-9 border shrink-0">
+                      <AvatarImage src={r.manager.avatarUrl ?? undefined} alt={r.manager.name} className="object-cover" />
                       <AvatarFallback style={{ background: r.manager.avatarColor, color: "white" }} className="text-xs font-semibold">
                         {initials(r.manager.name)}
                       </AvatarFallback>

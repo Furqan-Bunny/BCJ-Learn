@@ -4,7 +4,7 @@ import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   ArrowLeft,
   Bell,
@@ -207,6 +207,7 @@ export function ManagerDetailView({ m, modules, myAttempts, deliveriesByModule, 
           <Card>
             <CardContent className="p-5 text-center">
               <Avatar className="size-20 mx-auto border-2 border-primary/20">
+                <AvatarImage src={m.avatarUrl ?? undefined} alt={m.name} className="object-cover" />
                 <AvatarFallback style={{ background: m.avatarColor, color: "white" }} className="text-2xl font-bold">
                   {initials(m.name)}
                 </AvatarFallback>

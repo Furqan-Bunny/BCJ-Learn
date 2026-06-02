@@ -5,7 +5,7 @@ import Link from "next/link";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
@@ -89,6 +89,7 @@ export function AdminTeachersView({ teachers, modules, approvedByModule, totalBy
                 <TableCell>
                   <div className="flex items-center gap-3">
                     <Avatar className="size-9 border">
+                      <AvatarImage src={t.avatarUrl ?? undefined} alt={t.name} className="object-cover" />
                       <AvatarFallback style={{ background: t.avatarColor, color: "white" }} className="text-xs font-semibold">
                         {initials(t.name)}
                       </AvatarFallback>
@@ -174,6 +175,7 @@ export function AdminTeachersView({ teachers, modules, approvedByModule, totalBy
             <CardContent className="p-5 h-full">
               <div className="flex items-start gap-4">
                 <Avatar className="size-12 border">
+                  <AvatarImage src={t.avatarUrl ?? undefined} alt={t.name} className="object-cover" />
                   <AvatarFallback style={{ background: t.avatarColor, color: "white" }} className="font-semibold">
                     {initials(t.name)}
                   </AvatarFallback>

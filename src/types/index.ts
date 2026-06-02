@@ -14,6 +14,7 @@ export interface User {
   name: string;
   email: string;
   avatarColor: string; // hex, derived from name
+  avatarUrl?: string | null; // uploaded profile photo, if any
   role: Role;
   /** @deprecated Kept for back-compat — use `markets` instead. */
   cohort?: Cohort;
