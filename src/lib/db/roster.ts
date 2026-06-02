@@ -78,7 +78,7 @@ function viewRowToRoster(r: RosterViewRow): RosterRow {
     email: r.email,
     avatarColor: r.avatar_color,
     role: "manager",
-    cohort: (r.cohort ?? "Atlanta") as Cohort,
+    cohort: (r.cohort ?? "Georgia") as Cohort,
     joinedAt: r.delivery_started_at, // unused by callers; keep a sane value
     lastActiveAt: r.last_active_at,
     status: (r.profile_status ?? "active") as ManagerStatus,

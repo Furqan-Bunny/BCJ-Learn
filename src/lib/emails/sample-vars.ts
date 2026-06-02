@@ -25,7 +25,7 @@ export function buildSampleVars(opts?: {
     first_module_date: "next month",
     employee_name: "Jordan Lee",
     admin_name: name,
-    cohort: "Atlanta",
+    cohort: "Georgia",
     reason: "two failed retakes",
     profile_link: `${appUrl}/admin/managers`,
   };

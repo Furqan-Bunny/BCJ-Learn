@@ -157,7 +157,7 @@ export async function exportCohortSummaryCsv(): Promise<{ ok: boolean; csv?: str
   const { data: profilesData } = await admin.from("profiles").select("cohort, status").eq("role", "manager");
   const profiles = ((profilesData ?? []) as { cohort: string | null; status: string | null }[]);
 
-  const cohorts: Cohort[] = ["Atlanta", "Dallas", "Phoenix"];
+  const cohorts: Cohort[] = ["Georgia", "Tennessee", "North Carolina"];
   const rows = cohorts.map((c): (string | number)[] => {
     const inCohort = profiles.filter((p) => p.cohort === c);
     const completed = inCohort.filter((p) => p.status === "completed").length;

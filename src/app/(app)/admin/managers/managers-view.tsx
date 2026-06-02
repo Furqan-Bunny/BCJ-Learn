@@ -67,7 +67,7 @@ import { SearchLoadingBar, motion } from "@/components/shared/animations";
 import { sendReminder, sendBulkReminders } from "@/lib/server/reminder-actions";
 import { deactivateUser, resendInvite, deleteUser } from "@/lib/server/admin-actions";
 
-const COHORTS: Cohort[] = ["Atlanta", "Dallas", "Phoenix"];
+const COHORTS: Cohort[] = ["Georgia", "Tennessee", "North Carolina"];
 const STATUSES: ManagerStatus[] = ["pending", "active", "at-risk", "completed", "inactive"];
 
 export function AdminManagersView({ managers }: { managers: Manager[] }) {

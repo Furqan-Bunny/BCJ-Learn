@@ -29,7 +29,7 @@ import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 import { sendReminder } from "@/lib/server/reminder-actions";
 
-const COHORTS: Cohort[] = ["Atlanta", "Dallas", "Phoenix"];
+const COHORTS: Cohort[] = ["Georgia", "Tennessee", "North Carolina"];
 
 export interface TraineeRow extends Manager {
   myModuleAttempts: number;

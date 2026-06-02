@@ -3,7 +3,7 @@
 // admin "Add employee" / bulk-import / filter UI so that adding a market is a
 // one-line change.
 
-export const MARKETS = ["Atlanta", "Dallas", "Phoenix"] as const;
+export const MARKETS = ["Georgia", "Tennessee", "North Carolina"] as const;
 export type Market = (typeof MARKETS)[number];
 
 /** Normalise free-form text (e.g. from a CSV cell) to a canonical Market. */
@@ -12,7 +12,7 @@ export function normaliseMarket(raw: string): Market | null {
   return (MARKETS as readonly string[]).includes(t) ? (t as Market) : null;
 }
 
-/** Parse a CSV cell like "Atlanta;Dallas" into a unique list of markets. */
+/** Parse a CSV cell like "Georgia;Tennessee" into a unique list of markets. */
 export function parseMarketsCell(cell: string): Market[] {
   return Array.from(
     new Set(
@@ -24,7 +24,7 @@ export function parseMarketsCell(cell: string): Market[] {
   );
 }
 
-/** Format a list of markets for display ("Atlanta · Dallas"). */
+/** Format a list of markets for display ("Georgia · Tennessee"). */
 export function fmtMarkets(markets: string[] | null | undefined): string {
   if (!markets || markets.length === 0) return "—";
   return markets.join(" · ");

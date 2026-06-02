@@ -75,7 +75,7 @@ export async function programStats() {
 
 export async function cohortBreakdown() {
   const managers = await listManagers();
-  const cohorts: Cohort[] = ["Atlanta", "Dallas", "Phoenix"];
+  const cohorts: Cohort[] = ["Georgia", "Tennessee", "North Carolina"];
   return cohorts.map((c) => {
     const inCohort = managers.filter((m) => m.cohort === c);
     const completed = inCohort.filter((m) => m.status === "completed").length;

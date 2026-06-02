@@ -178,7 +178,7 @@ export function CheckInCard({
                 <Clock className="size-3.5" /> {mod.lessons.reduce((s, l) => s + l.durationMinutes, 0)} min seminar
               </span>
               <span className="flex items-center gap-1.5">
-                <MapPin className="size-3.5" /> Atlanta HQ Training Room
+                <MapPin className="size-3.5" /> On-site Training Room
               </span>
             </div>
           </div>

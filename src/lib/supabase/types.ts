@@ -12,7 +12,7 @@ export type Json =
   | Json[];
 
 export type UserRole = "manager" | "teacher" | "admin";
-export type Cohort = "Atlanta" | "Dallas" | "Phoenix";
+export type Cohort = "Georgia" | "Tennessee" | "North Carolina";
 export type ManagerStatus = "active" | "at-risk" | "inactive" | "completed";
 export type ModuleStatus = "draft" | "published" | "archived";
 export type AttemptStatus = "passed" | "failed" | "in-progress" | "scheduled";
