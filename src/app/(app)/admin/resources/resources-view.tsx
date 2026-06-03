@@ -14,11 +14,12 @@ import {
 import {
   Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
 } from "@/components/ui/dialog";
-import { FileText, Plus, Users, CheckCircle2, AlertCircle, Sparkles, Upload, X as XIcon, Bold, Italic, List, Heading2, Pencil, Trash2 } from "lucide-react";
+import { FileText, Plus, Users, CheckCircle2, AlertCircle, Sparkles, Upload, X as XIcon, Bold, Italic, List, Heading2, Pencil, Trash2, ChevronDown, Loader2, Circle } from "lucide-react";
 import { fmtRelative } from "@/lib/format";
 import { Stagger, StaggerItem } from "@/components/shared/animations";
 import { uploadResourceFile } from "@/lib/supabase/storage";
-import { createResource, editResource, deleteResource } from "@/lib/server/resource-actions";
+import { createResource, editResource, deleteResource, getAcknowledgementStatus } from "@/lib/server/resource-actions";
+import type { AckStatusRow } from "@/lib/db/resources";
 import { MARKETS } from "@/types/markets";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
@@ -370,25 +371,7 @@ export function ResourcesAdminView({ initialResources }: { initialResources: Enr
                         </div>
                       </div>
                       {r.requiresAck && (
-                        <div className="mt-3 pt-3 border-t flex items-center justify-between text-xs">
-                          <div className="flex items-center gap-1.5 text-muted-foreground">
-                            <Users className="size-3" />
-                            <span><span className="font-semibold text-foreground">{r.ackCount.acked}</span> of {r.ackCount.total} acknowledged</span>
-                          </div>
-                          <div className="flex items-center gap-1.5">
-                            {ackPct === 100 ? (
-                              <Badge className="bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-emerald-500/20 gap-1">
-                                <CheckCircle2 className="size-2.5" /> Complete
-                              </Badge>
-                            ) : ackPct > 0 ? (
-                              <span className="text-amber-600 dark:text-amber-400 font-medium tabular-nums">{ackPct}%</span>
-                            ) : (
-                              <span className="text-rose-600 dark:text-rose-400 inline-flex items-center gap-1">
-                                <AlertCircle className="size-2.5" /> Awaiting
-                              </span>
-                            )}
-                          </div>
-                        </div>
+                        <AckDrilldown resourceId={r.id} acked={r.ackCount.acked} total={r.ackCount.total} ackPct={ackPct} />
                       )}
                     </CardContent>
                   </Card>
@@ -417,5 +400,77 @@ export function ResourcesAdminView({ initialResources }: { initialResources: Enr
         </DialogContent>
       </Dialog>
     </>
+  );
+}
+
+/** Expandable ack summary: shows count/percentage, expands to per-user acked/pending list. */
+function AckDrilldown({ resourceId, acked, total, ackPct }: { resourceId: string; acked: number; total: number; ackPct: number }) {
+  const [open, setOpen] = React.useState(false);
+  const [rows, setRows] = React.useState<AckStatusRow[] | null>(null);
+  const [loading, setLoading] = React.useState(false);
+
+  async function toggle() {
+    const next = !open;
+    setOpen(next);
+    if (next && rows === null && !loading) {
+      setLoading(true);
+      const res = await getAcknowledgementStatus(resourceId);
+      setLoading(false);
+      if (res.ok) setRows(res.rows);
+      else toast.error(res.error);
+    }
+  }
+
+  return (
+    <div className="mt-3 pt-3 border-t text-xs">
+      <button
+        type="button"
+        onClick={toggle}
+        className="w-full flex items-center justify-between hover:text-foreground transition-colors"
+      >
+        <span className="flex items-center gap-1.5 text-muted-foreground">
+          <Users className="size-3" />
+          <span><span className="font-semibold text-foreground">{acked}</span> of {total} acknowledged</span>
+          <ChevronDown className={cn("size-3 transition-transform", open && "rotate-180")} />
+        </span>
+        <span className="flex items-center gap-1.5">
+          {ackPct === 100 ? (
+            <Badge className="bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-emerald-500/20 gap-1">
+              <CheckCircle2 className="size-2.5" /> Complete
+            </Badge>
+          ) : ackPct > 0 ? (
+            <span className="text-amber-600 dark:text-amber-400 font-medium tabular-nums">{ackPct}%</span>
+          ) : (
+            <span className="text-rose-600 dark:text-rose-400 inline-flex items-center gap-1">
+              <AlertCircle className="size-2.5" /> Awaiting
+            </span>
+          )}
+        </span>
+      </button>
+
+      {open && (
+        <div className="mt-2 rounded-md border bg-muted/20 max-h-56 overflow-y-auto divide-y">
+          {loading ? (
+            <div className="p-4 text-center text-muted-foreground"><Loader2 className="size-4 animate-spin mx-auto" /></div>
+          ) : !rows || rows.length === 0 ? (
+            <div className="p-4 text-center text-muted-foreground">No one is assigned this resource.</div>
+          ) : (
+            rows.map((u) => (
+              <div key={u.userId} className="flex items-center gap-2 px-3 py-1.5">
+                {u.acked ? (
+                  <CheckCircle2 className="size-3.5 text-emerald-500 shrink-0" />
+                ) : (
+                  <Circle className="size-3.5 text-muted-foreground/40 shrink-0" />
+                )}
+                <span className="flex-1 min-w-0 truncate font-medium">{u.name}</span>
+                <span className={cn("text-[10px] shrink-0", u.acked ? "text-emerald-600 dark:text-emerald-400" : "text-muted-foreground")}>
+                  {u.acked ? "Acknowledged" : "Pending"}
+                </span>
+              </div>
+            ))
+          )}
+        </div>
+      )}
+    </div>
   );
 }

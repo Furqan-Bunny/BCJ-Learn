@@ -154,3 +154,48 @@ export async function ackCountForResource(resourceId: string): Promise<{ acked: 
 
   return { acked: acked ?? 0, total: total ?? 0 };
 }
+
+export interface AckStatusRow {
+  userId: string;
+  name: string;
+  email: string;
+  acked: boolean;
+}
+
+/**
+ * For Admin's resources drill-down — the full list of assigned users and
+ * whether each has acknowledged the CURRENT version of a resource.
+ */
+export async function listAcknowledgementStatus(resourceId: string): Promise<AckStatusRow[]> {
+  const sb = await dbClient();
+  const { data: resource } = await sb
+    .from("resources")
+    .select("version, assigned_roles, assigned_cohorts")
+    .eq("id", resourceId)
+    .single();
+  const r = resource as { version: number; assigned_roles: Role[]; assigned_cohorts: Cohort[] | null } | null;
+  if (!r) return [];
+
+  // Assigned users
+  let assignedQ = sb.from("profiles").select("id, name, email").in("role", r.assigned_roles);
+  if (r.assigned_cohorts && r.assigned_cohorts.length > 0) {
+    assignedQ = assignedQ.in("cohort", r.assigned_cohorts);
+  }
+  const { data: people } = await assignedQ;
+  const users = (people ?? []) as { id: string; name: string; email: string }[];
+  if (users.length === 0) return [];
+
+  // Who acked the current version
+  const { data: acks } = await sb
+    .from("acknowledgements")
+    .select("user_id")
+    .eq("content_type", "resource")
+    .eq("content_ref", resourceId)
+    .eq("content_version", r.version)
+    .in("user_id", users.map((u) => u.id));
+  const ackedIds = new Set(((acks ?? []) as { user_id: string }[]).map((a) => a.user_id));
+
+  return users
+    .map((u) => ({ userId: u.id, name: u.name, email: u.email, acked: ackedIds.has(u.id) }))
+    .sort((a, b) => Number(a.acked) - Number(b.acked) || a.name.localeCompare(b.name));
+}

@@ -3,6 +3,7 @@
 import { createClient, createAdminClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
 import { pushInAppNotification } from "@/lib/notifications/push";
+import { listAcknowledgementStatus, type AckStatusRow } from "@/lib/db/resources";
 import type { Role } from "@/types";
 
 async function requireAdmin(): Promise<
@@ -181,4 +182,14 @@ export async function deleteResource(id: string): Promise<{ ok: boolean; error?:
   revalidatePath("/admin/resources");
   revalidatePath("/manager/resources");
   return { ok: true };
+}
+
+/** Admin drill-down: who has / hasn't acknowledged the current version of a resource. */
+export async function getAcknowledgementStatus(
+  resourceId: string,
+): Promise<{ ok: true; rows: AckStatusRow[] } | { ok: false; error: string }> {
+  const guard = await requireAdmin();
+  if (!guard.ok) return { ok: false, error: guard.error };
+  const rows = await listAcknowledgementStatus(resourceId);
+  return { ok: true, rows };
 }
