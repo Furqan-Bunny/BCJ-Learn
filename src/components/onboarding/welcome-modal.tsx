@@ -71,7 +71,7 @@ export function WelcomeModal() {
           <Item
             icon={Trophy}
             title="The 85% bar"
-            body="Pass each module's quiz with 85% or higher. Fail once and a retake is auto-scheduled with an easier question set."
+            body="Pass each module's quiz with 85% or higher. Don't pass and a retake is auto-scheduled — you get up to 3 attempts in total."
           />
           <Item
             icon={User}

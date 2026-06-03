@@ -33,7 +33,7 @@ export function ManagerQuizView({ mod }: { mod: ModuleDef }) {
   const [idx, setIdx] = React.useState(0);
   const [answers, setAnswers] = React.useState<Record<string, string>>({});
   const [secondsLeft, setSecondsLeft] = React.useState((mod.timeLimitMinutes ?? 30) * 60);
-  const [result, setResult] = React.useState<{ score: number; correct: number; total: number; passed: boolean } | null>(null);
+  const [result, setResult] = React.useState<{ score: number; correct: number; total: number; passed: boolean; locked: boolean; attemptsRemaining: number } | null>(null);
 
   const [serverQuestions, setServerQuestions] = React.useState<QuizQuestion[] | null>(null);
   const [serverPool, setServerPool] = React.useState<QuestionPool | null>(null);
@@ -101,25 +101,26 @@ export function ManagerQuizView({ mod }: { mod: ModuleDef }) {
       correct: res.correctCount,
       total: res.totalCount,
       passed: res.passed,
+      locked: res.locked,
+      attemptsRemaining: res.attemptsRemaining,
     });
   }
 
-  function finishWithResult(r: { score: number; correct: number; total: number; passed: boolean }) {
+  function finishWithResult(r: { score: number; correct: number; total: number; passed: boolean; locked: boolean; attemptsRemaining: number }) {
     setResult(r);
     setPhase("submitted");
-    const isRetake = activePool === "retake";
     toast(
       r.passed
-        ? `🎉 Passed at ${r.score}%${isRetake ? " (retake)" : ""}`
-        : isRetake
-          ? `${r.score}% on retake — your trainer will reach out`
-          : `${r.score}% — retake auto-scheduled`,
+        ? `🎉 Passed at ${r.score}%`
+        : r.locked
+          ? `${r.score}% — no attempts left`
+          : `${r.score}% — retake scheduled`,
       {
         description: r.passed
           ? `Module ${mod.number + 1} unlocks next month.`
-          : isRetake
-            ? "Couldn't pass the retake either. Your trainer is notified."
-            : "Don't worry — the retake uses an easier question set.",
+          : r.locked
+            ? "You've used all your attempts. Your Department Lead has been notified and will reach out."
+            : `${r.attemptsRemaining} ${r.attemptsRemaining === 1 ? "attempt" : "attempts"} left — a retake has been scheduled.`,
       },
     );
   }
@@ -153,7 +154,7 @@ export function ManagerQuizView({ mod }: { mod: ModuleDef }) {
                     <div>
                       <div className="font-semibold text-violet-900 dark:text-violet-200">This is your retake</div>
                       <div className="text-violet-800/80 dark:text-violet-300/80 mt-0.5">
-                        You&rsquo;re taking the easier retake pool. The questions cover the same material but are worded more directly.
+                        The questions cover the same material as before, reworded. Take your time and read each one carefully.
                       </div>
                     </div>
                   </div>
@@ -165,7 +166,7 @@ export function ManagerQuizView({ mod }: { mod: ModuleDef }) {
                   <AlertCircle className="size-4 text-amber-500 mt-0.5 shrink-0" />
                   <div className="text-muted-foreground">
                     {activePool === "first-attempt"
-                      ? "Questions are randomised. If you don't pass on the first attempt, BCJ Learn will automatically schedule a retake using an easier question set."
+                      ? "Everyone gets the same questions in a randomised order. If you don't pass, BCJ Learn will automatically schedule a retake — you get up to 3 attempts in total."
                       : "If you don't pass this retake either, your trainer will be notified and will reach out to schedule additional support."}
                   </div>
                 </div>
@@ -365,16 +366,25 @@ export function ManagerQuizView({ mod }: { mod: ModuleDef }) {
           <div className="mt-8 text-sm text-muted-foreground max-w-md mx-auto">
             {result?.passed
               ? `Module ${mod.number + 1} will unlock for you next month. Keep an eye out for the email invitation.`
-              : `A retake has been scheduled with an easier question set. Your Department Lead will follow up with the date.`}
+              : result?.locked
+                ? `You've used all 3 of your attempts for this module. Your Department Lead has been notified and will reach out to support you.`
+                : `A retake has been scheduled — you have ${result?.attemptsRemaining ?? 0} ${result?.attemptsRemaining === 1 ? "attempt" : "attempts"} left. Your Department Lead will follow up with the date.`}
           </div>
 
           <div className="mt-8 flex items-center justify-center gap-3">
             <Button asChild size="lg">
               <Link href="/manager/dashboard">Back to dashboard</Link>
             </Button>
-            <Button asChild variant="outline" size="lg">
-              <Link href={`/manager/modules/${slug}`}>Review materials</Link>
-            </Button>
+            {!result?.passed && (
+              <Button asChild variant="outline" size="lg">
+                <Link href={`/manager/attempts/${attemptId}`}>Review my answers</Link>
+              </Button>
+            )}
+            {result?.passed && (
+              <Button asChild variant="outline" size="lg">
+                <Link href={`/manager/modules/${slug}`}>Review materials</Link>
+              </Button>
+            )}
           </div>
         </CardContent>
       </Card>

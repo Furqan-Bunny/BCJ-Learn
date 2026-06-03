@@ -44,7 +44,7 @@ describe("computeQuizState", () => {
     expect(state.kind).toBe("needs-retake");
   });
 
-  it("failed first AND failed retake → failed-twice", () => {
+  it("failed first + retake (2 strikes) → still needs-retake, 1 left", () => {
     const state = computeQuizState({
       currentAttempts: [
         mkAttempt({ id: "a1", pool: "first-attempt", status: "failed", startedAt: "2026-06-02T10:00:00.000Z" }),
@@ -54,7 +54,22 @@ describe("computeQuizState", () => {
       isCheckedIn: true,
       now,
     });
-    expect(state.kind).toBe("failed-twice");
+    expect(state.kind).toBe("needs-retake");
+    if (state.kind === "needs-retake") expect(state.attemptsRemaining).toBe(1);
+  });
+
+  it("three failed attempts (3 strikes) → locked", () => {
+    const state = computeQuizState({
+      currentAttempts: [
+        mkAttempt({ id: "a1", pool: "first-attempt", status: "failed", startedAt: "2026-06-02T10:00:00.000Z" }),
+        mkAttempt({ id: "a2", pool: "retake", status: "failed", startedAt: "2026-06-03T10:00:00.000Z" }),
+        mkAttempt({ id: "a3", pool: "retake", status: "failed", startedAt: "2026-06-04T10:00:00.000Z" }),
+      ],
+      scheduledDate: "2026-06-01",
+      isCheckedIn: true,
+      now,
+    });
+    expect(state.kind).toBe("locked");
   });
 
   it("no attempts, checked in → ready", () => {

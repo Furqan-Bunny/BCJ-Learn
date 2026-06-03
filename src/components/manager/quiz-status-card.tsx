@@ -90,37 +90,37 @@ export function QuizStatusCard({
         variant={variant}
         accent="amber"
         icon={RefreshCcw}
-        eyebrow="Retake scheduled"
+        eyebrow="Retake available"
         title={`You scored ${fmtPct(state.failedAttempt.scorePct)} — needed ${Math.round(mod.passThreshold * 100)}%`}
-        description="A retake has been auto-scheduled with a different, easier question pool. Your trainer will follow up with the date."
+        description={`You have ${state.attemptsRemaining} attempt${state.attemptsRemaining === 1 ? "" : "s"} left. The retake covers the same material — review it, then try again.`}
         primaryAction={
           <Button asChild>
             <Link href={`/manager/modules/${mod.slug}/quiz`}>
-              Take retake now <ArrowRight className="size-4 ml-1" />
+              Retake quiz now <ArrowRight className="size-4 ml-1" />
             </Link>
           </Button>
         }
         meta={[
-          { icon: XCircle, label: "First attempt", value: fmtPct(state.failedAttempt.scorePct) },
-          { icon: Calendar, label: "Submitted", value: fmtRelative(state.failedAttempt.submittedAt ?? state.failedAttempt.startedAt) },
+          { icon: XCircle, label: "Last score", value: fmtPct(state.failedAttempt.scorePct) },
+          { icon: RefreshCcw, label: "Attempts left", value: String(state.attemptsRemaining) },
         ]}
       />
     );
   }
 
-  if (state.kind === "failed-twice") {
+  if (state.kind === "locked") {
     return (
       <StatusContainer
         variant={variant}
         accent="rose"
         icon={AlertTriangle}
-        eyebrow="Second attempt didn't pass"
+        eyebrow="Out of attempts"
         title="Talk to your trainer about next steps"
-        description={`First attempt: ${fmtPct(state.firstAttempt.scorePct)} · Retake: ${fmtPct(state.retakeAttempt.scorePct)}. The platform has flagged you for review — your trainer will reach out.`}
+        description={`You've used all ${state.attemptsUsed} attempts without reaching ${Math.round(mod.passThreshold * 100)}%. The platform has flagged you for review — your trainer will reach out.`}
         primaryAction={null}
         meta={[
-          { icon: XCircle, label: "First attempt", value: fmtPct(state.firstAttempt.scorePct) },
-          { icon: XCircle, label: "Retake", value: fmtPct(state.retakeAttempt.scorePct) },
+          { icon: XCircle, label: "Last score", value: fmtPct(state.lastAttempt.scorePct) },
+          { icon: AlertTriangle, label: "Attempts used", value: String(state.attemptsUsed) },
         ]}
       />
     );
@@ -177,7 +177,7 @@ export function QuizStatusCard({
         icon={Sparkles}
         eyebrow="Quiz is open"
         title={`Ready to take the ${mod.title} quiz`}
-        description="The seminar has wrapped up. Take the quiz now — you have one shot at the first attempt; an easier retake is auto-assigned if needed."
+        description="The seminar has wrapped up. Take the quiz now — everyone gets the same questions. If you don't pass, a retake is auto-assigned (up to 3 attempts in total)."
         primaryAction={
           <Button asChild size={variant === "full" ? "lg" : "default"} className={variant === "full" ? "h-11" : ""}>
             <Link href={`/manager/modules/${mod.slug}/quiz`}>

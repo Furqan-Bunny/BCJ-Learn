@@ -17,11 +17,12 @@
 //   - Pass once → no need to retake. (BCJ recommends annual refresher.)
 
 import type { Attempt } from "@/types";
+import { MAX_STRIKES } from "@/lib/quiz-pool";
 
 export type QuizState =
   | { kind: "passed"; passedAttempt: Attempt; refresherDueDate: string }
-  | { kind: "needs-retake"; failedAttempt: Attempt }
-  | { kind: "failed-twice"; firstAttempt: Attempt; retakeAttempt: Attempt }
+  | { kind: "needs-retake"; failedAttempt: Attempt; attemptsRemaining: number }
+  | { kind: "locked"; lastAttempt: Attempt; attemptsUsed: number }
   | { kind: "ready"; checkedIn: boolean }
   | { kind: "awaiting-seminar"; seminarDate: string }
   | { kind: "missed-session"; seminarDate: string };
@@ -99,15 +100,14 @@ export function computeQuizState({
     return { kind: "awaiting-seminar", seminarDate: scheduledDate };
   }
 
-  // Has failures
-  const firstAttempt = failedAttempts[0];
-  const retakeAttempt = failedAttempts.find((a, i) => i > 0 && a.pool === "retake");
+  // Has failures — 3-strike rule.
+  const lastFailed = failedAttempts[failedAttempts.length - 1];
 
-  if (retakeAttempt) {
-    // Failed first AND failed retake → escalate to admin / trainer
-    return { kind: "failed-twice", firstAttempt, retakeAttempt };
+  if (failedAttempts.length >= MAX_STRIKES) {
+    // Out of attempts → escalate to admin / trainer (locked).
+    return { kind: "locked", lastAttempt: lastFailed, attemptsUsed: failedAttempts.length };
   }
 
-  // Failed first attempt only — retake auto-scheduled (per scope §4.1.3)
-  return { kind: "needs-retake", failedAttempt: firstAttempt };
+  // Still has attempts left — a retake is available.
+  return { kind: "needs-retake", failedAttempt: lastFailed, attemptsRemaining: MAX_STRIKES - failedAttempts.length };
 }
