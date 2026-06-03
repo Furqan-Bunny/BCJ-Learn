@@ -74,6 +74,9 @@ export interface LessonContent {
   // Storage key in the `module-content` Supabase bucket — used to generate
   // signed URLs at read time for private file types.
   storagePath?: string;
+  // When true, this item is hidden from the live presenter playlist (still
+  // available to employees as optional pre-study material).
+  presentationHidden?: boolean;
 }
 
 export interface Lesson {

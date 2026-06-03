@@ -4,6 +4,7 @@ import * as React from "react";
 import {
   PlayCircle, FileText, Layers, Link2, Clock, Plus, GripVertical, Trash2,
   ChevronDown, ChevronUp, Sparkles, Upload, X, FileVideo, File as FileIcon,
+  Pencil, Eye, EyeOff,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -77,6 +78,7 @@ interface LessonsBuilderProps {
 export function LessonsBuilder({ lessons, onChange, moduleSlug }: LessonsBuilderProps) {
   const [expandedId, setExpandedId] = React.useState<string | null>(lessons[0]?.id ?? null);
   const [contentDialogFor, setContentDialogFor] = React.useState<{ lessonId: string; type: ContentType } | null>(null);
+  const [editContentFor, setEditContentFor] = React.useState<{ lessonId: string; content: LessonContent } | null>(null);
 
   const totalMinutes = lessons.reduce((s, l) => s + (l.durationMinutes || 0), 0);
 
@@ -117,6 +119,16 @@ export function LessonsBuilder({ lessons, onChange, moduleSlug }: LessonsBuilder
     onChange(
       lessons.map((l) =>
         l.id === lessonId ? { ...l, contents: l.contents.filter((c) => c.id !== contentId) } : l,
+      ),
+    );
+  }
+
+  function updateContent(lessonId: string, contentId: string, patch: Partial<LessonContent>) {
+    onChange(
+      lessons.map((l) =>
+        l.id === lessonId
+          ? { ...l, contents: l.contents.map((c) => (c.id === contentId ? { ...c, ...patch } : c)) }
+          : l,
       ),
     );
   }
@@ -310,7 +322,14 @@ export function LessonsBuilder({ lessons, onChange, moduleSlug }: LessonsBuilder
                               <Icon className="size-3.5" />
                             </div>
                             <div className="flex-1 min-w-0">
-                              <div className="text-sm font-medium truncate">{c.title}</div>
+                              <div className="text-sm font-medium truncate flex items-center gap-1.5">
+                                {c.title}
+                                {c.presentationHidden && (
+                                  <Badge variant="outline" className="text-[9px] gap-0.5 px-1 py-0 shrink-0 text-muted-foreground">
+                                    <EyeOff className="size-2.5" /> Not on presentation day
+                                  </Badge>
+                                )}
+                              </div>
                               <div className="text-[11px] text-muted-foreground flex items-center gap-2">
                                 <span>{meta.label}</span>
                                 {c.durationMinutes && (
@@ -327,6 +346,26 @@ export function LessonsBuilder({ lessons, onChange, moduleSlug }: LessonsBuilder
                                 )}
                               </div>
                             </div>
+                            <Button
+                              size="icon"
+                              variant="ghost"
+                              onClick={() => updateContent(lesson.id, c.id, { presentationHidden: !c.presentationHidden })}
+                              className="size-7 text-muted-foreground hover:text-foreground"
+                              title={c.presentationHidden ? "Show on presentation day" : "Hide on presentation day"}
+                              aria-label={c.presentationHidden ? "Show on presentation day" : "Hide on presentation day"}
+                            >
+                              {c.presentationHidden ? <EyeOff className="size-3.5" /> : <Eye className="size-3.5" />}
+                            </Button>
+                            <Button
+                              size="icon"
+                              variant="ghost"
+                              onClick={() => setEditContentFor({ lessonId: lesson.id, content: c })}
+                              className="size-7 text-muted-foreground hover:text-foreground"
+                              title="Edit"
+                              aria-label="Edit content"
+                            >
+                              <Pencil className="size-3.5" />
+                            </Button>
                             <Button
                               size="icon"
                               variant="ghost"
@@ -361,7 +400,126 @@ export function LessonsBuilder({ lessons, onChange, moduleSlug }: LessonsBuilder
           }
         }}
       />
+
+      {/* Edit Content dialog */}
+      <EditContentDialog
+        open={!!editContentFor}
+        content={editContentFor?.content ?? null}
+        onCancel={() => setEditContentFor(null)}
+        onSave={(patch) => {
+          if (editContentFor) {
+            updateContent(editContentFor.lessonId, editContentFor.content.id, patch);
+            setEditContentFor(null);
+          }
+        }}
+      />
     </div>
+  );
+}
+
+// ─── Edit Content dialog ───────────────────────────────────────────────
+// Lightweight metadata editor — title, duration, presentation-day visibility,
+// and (for link/video URLs) the external/embed URL. File replacement is done
+// by removing the item and re-adding (keeps the upload flow in one place).
+function EditContentDialog({
+  open,
+  content,
+  onCancel,
+  onSave,
+}: {
+  open: boolean;
+  content: LessonContent | null;
+  onCancel: () => void;
+  onSave: (patch: Partial<LessonContent>) => void;
+}) {
+  const [title, setTitle] = React.useState("");
+  const [duration, setDuration] = React.useState<number>(5);
+  const [url, setUrl] = React.useState("");
+  const [hidden, setHidden] = React.useState(false);
+
+  React.useEffect(() => {
+    if (open && content) {
+      setTitle(content.title);
+      setDuration(content.durationMinutes ?? 5);
+      setUrl(content.externalUrl ?? content.videoUrl ?? "");
+      setHidden(!!content.presentationHidden);
+    }
+  }, [open, content]);
+
+  if (!content) return null;
+  const meta = CONTENT_META[content.type];
+  const Icon = meta.icon;
+  const hasUrl = content.type === "link" || (content.type === "video" && !content.storagePath);
+
+  function handleSave() {
+    const patch: Partial<LessonContent> = {
+      title: title.trim() || content!.title,
+      durationMinutes: duration,
+      presentationHidden: hidden,
+    };
+    if (hasUrl && url.trim()) {
+      if (content!.type === "link") patch.externalUrl = url.trim();
+      else patch.videoUrl = url.trim();
+    }
+    onSave(patch);
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={(o) => !o && onCancel()}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <div className="flex items-center gap-2 mb-2">
+            <span className={cn("size-7 rounded flex items-center justify-center", meta.tint)}>
+              <Icon className="size-4" />
+            </span>
+            <Badge variant="outline" className="text-[10px] uppercase tracking-wider">Edit {meta.label}</Badge>
+          </div>
+          <DialogTitle>Edit content</DialogTitle>
+          <DialogDescription>
+            Update the title, duration{hasUrl ? ", URL" : ""}, and whether it shows on presentation day.
+            {content.fileName && " To swap the file, remove this item and add it again."}
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="space-y-4 py-1">
+          <div className="space-y-1.5">
+            <Label className="text-xs">Title</Label>
+            <Input value={title} onChange={(e) => setTitle(e.target.value)} className="h-10" />
+          </div>
+          {hasUrl && (
+            <div className="space-y-1.5">
+              <Label className="text-xs">{content.type === "video" ? "YouTube / Vimeo URL" : "URL"}</Label>
+              <Input value={url} onChange={(e) => setUrl(e.target.value)} placeholder="https://…" className="h-10" />
+            </div>
+          )}
+          <div className="space-y-1.5 w-40">
+            <Label className="text-xs"><Clock className="size-3 inline mr-1" /> Duration (min)</Label>
+            <Input type="number" min={1} max={120} value={duration} onChange={(e) => setDuration(Number(e.target.value))} className="h-10" />
+          </div>
+          <label className="flex items-center gap-3 rounded-md border p-3 cursor-pointer hover:bg-accent/30">
+            <input
+              type="checkbox"
+              checked={hidden}
+              onChange={(e) => setHidden(e.target.checked)}
+              className="size-4 accent-[var(--primary)]"
+            />
+            <div className="flex-1">
+              <div className="text-sm font-medium flex items-center gap-1.5">
+                {hidden ? <EyeOff className="size-3.5" /> : <Eye className="size-3.5" />} Don&rsquo;t show on presentation day
+              </div>
+              <div className="text-[11px] text-muted-foreground">
+                Employees can still review it as optional pre-study material.
+              </div>
+            </div>
+          </label>
+        </div>
+
+        <DialogFooter>
+          <Button variant="outline" onClick={onCancel}>Cancel</Button>
+          <Button onClick={handleSave} disabled={!title.trim()}>Save changes</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
 

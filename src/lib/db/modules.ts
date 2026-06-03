@@ -45,6 +45,7 @@ interface LessonContentRow {
     slides?: { title: string; bullets: string[] }[];
     fileName?: string;
     fileSize?: string;
+    presentationHidden?: boolean;
   } | null;
   order: number;
 }
@@ -102,6 +103,7 @@ function rowToLessonContent(r: LessonContentRow): LessonContent {
     fileName: meta.fileName,
     fileSize: meta.fileSize,
     storagePath: r.storage_path ?? undefined,
+    presentationHidden: meta.presentationHidden ?? undefined,
   };
 }
 

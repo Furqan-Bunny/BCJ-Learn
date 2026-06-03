@@ -55,11 +55,18 @@ export function PresenterView({
     void recordContentView(slug, contentId);
   }
 
+  // Items flagged "don't show on presentation day" are dropped from the live
+  // presenter view (they stay available to employees as optional pre-study).
+  const presentLessons = React.useMemo(
+    () => mod.lessons.map((l) => ({ ...l, contents: l.contents.filter((c) => !c.presentationHidden) })),
+    [mod],
+  );
+
   const playlist = React.useMemo(() => {
-    return mod.lessons.flatMap((l) =>
+    return presentLessons.flatMap((l) =>
       l.contents.map((c) => ({ lesson: l, content: c })),
     );
-  }, [mod]);
+  }, [presentLessons]);
 
   const [idx, setIdx] = React.useState(0);
   const [elapsedSec, setElapsedSec] = React.useState(0);
@@ -164,7 +171,7 @@ export function PresenterView({
     setTimeout(() => router.push(`/teacher/modules/${slug}/results`), 1200);
   }
 
-  const lessonsWithCounts = mod.lessons.map((l) => l.contents.length);
+  const lessonsWithCounts = presentLessons.map((l) => l.contents.length);
   let runningCount = 0;
   let currentLessonIndex = 0;
   let positionInLesson = 0;
@@ -176,7 +183,7 @@ export function PresenterView({
     }
     runningCount += lessonsWithCounts[i];
   }
-  const currentLesson = mod.lessons[currentLessonIndex];
+  const currentLesson = presentLessons[currentLessonIndex];
 
   const elapsedMin = Math.floor(elapsedSec / 60);
   const elapsedSecRem = elapsedSec % 60;
@@ -205,14 +212,14 @@ export function PresenterView({
         <div className="flex-1 mx-6 max-w-2xl">
           <div className="flex items-center justify-between text-[11px] text-slate-400 mb-1">
             <span>
-              Lesson <span className="text-white font-mono">{currentLessonIndex + 1}</span> of {mod.lessons.length} — <span className="text-white">{currentLesson?.title}</span>
+              Lesson <span className="text-white font-mono">{currentLessonIndex + 1}</span> of {presentLessons.length} — <span className="text-white">{currentLesson?.title}</span>
             </span>
             <span className="font-mono tabular-nums">
               {elapsedMin}:{elapsedSecRem.toString().padStart(2, "0")} elapsed · {totalMinutes} min planned
             </span>
           </div>
           <div className="h-1 bg-white/10 rounded-full overflow-hidden flex">
-            {mod.lessons.map((l, li) => {
+            {presentLessons.map((l, li) => {
               const isCurrent = li === currentLessonIndex;
               const isPast = li < currentLessonIndex;
               const segments = l.contents.length;
@@ -274,7 +281,7 @@ export function PresenterView({
           "border-r border-white/10 overflow-y-auto bg-slate-950/50 transition-opacity duration-200",
           !navOpen && "opacity-0 pointer-events-none",
         )}>
-          {mod.lessons.map((lesson, li) => {
+          {presentLessons.map((lesson, li) => {
             const isCurrentLesson = li === currentLessonIndex;
             return (
               <div key={lesson.id} className={cn("border-b border-white/10", isCurrentLesson && "bg-white/5")}>
@@ -291,7 +298,7 @@ export function PresenterView({
                 <ul>
                   {lesson.contents.map((c, ci) => {
                     let absoluteIdx = 0;
-                    for (let k = 0; k < li; k++) absoluteIdx += mod.lessons[k].contents.length;
+                    for (let k = 0; k < li; k++) absoluteIdx += presentLessons[k].contents.length;
                     absoluteIdx += ci;
                     const isCurrent = absoluteIdx === idx;
                     // Strike-through only when the item has actually been viewed
