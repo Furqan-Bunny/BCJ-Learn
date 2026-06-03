@@ -259,9 +259,9 @@ function SlideViewer({ slides }: { slides: { title: string; bullets: string[] }[
   if (!slide) return null;
   return (
     <div>
-      <div className="aspect-[16/9] bg-gradient-to-br from-primary via-primary/85 to-primary/70 text-primary-foreground p-12 flex flex-col">
-        <div className="text-2xl md:text-3xl font-bold tracking-tight mb-6">{slide.title}</div>
-        <ul className="space-y-3 text-lg">
+      <div className="aspect-[16/9] bg-gradient-to-br from-primary via-primary/85 to-primary/70 text-primary-foreground p-12 flex flex-col overflow-hidden">
+        <div className="text-2xl md:text-3xl font-bold tracking-tight mb-6 shrink-0">{slide.title}</div>
+        <ul className="space-y-3 text-lg overflow-y-auto pr-2">
           {slide.bullets.map((b, i) => (
             <li key={i} className="flex items-start gap-3">
               <span className="text-[var(--gold)] mt-1">•</span>
@@ -274,17 +274,20 @@ function SlideViewer({ slides }: { slides: { title: string; bullets: string[] }[
         <Button variant="ghost" size="sm" disabled={idx === 0} onClick={() => setIdx((i) => Math.max(0, i - 1))}>
           ← Previous slide
         </Button>
-        <div className="flex items-center gap-1.5">
-          {slides.map((_, i) => (
-            <button
-              key={i}
-              onClick={() => setIdx(i)}
-              className={cn(
-                "size-1.5 rounded-full transition-all",
-                i === idx ? "bg-primary w-6" : "bg-muted-foreground/30 hover:bg-muted-foreground/50",
-              )}
-            />
-          ))}
+        <div className="flex flex-col items-center gap-1">
+          <span className="text-[11px] text-muted-foreground tabular-nums">Slide {idx + 1} of {slides.length}</span>
+          <div className="flex items-center gap-1.5">
+            {slides.map((_, i) => (
+              <button
+                key={i}
+                onClick={() => setIdx(i)}
+                className={cn(
+                  "size-1.5 rounded-full transition-all",
+                  i === idx ? "bg-primary w-6" : "bg-muted-foreground/30 hover:bg-muted-foreground/50",
+                )}
+              />
+            ))}
+          </div>
         </div>
         <Button variant="ghost" size="sm" disabled={idx === slides.length - 1} onClick={() => setIdx((i) => Math.min(slides.length - 1, i + 1))}>
           Next slide →

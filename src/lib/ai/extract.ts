@@ -86,7 +86,10 @@ export async function extractTextForContent(c: ContentForExtract): Promise<Extra
       const zip = await JSZip.loadAsync(buffer);
       const slideFiles = Object.keys(zip.files)
         .filter((f) => /^ppt\/slides\/slide\d+\.xml$/.test(f))
-        .sort();
+        .sort((a, b) => {
+          const n = (s: string) => Number(s.match(/slide(\d+)\.xml/)?.[1] ?? 0);
+          return n(a) - n(b);
+        });
       const slides: string[] = [];
       for (const f of slideFiles) {
         const xml = await zip.files[f].async("text");

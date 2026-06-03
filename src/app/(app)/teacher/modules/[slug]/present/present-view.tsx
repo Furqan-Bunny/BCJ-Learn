@@ -613,11 +613,11 @@ function SlidePlayer({ slides }: { slides: { title: string; bullets: string[] }[
 
   return (
     <div className="bg-gradient-to-br from-slate-900 via-slate-900 to-slate-800 text-white">
-      <div className="aspect-[16/9] p-12 md:p-16 flex flex-col">
+      <div className="aspect-[16/9] p-12 md:p-16 flex flex-col overflow-hidden">
         {slide ? (
           <>
-            <div className="text-3xl md:text-4xl font-bold tracking-tight mb-8">{slide.title}</div>
-            <ul className="space-y-3 text-xl text-slate-200">
+            <div className="text-3xl md:text-4xl font-bold tracking-tight mb-8 shrink-0">{slide.title}</div>
+            <ul className="space-y-3 text-xl text-slate-200 overflow-y-auto pr-2">
               {slide.bullets.map((b, i) => (
                 <li key={i} className="flex items-start gap-3">
                   <span className="text-[var(--gold)] mt-1">•</span>
@@ -640,17 +640,20 @@ function SlidePlayer({ slides }: { slides: { title: string; bullets: string[] }[
         >
           ← Previous slide
         </Button>
-        <div className="flex items-center gap-1.5">
-          {slides.map((_, i) => (
-            <button
-              key={i}
-              onClick={() => setSlideIdx(i)}
-              className={cn(
-                "size-1.5 rounded-full transition-all",
-                i === slideIdx ? "bg-[var(--gold)] w-6" : "bg-white/30 hover:bg-white/50",
-              )}
-            />
-          ))}
+        <div className="flex flex-col items-center gap-1">
+          <span className="text-[11px] text-slate-400 tabular-nums">Slide {slideIdx + 1} of {slides.length}</span>
+          <div className="flex items-center gap-1.5">
+            {slides.map((_, i) => (
+              <button
+                key={i}
+                onClick={() => setSlideIdx(i)}
+                className={cn(
+                  "size-1.5 rounded-full transition-all",
+                  i === slideIdx ? "bg-[var(--gold)] w-6" : "bg-white/30 hover:bg-white/50",
+                )}
+              />
+            ))}
+          </div>
         </div>
         <Button
           variant="ghost"

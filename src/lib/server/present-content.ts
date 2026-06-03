@@ -24,6 +24,7 @@ const SIGNED_URL_TTL_SEC = 60 * 60; // 1 hour
 interface ContentMeta {
   documentPages?: string[];
   slides?: { title: string; bullets: string[] }[];
+  slideCount?: number;
   extractedText?: string;
   fileName?: string;
   [k: string]: unknown;
@@ -74,11 +75,12 @@ async function extractSlides(buffer: Buffer, fallbackTitle: string): Promise<{ t
   for (let i = 0; i < slideFiles.length; i++) {
     const xml = await zip.files[slideFiles[i]].async("text");
     const texts = [...xml.matchAll(/<a:t>([^<]*)<\/a:t>/g)].map((m) => m[1].trim()).filter(Boolean);
-    if (!texts.length) continue;
+    // Keep EVERY slide (even image-only / text-light ones) so the count and
+    // pagination match the real deck — don't silently drop empty slides.
     const [first, ...rest] = texts;
     slides.push({
       title: first || `${fallbackTitle} — slide ${i + 1}`,
-      bullets: rest.length ? rest : [first],
+      bullets: texts.length ? (rest.length ? rest : [first]) : [],
     });
   }
   return slides;
@@ -125,7 +127,7 @@ export async function ensurePresentableContent(slug: string): Promise<void> {
         const buffer = Buffer.from(await data.arrayBuffer());
         const slides = await extractSlides(buffer, c.title);
         if (!slides.length) continue;
-        await admin.from("lesson_contents").update({ metadata: { ...meta, slides } }).eq("id", c.id);
+        await admin.from("lesson_contents").update({ metadata: { ...meta, slides, slideCount: slides.length } }).eq("id", c.id);
       } catch {
         // leave the placeholder; presenter still shows the title
       }
