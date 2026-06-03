@@ -266,7 +266,7 @@ export function AdminResultsView({ rows, modules }: { rows: AttemptRow[]; module
           label="Pool"
           options={[
             { value: "first-attempt", label: "First attempt" },
-            { value: "retake", label: "Retake (easier)" },
+            { value: "retake", label: "Retake" },
           ]}
           values={poolFilter}
           onChange={(v) => table.getColumn("pool")?.setFilterValue(v.length ? v : undefined)}

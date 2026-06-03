@@ -18,7 +18,7 @@ type Pool = "first-attempt" | "retake";
 interface Draft { text: string; options: { text: string; correct: boolean }[]; explanation?: string }
 
 const BATCH = 5;
-const POOL_LABEL: Record<Pool, string> = { "first-attempt": "First attempt", retake: "Retake (easier)" };
+const POOL_LABEL: Record<Pool, string> = { "first-attempt": "First attempt", retake: "Retake" };
 
 export function QuestionReviewPanel({
   moduleSlug,

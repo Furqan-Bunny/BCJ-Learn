@@ -170,7 +170,7 @@ export function AdminQuestionLibraryView({ questions, modules, teacherNamesById 
           <TabsList>
             <TabsTrigger value="all">All pools</TabsTrigger>
             <TabsTrigger value="first-attempt">First attempt</TabsTrigger>
-            <TabsTrigger value="retake">Retake (easier)</TabsTrigger>
+            <TabsTrigger value="retake">Retake</TabsTrigger>
           </TabsList>
         </Tabs>
 

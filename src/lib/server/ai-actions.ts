@@ -576,6 +576,123 @@ export async function regenerateQuestion(questionId: string): Promise<{ ok: bool
   return { ok: true };
 }
 
+// ─── Classify a question into the first-attempt / retake pool ──────────
+
+export async function setQuestionPool(
+  questionId: string,
+  pool: QuestionPool,
+): Promise<{ ok: boolean; error?: string }> {
+  const sb = await createClient();
+  const { data: q } = await sb.from("questions").select("module_slug").eq("id", questionId).single();
+  if (!q) return { ok: false, error: "Question not found" };
+  const slug = (q as { module_slug: string }).module_slug;
+
+  const guard = await requireAdminOrModuleOwner(slug);
+  if (!guard.ok) return { ok: false, error: guard.error };
+
+  if (DEMO_MODE) return { ok: true };
+
+  const admin = createAdminClient();
+  const { error } = await admin.from("questions").update({ pool }).eq("id", questionId);
+  if (error) return { ok: false, error: error.message };
+
+  revalidatePath(`/teacher/modules/${slug}/questions`);
+  revalidatePath(`/admin/questions`);
+  return { ok: true };
+}
+
+// ─── Duplicate a question into the retake pool (AI-reworded) ────────────
+// Clones the source question into a NEW retake-pool row, rewording it so the
+// retake set covers the same concept with different phrasing. Lands as
+// "pending" so a lead reviews it before it goes live.
+export async function duplicateQuestionToRetake(
+  questionId: string,
+): Promise<{ ok: boolean; error?: string; id?: string }> {
+  const sb = await createClient();
+  const { data: qRow } = await sb
+    .from("questions")
+    .select("module_slug, text, explanation")
+    .eq("id", questionId)
+    .single();
+  if (!qRow) return { ok: false, error: "Question not found" };
+  const { module_slug: slug, text: originalText } = qRow as {
+    module_slug: string;
+    text: string;
+    explanation: string | null;
+  };
+
+  const guard = await requireAdminOrModuleOwner(slug);
+  if (!guard.ok) return { ok: false, error: guard.error };
+
+  // Build the reworded draft. In demo mode (no AI key) fall back to a copy.
+  let draft: DraftQuestion;
+  if (DEMO_MODE) {
+    const { data: opts } = await sb
+      .from("question_options")
+      .select("text, correct, order")
+      .eq("question_id", questionId)
+      .order("order");
+    draft = {
+      text: `Retake: ${originalText}`,
+      explanation: (qRow as { explanation: string | null }).explanation ?? "",
+      options: ((opts ?? []) as { text: string; correct: boolean }[]).map((o) => ({ text: o.text, correct: o.correct })),
+    };
+  } else {
+    try {
+      const openai = openaiClient();
+      const res = await openai.chat.completions.create({
+        model: CHAT_MODEL,
+        response_format: { type: "json_object" },
+        messages: [
+          { role: "system", content: questionRegenSystem() },
+          { role: "user", content: questionRegenUserPrompt(originalText, null) },
+        ],
+      });
+      draft = extractJsonObject(res.choices[0]?.message?.content ?? "");
+    } catch (err) {
+      return { ok: false, error: `AI error: ${(err as Error).message}` };
+    }
+  }
+
+  if (!draft.text || !Array.isArray(draft.options) || draft.options.length !== 4) {
+    return { ok: false, error: "Could not build a valid retake question" };
+  }
+
+  // Reuse the standard draft-commit path, but land as pending for review.
+  if (DEMO_MODE) return { ok: true, id: "demo" };
+  const admin = createAdminClient();
+  const { data: insertedQ, error: qErr } = await admin
+    .from("questions")
+    .insert({
+      module_slug: slug,
+      pool: "retake" as QuestionPool,
+      status: "pending",
+      text: draft.text,
+      explanation: draft.explanation ?? null,
+      generated_by_ai: true,
+    })
+    .select("id")
+    .single();
+  if (qErr || !insertedQ) return { ok: false, error: qErr?.message ?? "Could not save retake question" };
+  const qId = (insertedQ as { id: string }).id;
+
+  const optionRows = draft.options.map((o, i) => ({ question_id: qId, text: o.text, correct: !!o.correct, order: i }));
+  const { error: oErr } = await admin.from("question_options").insert(optionRows);
+  if (oErr) { await admin.from("questions").delete().eq("id", qId); return { ok: false, error: oErr.message }; }
+
+  await snapshotQuestion(admin, qId, "initial", guard.userId);
+
+  const { count: total } = await admin
+    .from("questions")
+    .select("*", { count: "exact", head: true })
+    .eq("module_slug", slug);
+  await admin.from("modules").update({ questions_total: total ?? 0 }).eq("slug", slug);
+
+  revalidatePath(`/teacher/modules/${slug}/questions`);
+  revalidatePath(`/admin/questions`);
+  return { ok: true, id: qId };
+}
+
 // ─── Edit question (manual) ────────────────────────────────────────────
 
 export interface EditQuestionInput {

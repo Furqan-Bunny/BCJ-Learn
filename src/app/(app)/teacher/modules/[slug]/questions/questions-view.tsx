@@ -29,6 +29,8 @@ import {
   editQuestion,
   getQuestionVersions,
   restoreQuestionVersion,
+  setQuestionPool,
+  duplicateQuestionToRetake,
 } from "@/lib/server/ai-actions";
 import { publishModule } from "@/lib/server/module-actions";
 
@@ -95,6 +97,33 @@ export function TeacherQuestionsView({ mod, initialQuestions }: TeacherQuestions
       return;
     }
     toast("Question rejected");
+  }
+
+  async function handleSetPool(id: string, nextPool: QuestionPool) {
+    setBusyId(id);
+    patchLocal(id, { pool: nextPool });
+    const res = await setQuestionPool(id, nextPool);
+    setBusyId(null);
+    if (!res.ok) {
+      toast.error(res.error ?? "Failed to update pool");
+      router.refresh();
+      return;
+    }
+    toast.success(nextPool === "retake" ? "Moved to retake pool" : "Moved to first-attempt pool");
+  }
+
+  async function handleDuplicateToRetake(id: string) {
+    const toastId = `dup-${id}`;
+    toast.loading("AI rewording a retake copy…", { id: toastId });
+    setBusyId(id);
+    const res = await duplicateQuestionToRetake(id);
+    setBusyId(null);
+    if (!res.ok) {
+      toast.error(res.error ?? "Could not duplicate", { id: toastId });
+      return;
+    }
+    toast.success("Retake copy created — review it in the Retake pool", { id: toastId });
+    router.refresh();
   }
 
   async function handleRegenerate(id: string) {
@@ -205,7 +234,7 @@ export function TeacherQuestionsView({ mod, initialQuestions }: TeacherQuestions
           <TabsList>
             <TabsTrigger value="all">All</TabsTrigger>
             <TabsTrigger value="first-attempt">First attempt</TabsTrigger>
-            <TabsTrigger value="retake">Retake (easier)</TabsTrigger>
+            <TabsTrigger value="retake">Retake</TabsTrigger>
           </TabsList>
         </Tabs>
         <Tabs value={statusFilter} onValueChange={(v) => setStatusFilter(v as QuestionStatus | "all")}>
@@ -271,7 +300,30 @@ export function TeacherQuestionsView({ mod, initialQuestions }: TeacherQuestions
                       </Badge>
                     )}
                     <StatusBadge variant={current.status} />
-                    <StatusBadge variant={current.pool} />
+                    <div className="inline-flex rounded-md border overflow-hidden text-xs">
+                      <button
+                        type="button"
+                        onClick={() => current.pool !== "first-attempt" && handleSetPool(current.id, "first-attempt")}
+                        disabled={busyId === current.id}
+                        className={cn(
+                          "px-2.5 py-1 transition-colors",
+                          current.pool === "first-attempt" ? "bg-primary text-primary-foreground" : "hover:bg-accent text-muted-foreground",
+                        )}
+                      >
+                        First attempt
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => current.pool !== "retake" && handleSetPool(current.id, "retake")}
+                        disabled={busyId === current.id}
+                        className={cn(
+                          "px-2.5 py-1 border-l transition-colors",
+                          current.pool === "retake" ? "bg-primary text-primary-foreground" : "hover:bg-accent text-muted-foreground",
+                        )}
+                      >
+                        Retake
+                      </button>
+                    </div>
                   </div>
                   <div className="text-xs text-muted-foreground tabular-nums">
                     Hits: {current.hits} · Miss rate: {Math.round(current.missRate * 100)}%
@@ -335,6 +387,16 @@ export function TeacherQuestionsView({ mod, initialQuestions }: TeacherQuestions
                     {busyId === current.id ? <Loader2 className="size-4 animate-spin" /> : <RefreshCw className="size-4" />}
                     Regenerate with AI
                   </Button>
+                  {current.pool === "first-attempt" && (
+                    <Button
+                      variant="outline"
+                      onClick={() => handleDuplicateToRetake(current.id)}
+                      disabled={busyId === current.id}
+                      className="gap-2"
+                    >
+                      <Sparkles className="size-4 text-[var(--ai)]" /> Duplicate → retake
+                    </Button>
+                  )}
                   <Button
                     variant="outline"
                     onClick={() => setHistoryOpen(true)}
