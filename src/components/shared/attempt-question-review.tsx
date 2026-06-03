@@ -42,11 +42,15 @@ export interface AttemptQuestionReviewProps {
   answerBadge: string;
   /** Subtitle under the card title. Optional. */
   subtitle?: string;
+  /** Employee fail-review: show ONLY the wrong questions, hide which option was
+   *  correct (and the explanation) so they have to go relearn it. */
+  hideCorrect?: boolean;
 }
 
-export function AttemptQuestionReview({ reviewed, answerBadge, subtitle }: AttemptQuestionReviewProps) {
+export function AttemptQuestionReview({ reviewed, answerBadge, subtitle, hideCorrect = false }: AttemptQuestionReviewProps) {
   const correctCount = reviewed.filter((a) => a.correct).length;
   const wrongCount = reviewed.length - correctCount;
+  const displayed = hideCorrect ? reviewed.filter((a) => !a.correct) : reviewed;
 
   return (
     <Card>
@@ -56,19 +60,25 @@ export function AttemptQuestionReview({ reviewed, answerBadge, subtitle }: Attem
           {subtitle && <p className="text-xs text-muted-foreground mt-1">{subtitle}</p>}
         </div>
         <div className="flex items-center gap-2 text-xs">
-          <span className="flex items-center gap-1.5">
-            <span className="size-2 rounded-full bg-emerald-500" />
-            <span className="text-muted-foreground">{correctCount} correct</span>
-          </span>
-          <span className="flex items-center gap-1.5">
-            <span className="size-2 rounded-full bg-rose-500" />
-            <span className="text-muted-foreground">{wrongCount} wrong</span>
-          </span>
+          {hideCorrect ? (
+            <span className="text-muted-foreground">{wrongCount} to review</span>
+          ) : (
+            <>
+              <span className="flex items-center gap-1.5">
+                <span className="size-2 rounded-full bg-emerald-500" />
+                <span className="text-muted-foreground">{correctCount} correct</span>
+              </span>
+              <span className="flex items-center gap-1.5">
+                <span className="size-2 rounded-full bg-rose-500" />
+                <span className="text-muted-foreground">{wrongCount} wrong</span>
+              </span>
+            </>
+          )}
         </div>
       </CardHeader>
       <CardContent className="p-0">
         <ul className="divide-y">
-          {reviewed.map((aq, idx) => (
+          {displayed.map((aq, idx) => (
             <li key={aq.question.id} className="px-5 md:px-6 py-5">
               <div className="flex items-start gap-4">
                 <div className={cn(
@@ -91,44 +101,45 @@ export function AttemptQuestionReview({ reviewed, answerBadge, subtitle }: Attem
                   <div className="space-y-1.5 ml-6">
                     {aq.question.options.map((o) => {
                       const isSelected = aq.selectedOpt?.id === o.id;
-                      const isCorrect = o.correct;
+                      // Reveal the correct option only when not in hide-correct mode.
+                      const showCorrect = o.correct && !hideCorrect;
                       return (
                         <div
                           key={o.id}
                           className={cn(
                             "flex items-center gap-2 px-3 py-2 rounded-md border text-sm",
-                            isCorrect && "border-emerald-500/40 bg-emerald-50 dark:bg-emerald-950/20",
-                            isSelected && !isCorrect && "border-rose-500/40 bg-rose-50 dark:bg-rose-950/20",
-                            !isSelected && !isCorrect && "border-border",
+                            showCorrect && "border-emerald-500/40 bg-emerald-50 dark:bg-emerald-950/20",
+                            isSelected && !showCorrect && "border-rose-500/40 bg-rose-50 dark:bg-rose-950/20",
+                            !isSelected && !showCorrect && "border-border",
                           )}
                         >
                           <div className={cn(
                             "size-4 rounded-full border-2 shrink-0 flex items-center justify-center",
-                            isCorrect ? "border-emerald-500 bg-emerald-500" :
+                            showCorrect ? "border-emerald-500 bg-emerald-500" :
                             isSelected ? "border-rose-500 bg-rose-500" :
                             "border-muted-foreground/30",
                           )}>
-                            {(isCorrect || (isSelected && !isCorrect)) && (
+                            {(showCorrect || (isSelected && !showCorrect)) && (
                               <span className="size-1.5 rounded-full bg-white" />
                             )}
                           </div>
                           <span className={cn(
                             "flex-1",
-                            isCorrect && "font-medium text-emerald-900 dark:text-emerald-200",
-                            isSelected && !isCorrect && "font-medium text-rose-900 dark:text-rose-200 line-through",
+                            showCorrect && "font-medium text-emerald-900 dark:text-emerald-200",
+                            isSelected && !showCorrect && "font-medium text-rose-900 dark:text-rose-200 line-through",
                           )}>
                             {o.text}
                           </span>
                           {isSelected && (
                             <Badge variant="outline" className={cn(
                               "text-[10px] shrink-0",
-                              isCorrect ? "border-emerald-500/40 text-emerald-700 dark:text-emerald-300" :
+                              showCorrect ? "border-emerald-500/40 text-emerald-700 dark:text-emerald-300" :
                                           "border-rose-500/40 text-rose-700 dark:text-rose-300",
                             )}>
                               {answerBadge}
                             </Badge>
                           )}
-                          {isCorrect && !isSelected && (
+                          {showCorrect && !isSelected && (
                             <Badge variant="outline" className="text-[10px] shrink-0 border-emerald-500/40 text-emerald-700 dark:text-emerald-300">
                               Correct answer
                             </Badge>
@@ -138,7 +149,7 @@ export function AttemptQuestionReview({ reviewed, answerBadge, subtitle }: Attem
                     })}
                   </div>
 
-                  {aq.question.explanation && (
+                  {!hideCorrect && aq.question.explanation && (
                     <div className="ml-6 mt-3 rounded-md bg-muted/50 px-3 py-2 text-xs text-muted-foreground">
                       <span className="font-semibold text-foreground/80">Why: </span>
                       {aq.question.explanation}

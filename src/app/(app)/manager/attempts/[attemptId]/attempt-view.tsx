@@ -45,7 +45,7 @@ export function ManagerAttemptView({ attempt, moduleTitle, moduleNumber, passThr
       <PageHeader
         eyebrow={`Attempt · ${fmtDate(attempt.startedAt, "MMM d, yyyy 'at' h:mm a")}`}
         title={`${moduleNumber ? `M${moduleNumber}: ` : ""}${moduleTitle}`}
-        description={attempt.pool === "retake" ? "Retake attempt (easier pool)." : "First attempt."}
+        description={attempt.pool === "retake" ? "Retake attempt." : "First attempt."}
         actions={<StatusBadge variant={attempt.status as "passed" | "failed"} />}
       />
 
@@ -80,7 +80,12 @@ export function ManagerAttemptView({ attempt, moduleTitle, moduleNumber, passThr
       <AttemptQuestionReview
         reviewed={reviewed}
         answerBadge="Your answer"
-        subtitle="The questions you saw, with your answer and the correct answer on each."
+        hideCorrect={!passed}
+        subtitle={
+          passed
+            ? "The questions you saw, with your answer and the correct answer on each."
+            : "The questions you missed and the answer you chose. Review the material, then retake — the correct answers aren't shown."
+        }
       />
     </>
   );
