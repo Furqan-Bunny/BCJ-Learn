@@ -187,11 +187,16 @@ export function AdminModuleView({
   const currentDeliveryIdx = deliveries.find((d) => d.isCurrent)?.index ?? 1;
   const totalDeliveries = deliveries.length;
 
+  // A "scheduled" row is an assigned-but-not-yet-taken retake — it is NOT a
+  // real attempt, so exclude it from the attempt count and the rates. Only
+  // submitted attempts (passed/failed) drive pass rate + average score.
+  const takenAttempts = attempts.filter((a) => a.status !== "scheduled");
+  const submittedAttempts = attempts.filter((a) => a.status === "passed" || a.status === "failed");
   const passed = attempts.filter((a) => a.status === "passed").length;
   const failed = attempts.filter((a) => a.status === "failed").length;
-  const passRate = attempts.length ? Math.round((passed / attempts.length) * 100) : 0;
-  const avgScore = attempts.length
-    ? Math.round(attempts.reduce((s, a) => s + Number(a.scorePct), 0) / attempts.length)
+  const passRate = submittedAttempts.length ? Math.round((passed / submittedAttempts.length) * 100) : 0;
+  const avgScore = submittedAttempts.length
+    ? Math.round(submittedAttempts.reduce((s, a) => s + Number(a.scorePct), 0) / submittedAttempts.length)
     : 0;
 
   const approvedQs = questions.filter((q) => q.status === "approved").length;
@@ -252,7 +257,7 @@ export function AdminModuleView({
           <TabBody>
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
-        <KpiCard label="Attempts" value={attempts.length} icon={Users} href={`/admin/modules/${slug}?tab=reports`} />
+        <KpiCard label="Attempts" value={takenAttempts.length} icon={Users} href={`/admin/modules/${slug}?tab=reports`} />
         <KpiCard label="Pass rate" value={attempts.length ? `${passRate}%` : "—"} icon={Trophy} accent="success" href={`/admin/modules/${slug}?tab=reports&status=passed`} />
         <KpiCard label="Avg score" value={attempts.length ? `${avgScore}%` : "—"} icon={Target} href={`/admin/modules/${slug}?tab=reports`} />
         <KpiCard label="Failed attempts" value={failed} icon={AlertTriangle} accent="warning" href={`/admin/modules/${slug}?tab=reports&status=failed`} />
@@ -307,7 +312,7 @@ export function AdminModuleView({
                   </div>
                   <div className="min-w-0">
                     <div className="font-medium text-sm">All attempts</div>
-                    <div className="text-xs text-muted-foreground mt-0.5">{attempts.length} attempts logged</div>
+                    <div className="text-xs text-muted-foreground mt-0.5">{takenAttempts.length} attempts logged</div>
                   </div>
                 </CardContent>
               </Card>
