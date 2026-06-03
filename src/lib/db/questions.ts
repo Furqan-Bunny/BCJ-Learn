@@ -1,6 +1,8 @@
 // Questions — DB queries matching src/data/questions.ts shape.
 
 import { dbClient } from "@/lib/supabase/db-client";
+import { createAdminClient } from "@/lib/supabase/server";
+import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Question, QuestionPool, QuestionStatus } from "@/types";
 
 interface QuestionRow {
@@ -44,8 +46,7 @@ function hydrate(qRows: QuestionRow[], optsByQ: Map<string, OptionRow[]>): Quest
   }));
 }
 
-export async function listQuestionsForModule(slug: string, pool?: QuestionPool): Promise<Question[]> {
-  const sb = await dbClient();
+async function fetchQuestions(sb: SupabaseClient, slug: string, pool?: QuestionPool): Promise<Question[]> {
   let q = sb.from("questions").select("*").eq("module_slug", slug);
   if (pool) q = q.eq("pool", pool);
   const { data: questions } = await q;
@@ -67,6 +68,23 @@ export async function listQuestionsForModule(slug: string, pool?: QuestionPool):
   }
 
   return hydrate(qRows, optsByQ);
+}
+
+export async function listQuestionsForModule(slug: string, pool?: QuestionPool): Promise<Question[]> {
+  return fetchQuestions(await dbClient(), slug, pool);
+}
+
+/**
+ * Questions for a module via the service-role client (bypasses RLS).
+ *
+ * Managers have no RLS read access to `questions` (so quiz answers can't leak
+ * mid-quiz). But an employee reviewing their OWN already-submitted attempt
+ * must see the question text + options. The caller MUST authorise ownership of
+ * the attempt before using this. For failed attempts, sanitise away the
+ * correct flag + explanation before sending to the client (see attempt page).
+ */
+export async function listQuestionsForModuleAsAdmin(slug: string, pool?: QuestionPool): Promise<Question[]> {
+  return fetchQuestions(createAdminClient(), slug, pool);
 }
 
 // ─── Version history ───────────────────────────────────────────────────
