@@ -81,10 +81,11 @@ export function ManagerAttemptView({ attempt, moduleTitle, moduleNumber, passThr
         reviewed={reviewed}
         answerBadge="Your answer"
         hideCorrect={!passed}
+        collapsible
         subtitle={
           passed
-            ? "The questions you saw, with your answer and the correct answer on each."
-            : "The questions you missed and the answer you chose. Review the material, then retake — the correct answers aren't shown."
+            ? "Every question you saw — tap any one to see your answer and the correct answer."
+            : "Every question you saw — tap any one to see your answer. On the ones you missed, the correct answer is hidden so you can relearn it, then retake."
         }
       />
     </>
