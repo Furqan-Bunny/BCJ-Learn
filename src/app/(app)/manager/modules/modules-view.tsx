@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
-import { fmtDate } from "@/lib/format";
+import { fmtDate, fmtTime } from "@/lib/format";
 import { MAX_STRIKES } from "@/lib/quiz-pool";
 import { Search } from "lucide-react";
 import { Stagger, StaggerItem, SearchLoadingBar, AnimatePresence, motion } from "@/components/shared/animations";
@@ -216,6 +216,7 @@ export function ManagerModulesView({ modules, myAttempts }: ManagerModulesViewPr
                         {m.scheduledDate && (
                           <span className="flex items-center gap-1.5">
                             <Calendar className="size-3.5" /> {fmtDate(m.scheduledDate)}
+                            {fmtTime(m.scheduledTime) ? ` · ${fmtTime(m.scheduledTime)}` : ""}
                           </span>
                         )}
                         <span className="flex items-center gap-1.5">

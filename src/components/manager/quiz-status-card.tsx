@@ -9,7 +9,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { computeQuizState } from "@/lib/quiz-state";
-import { fmtDate, fmtRelative, fmtPct } from "@/lib/format";
+import { fmtDate, fmtRelative, fmtPct, fmtTime } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import type { ModuleDef, Attempt } from "@/types";
 
@@ -41,6 +41,7 @@ export function QuizStatusCard({
 }: QuizStatusCardProps) {
   void managerId; // not used directly; attempts already filtered by host
   const sessionLive = !!sessionStartedAt && !sessionEndedAt;
+  const timeStr = fmtTime(mod.scheduledTime);
 
   const state = computeQuizState({
     currentAttempts: myAttempts,
@@ -133,7 +134,7 @@ export function QuizStatusCard({
         accent="slate"
         icon={Lock}
         eyebrow="Quiz locked"
-        title={`Quiz unlocks after the live seminar on ${fmtDate(state.seminarDate)}`}
+        title={`Quiz unlocks after the live seminar on ${fmtDate(state.seminarDate)}${timeStr ? ` at ${timeStr}` : ""}`}
         description="The quiz is delivered on-site immediately after the live seminar. You'll be able to take it once you've attended and checked in to that day's session."
         primaryAction={
           <Button asChild variant="outline">
@@ -143,7 +144,7 @@ export function QuizStatusCard({
           </Button>
         }
         meta={[
-          { icon: Calendar, label: "Training day", value: fmtDate(state.seminarDate) },
+          { icon: Calendar, label: "Training day", value: timeStr ? `${fmtDate(state.seminarDate)} · ${timeStr}` : fmtDate(state.seminarDate) },
           { icon: Target, label: "Pass at", value: `${Math.round(mod.passThreshold * 100)}%` },
         ]}
       />
@@ -230,7 +231,7 @@ export function QuizStatusCard({
       }
       meta={[
         { icon: UserCheck, label: "Checked in", value: "Yes" },
-        { icon: Calendar, label: "Training day", value: mod.scheduledDate ? fmtDate(mod.scheduledDate) : "—" },
+        { icon: Calendar, label: "Training day", value: mod.scheduledDate ? (timeStr ? `${fmtDate(mod.scheduledDate)} · ${timeStr}` : fmtDate(mod.scheduledDate)) : "—" },
       ]}
     />
   );

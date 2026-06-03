@@ -25,6 +25,7 @@ export function RescheduleSeminar({ moduleSlug, moduleTitle, attendeeCount = 0, 
   const router = useRouter();
   const [open, setOpen] = React.useState(false);
   const [date, setDate] = React.useState("");
+  const [time, setTime] = React.useState("");
   const [submitting, setSubmitting] = React.useState(false);
   const [notify, setNotify] = React.useState<{ sent: number; total: number } | null>(null);
 
@@ -49,7 +50,7 @@ export function RescheduleSeminar({ moduleSlug, moduleTitle, attendeeCount = 0, 
   async function handleConfirm() {
     if (!date) return;
     setSubmitting(true);
-    const res = await rescheduleSeminar(moduleSlug, date);
+    const res = await rescheduleSeminar(moduleSlug, date, time || null);
     if (!res.ok) {
       setSubmitting(false);
       toast.error(res.error ?? "Could not reschedule");
@@ -83,9 +84,15 @@ export function RescheduleSeminar({ moduleSlug, moduleTitle, attendeeCount = 0, 
         </DialogHeader>
 
         <div className="space-y-4 py-1">
-          <div className="space-y-1.5">
-            <Label htmlFor="reschedule-date">New date</Label>
-            <Input id="reschedule-date" type="date" value={date} onChange={(e) => setDate(e.target.value)} className="h-10" />
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1.5">
+              <Label htmlFor="reschedule-date">New date</Label>
+              <Input id="reschedule-date" type="date" value={date} onChange={(e) => setDate(e.target.value)} className="h-10" />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="reschedule-time">Start time</Label>
+              <Input id="reschedule-time" type="time" value={time} onChange={(e) => setTime(e.target.value)} className="h-10" />
+            </div>
           </div>
           <div className="rounded-lg border border-primary/30 bg-primary/[0.04] p-3 flex items-start gap-2">
             <Mail className="size-4 text-primary shrink-0 mt-0.5" />

@@ -40,6 +40,7 @@ export function ScheduleRedelivery({
   const router = useRouter();
   const [open, setOpen] = React.useState(false);
   const [newDate, setNewDate] = React.useState("");
+  const [newTime, setNewTime] = React.useState("");
   const [loading, setLoading] = React.useState(false);
   const [submitting, setSubmitting] = React.useState(false);
   const [employees, setEmployees] = React.useState<DueEmployee[]>([]);
@@ -92,7 +93,7 @@ export function ScheduleRedelivery({
   async function handleConfirm() {
     if (!newDate) return;
     setSubmitting(true);
-    const res = await scheduleSeminar(moduleSlug, newDate, [...selected]);
+    const res = await scheduleSeminar(moduleSlug, newDate, [...selected], newTime || null);
     if (!res.ok) {
       setSubmitting(false);
       toast.error(res.error ?? "Could not schedule seminar");
@@ -129,15 +130,27 @@ export function ScheduleRedelivery({
         </DialogHeader>
 
         <div className="space-y-4 py-1">
-          <div className="space-y-1.5">
-            <Label htmlFor="new-delivery-date">Seminar date</Label>
-            <Input
-              id="new-delivery-date"
-              type="date"
-              value={newDate}
-              onChange={(e) => setNewDate(e.target.value)}
-              className="h-10"
-            />
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1.5">
+              <Label htmlFor="new-delivery-date">Seminar date</Label>
+              <Input
+                id="new-delivery-date"
+                type="date"
+                value={newDate}
+                onChange={(e) => setNewDate(e.target.value)}
+                className="h-10"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="new-delivery-time">Start time</Label>
+              <Input
+                id="new-delivery-time"
+                type="time"
+                value={newTime}
+                onChange={(e) => setNewTime(e.target.value)}
+                className="h-10"
+              />
+            </div>
           </div>
 
           <div className="rounded-lg border">
