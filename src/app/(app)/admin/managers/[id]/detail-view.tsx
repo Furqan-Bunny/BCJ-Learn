@@ -268,7 +268,7 @@ export function ManagerDetailView({ m, modules, myAttempts, deliveriesByModule, 
             <CardContent className="p-0">
               <ul className="divide-y">
                 {modules.map((mod) => {
-                  const att = myAttempts.filter((a) => a.moduleSlug === mod.slug);
+                  const att = myAttempts.filter((a) => a.moduleSlug === mod.slug && (a.status === "passed" || a.status === "failed"));
                   const passed = att.some((a) => a.status === "passed");
                   const failed = att.some((a) => a.status === "failed") && !passed;
                   return (

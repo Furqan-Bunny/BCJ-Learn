@@ -21,7 +21,12 @@ export function TeacherDashboardView({ me, myModules, attemptsByModule }: Teache
   const approvedQuestions = myModules.reduce((s, m) => s + m.questionsApproved, 0);
   const pendingQuestions = totalQuestions - approvedQuestions;
 
-  const totalAttempts = myModules.reduce((s, m) => s + (attemptsByModule[m.slug]?.length ?? 0), 0);
+  // Count only submitted attempts (passed/failed) — scheduled retakes and
+  // abandoned in-progress rows are not real attempts.
+  const totalAttempts = myModules.reduce(
+    (s, m) => s + (attemptsByModule[m.slug]?.filter((a) => a.status === "passed" || a.status === "failed").length ?? 0),
+    0,
+  );
 
   return (
     <>

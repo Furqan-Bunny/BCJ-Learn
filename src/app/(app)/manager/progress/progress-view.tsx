@@ -135,7 +135,7 @@ export function ManagerProgressView({ me, modules, myAttempts }: ManagerProgress
         <CardContent>
           <ul className="divide-y">
             {ordered.map((m) => {
-              const attempts = myAttempts.filter((a) => a.moduleSlug === m.slug);
+              const attempts = myAttempts.filter((a) => a.moduleSlug === m.slug && (a.status === "passed" || a.status === "failed"));
               const latest = [...attempts].sort((a, b) => +new Date(b.startedAt) - +new Date(a.startedAt))[0];
               const passed = attempts.some((a) => a.status === "passed");
               return (

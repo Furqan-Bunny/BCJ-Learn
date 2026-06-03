@@ -31,6 +31,8 @@ export default async function TeacherResultsPage() {
   const moduleBySlug = new Map(myModules.map((m) => [m.slug, m]));
 
   const rows: AttemptRow[] = allAttempts
+    // Only real attempts (submitted) — exclude scheduled retakes + in-progress.
+    .filter((a) => a.status === "passed" || a.status === "failed")
     .map((a): AttemptRow | null => {
       const m = managerById.get(a.managerId);
       const mod = moduleBySlug.get(a.moduleSlug);

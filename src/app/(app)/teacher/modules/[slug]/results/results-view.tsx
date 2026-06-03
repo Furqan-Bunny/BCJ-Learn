@@ -31,16 +31,19 @@ export function TeacherModuleResultsView({
   counts,
 }: TeacherModuleResultsViewProps) {
   const slug = mod.slug;
-  const passed = attempts.filter((a) => a.status === "passed").length;
-  const failed = attempts.filter((a) => a.status === "failed").length;
-  const passRate = attempts.length ? Math.round((passed / attempts.length) * 100) : 0;
-  const avgScore = attempts.length
-    ? Math.round(attempts.reduce((s, a) => s + Number(a.scorePct), 0) / attempts.length)
+  // Only submitted attempts (passed/failed) count — scheduled retakes and
+  // abandoned in-progress rows are not real attempts.
+  const submittedAttempts = attempts.filter((a) => a.status === "passed" || a.status === "failed");
+  const passed = submittedAttempts.filter((a) => a.status === "passed").length;
+  const failed = submittedAttempts.filter((a) => a.status === "failed").length;
+  const passRate = submittedAttempts.length ? Math.round((passed / submittedAttempts.length) * 100) : 0;
+  const avgScore = submittedAttempts.length
+    ? Math.round(submittedAttempts.reduce((s, a) => s + Number(a.scorePct), 0) / submittedAttempts.length)
     : 0;
 
   const mostMissed = [...questions].sort((a, b) => b.missRate - a.missRate).slice(0, 5);
 
-  const recent = attempts
+  const recent = submittedAttempts
     .slice()
     .sort((a, b) => +new Date(b.startedAt) - +new Date(a.startedAt))
     .slice(0, 12);
@@ -54,7 +57,7 @@ export function TeacherModuleResultsView({
       />
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-8">
-        <KpiCard label="Attempts" value={attempts.length} icon={Users} />
+        <KpiCard label="Attempts" value={submittedAttempts.length} icon={Users} />
         <KpiCard label="Pass rate" value={`${passRate}%`} icon={Trophy} accent="success" />
         <KpiCard label="Avg score" value={`${avgScore}%`} icon={Target} />
         <KpiCard label="Failed" value={failed} icon={AlertTriangle} accent="warning" />

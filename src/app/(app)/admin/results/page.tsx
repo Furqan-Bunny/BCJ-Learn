@@ -14,6 +14,9 @@ export default async function AdminResultsPage() {
   const moduleBySlug = new Map(modules.map((m) => [m.slug, m]));
 
   const rows: AttemptRow[] = attempts
+    // Only real attempts (submitted). Scheduled retakes + abandoned in-progress
+    // rows are not attempts and must not show up or inflate the totals.
+    .filter((a) => a.status === "passed" || a.status === "failed")
     .map((a): AttemptRow | null => {
       const m = managerById.get(a.managerId);
       const mod = moduleBySlug.get(a.moduleSlug);

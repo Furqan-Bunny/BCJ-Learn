@@ -46,8 +46,11 @@ export function TeacherModuleView({
     links: allContents.filter((c) => c.type === "link").length,
   };
 
-  const passRate = attempts.length
-    ? Math.round((attempts.filter((a) => a.status === "passed").length / attempts.length) * 100)
+  // Only submitted attempts (passed/failed) are real attempts — scheduled
+  // retakes and abandoned in-progress rows must not inflate the count or rate.
+  const submittedAttempts = attempts.filter((a) => a.status === "passed" || a.status === "failed");
+  const passRate = submittedAttempts.length
+    ? Math.round((submittedAttempts.filter((a) => a.status === "passed").length / submittedAttempts.length) * 100)
     : 0;
 
   return (
@@ -74,7 +77,7 @@ export function TeacherModuleView({
         <Card>
           <CardContent className="p-5">
             <div className="text-xs uppercase tracking-wider text-muted-foreground">Attempts</div>
-            <div className="text-2xl font-bold tabular-nums mt-2">{attempts.length}</div>
+            <div className="text-2xl font-bold tabular-nums mt-2">{submittedAttempts.length}</div>
             <Button asChild variant="ghost" size="sm" className="mt-3 -ml-2">
               <Link href={`/teacher/modules/${slug}/results`}>See results <ArrowRight className="ml-1 size-3.5" /></Link>
             </Button>

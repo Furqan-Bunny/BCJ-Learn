@@ -68,9 +68,12 @@ export async function listDeliveriesForModule(slug: string): Promise<DeliveryRec
       const t = new Date(a.started_at).getTime();
       return t >= startMs && t < endMs;
     });
-    const passed = within.filter((a) => a.status === "passed").length;
-    const failed = within.filter((a) => a.status === "failed").length;
-    const participantIds = Array.from(new Set(within.map((a) => a.manager_id)));
+    // Only submitted attempts are real attempts — a scheduled retake (assigned,
+    // not yet taken) or an abandoned in-progress row is not one.
+    const submittedWithin = within.filter((a) => a.status === "passed" || a.status === "failed");
+    const passed = submittedWithin.filter((a) => a.status === "passed").length;
+    const failed = submittedWithin.filter((a) => a.status === "failed").length;
+    const participantIds = Array.from(new Set(submittedWithin.map((a) => a.manager_id)));
 
     return {
       index: d.delivery_index,
@@ -80,7 +83,7 @@ export async function listDeliveriesForModule(slug: string): Promise<DeliveryRec
       scheduledDate: d.scheduled_date,
       sessionStartedAt: d.session_started_at,
       sessionEndedAt: d.session_ended_at,
-      attempts: within.length,
+      attempts: submittedWithin.length,
       passed,
       failed,
       participantIds,
