@@ -5,9 +5,10 @@ import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { ArrowRight, BookOpen, CheckCircle2, Sparkles, Target, Trophy } from "lucide-react";
+import { ArrowRight, BookOpen, CheckCircle2, Sparkles, Target, Trophy, RefreshCcw, Lock } from "lucide-react";
 import { PageHeader } from "@/components/shared/page-header";
 import { StatusBadge } from "@/components/shared/status-badge";
+import { MAX_STRIKES } from "@/lib/quiz-pool";
 import { CheckInCard } from "@/components/manager/check-in-card";
 import { QuizStatusCard } from "@/components/manager/quiz-status-card";
 import { DeliveryLiveSync } from "@/components/manager/delivery-live-sync";
@@ -137,6 +138,9 @@ export function ManagerDashboardView({
             const passed = passedSlugs.has(m.slug);
             const isNext = nextModule && m.slug === nextModule.slug;
             const myAttempt = myAttempts.find((a) => a.moduleSlug === m.slug && a.status === "passed");
+            const failedCount = myAttempts.filter((a) => a.moduleSlug === m.slug && a.status === "failed").length;
+            const locked = !passed && failedCount >= MAX_STRIKES;
+            const needsRetake = !passed && failedCount >= 1 && failedCount < MAX_STRIKES;
             return (
               <StaggerItem key={m.slug} className="h-full">
               <Link href={`/manager/modules/${m.slug}`} className="block h-full">
@@ -149,7 +153,9 @@ export function ManagerDashboardView({
                           <CheckCircle2 className="size-4 text-emerald-500" />
                         </motion.span>
                       )}
-                      {isNext && !passed && (
+                      {locked && <Lock className="size-4 text-rose-500" />}
+                      {needsRetake && <RefreshCcw className="size-4 text-amber-500" />}
+                      {isNext && !passed && !locked && !needsRetake && (
                         <motion.span animate={{ rotate: [0, -10, 10, 0] }} transition={{ duration: 1.6, repeat: Infinity, repeatDelay: 1.5 }}>
                           <Sparkles className="size-4 text-[var(--gold)]" />
                         </motion.span>
@@ -165,7 +171,15 @@ export function ManagerDashboardView({
                         <span className="text-muted-foreground ml-1">on first try</span>
                       </div>
                     )}
-                    {!passed && isNext && (
+                    {locked && (
+                      <div className="mt-3 text-xs text-rose-600 dark:text-rose-400 font-medium">No attempts left</div>
+                    )}
+                    {needsRetake && (
+                      <div className="mt-3 text-xs text-amber-600 dark:text-amber-400 font-medium">
+                        {MAX_STRIKES - failedCount} of {MAX_STRIKES} attempts left
+                      </div>
+                    )}
+                    {!passed && !locked && !needsRetake && isNext && (
                       <div className="mt-3 text-xs text-primary font-medium">Up next →</div>
                     )}
                   </CardContent>
