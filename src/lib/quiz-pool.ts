@@ -12,7 +12,11 @@ import type { QuestionPool } from "@/types";
 
 export type PoolDecision =
   | { kind: "passed" }
+  | { kind: "locked" } // used all 3 attempts (3 strikes) without passing
   | { kind: "serve"; pool: QuestionPool };
+
+/** Max failed attempts before the module locks ("3 strikes"). */
+export const MAX_STRIKES = 3;
 
 export function decideQuizPool(
   priorAttempts: { pool: QuestionPool; status: string }[],
@@ -20,8 +24,10 @@ export function decideQuizPool(
   if (priorAttempts.some((a) => a.status === "passed")) {
     return { kind: "passed" };
   }
-  const failedFirst = priorAttempts.some(
-    (a) => a.pool === "first-attempt" && a.status === "failed",
-  );
-  return { kind: "serve", pool: failedFirst ? "retake" : "first-attempt" };
+  const failed = priorAttempts.filter((a) => a.status === "failed").length;
+  if (failed >= MAX_STRIKES) {
+    return { kind: "locked" };
+  }
+  // Any prior failure → serve the (reworded) retake pool; otherwise first attempt.
+  return { kind: "serve", pool: failed >= 1 ? "retake" : "first-attempt" };
 }

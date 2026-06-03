@@ -52,6 +52,18 @@ export async function listAttemptsForModule(slug: string): Promise<Attempt[]> {
   return (data ?? []).map((r) => rowToAttempt(r as AttemptRow));
 }
 
+/** Count a manager's FAILED attempts for a module (drives the 3-strike limit). */
+export async function countFailedAttemptsForManagerModule(managerId: string, slug: string): Promise<number> {
+  const sb = await dbClient();
+  const { count } = await sb
+    .from("attempts")
+    .select("*", { count: "exact", head: true })
+    .eq("manager_id", managerId)
+    .eq("module_slug", slug)
+    .eq("status", "failed");
+  return count ?? 0;
+}
+
 export async function getAttempt(id: string): Promise<Attempt | null> {
   const sb = await dbClient();
   const [{ data: attemptRow }, { data: answerRows }] = await Promise.all([

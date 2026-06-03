@@ -13,6 +13,7 @@
 import { createClient, createAdminClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
 import { sendEmail } from "@/lib/emails/send";
+import { pushInAppNotification } from "@/lib/notifications/push";
 import { decideQuizPool } from "@/lib/quiz-pool";
 import type { QuestionPool } from "@/types";
 
@@ -56,6 +57,9 @@ export async function startQuiz(moduleSlug: string): Promise<StartQuizResult> {
   if (decision.kind === "passed") {
     return { ok: false, error: "You have already passed this module." };
   }
+  if (decision.kind === "locked") {
+    return { ok: false, error: "You've used all 3 attempts for this module. Your Department Lead will reach out to help." };
+  }
   const pool: QuestionPool = decision.pool;
 
   const { data, error } = await sb.rpc("start_quiz_attempt", {
@@ -94,6 +98,8 @@ export type SubmitQuizResult =
       scorePct: number;
       correctCount: number;
       totalCount: number;
+      locked: boolean;
+      attemptsRemaining: number;
     }
   | { ok: false; error: string };
 
@@ -125,6 +131,8 @@ export async function submitQuiz(
     correct_count: number;
     total_count: number;
     passed: boolean;
+    locked: boolean;
+    attempts_remaining: number;
   };
 
   // Refresh anywhere the manager sees their progress + the admin/teacher dashboards.
@@ -139,13 +147,52 @@ export async function submitQuiz(
   // mail delivery failure never blocks the quiz response.
   void sendQuizResultEmail(user.id, payload).catch(() => {});
 
+  // On lockout (3 strikes), notify the module's leads + admins so they can step in.
+  if (payload.locked) {
+    void notifyLockout(user.id, payload.attempt_id).catch(() => {});
+  }
+
   return {
     ok: true,
     passed: payload.passed,
     scorePct: Number(payload.score_pct),
     correctCount: payload.correct_count,
     totalCount: payload.total_count,
+    locked: payload.locked,
+    attemptsRemaining: payload.attempts_remaining,
   };
+}
+
+// Notify the module's owning Department Lead(s) + admins that an employee is out
+// of attempts and needs manual help.
+async function notifyLockout(userId: string, attemptId: string) {
+  const admin = createAdminClient();
+  const { data: attempt } = await admin.from("attempts").select("module_slug").eq("id", attemptId).single();
+  const slug = (attempt as { module_slug?: string } | null)?.module_slug;
+  if (!slug) return;
+  const [{ data: prof }, { data: mod }, { data: owners }, { data: admins }] = await Promise.all([
+    admin.from("profiles").select("name").eq("id", userId).single(),
+    admin.from("modules").select("title").eq("slug", slug).single(),
+    admin.from("module_owners").select("teacher_id").eq("module_slug", slug),
+    admin.from("profiles").select("id").eq("role", "admin"),
+  ]);
+  const name = (prof as { name?: string } | null)?.name ?? "An employee";
+  const title = (mod as { title?: string } | null)?.title ?? slug;
+  const recipientIds = new Set<string>([
+    ...((owners ?? []) as { teacher_id: string }[]).map((o) => o.teacher_id),
+    ...((admins ?? []) as { id: string }[]).map((a) => a.id),
+  ]);
+  await Promise.all(
+    [...recipientIds].map((rid) =>
+      pushInAppNotification({
+        recipientId: rid,
+        kind: "alert",
+        subject: `Out of attempts — ${title}`,
+        preview: `${name} has used all 3 attempts on ${title} without passing. Please reach out to help.`,
+        href: "/admin/at-risk",
+      }),
+    ),
+  );
 }
 
 async function sendQuizResultEmail(
