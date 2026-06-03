@@ -12,6 +12,7 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import {
   ArrowLeft, ArrowUpRight, Calendar, Clock, Layers, Target, FileText, PlayCircle,
   Link2, ListChecks, BarChart3, Trophy, Users, AlertTriangle, PresentationIcon, Sparkles, Loader2,
+  Pencil, CheckCircle2,
 } from "lucide-react";
 import { PageHeader } from "@/components/shared/page-header";
 import { StatusBadge } from "@/components/shared/status-badge";
@@ -239,6 +240,8 @@ export function AdminModuleView({
       <Tabs value={tab} onValueChange={setTab} className="mb-6">
         <TabsList variant="line" className="mb-6">
           <TabsTrigger value="overview">Overview</TabsTrigger>
+          <TabsTrigger value="content">Content</TabsTrigger>
+          <TabsTrigger value="questions">Questions</TabsTrigger>
           <TabsTrigger value="roster">Roster</TabsTrigger>
           <TabsTrigger value="deliveries">Past deliveries</TabsTrigger>
           <TabsTrigger value="reports">Reports</TabsTrigger>
@@ -265,72 +268,7 @@ export function AdminModuleView({
             </div>
           </div>
 
-          <div className="space-y-3">
-            {mod.lessons.map((lesson) => (
-              <Card key={lesson.id} className="overflow-hidden">
-                <div className="grid grid-cols-[auto_1fr] gap-0">
-                  <div className="bg-primary/5 border-r flex flex-col items-center justify-center p-5 min-w-[80px]">
-                    <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Lesson</div>
-                    <div className="text-3xl font-bold tabular-nums text-primary mt-1">{lesson.order}</div>
-                    <div className="mt-2 inline-flex items-center gap-1 text-xs text-muted-foreground">
-                      <Clock className="size-3" /> {lesson.durationMinutes} min
-                    </div>
-                  </div>
-
-                  <div className="p-5">
-                    <div className="font-semibold text-base">{lesson.title}</div>
-                    <p className="text-sm text-muted-foreground mt-1">{lesson.description}</p>
-
-                    <div className="mt-4 space-y-1.5">
-                      {lesson.contents.map((c) => {
-                        const meta = TYPE_META[c.type];
-                        const Icon = meta.icon;
-                        return (
-                          <button
-                            key={c.id}
-                            type="button"
-                            onClick={() => setPreviewing(c)}
-                            className="w-full text-left flex items-center gap-3 px-3 py-2 rounded-md border bg-card hover:bg-accent/40 hover:border-primary/40 transition-colors group"
-                          >
-                            <div className={cn("size-7 rounded flex items-center justify-center shrink-0", meta.tint)}>
-                              <Icon className="size-3.5" />
-                            </div>
-                            <div className="flex-1 min-w-0">
-                              <div className="text-sm font-medium truncate group-hover:text-primary transition-colors">{c.title}</div>
-                              <div className="text-[11px] text-muted-foreground flex items-center gap-2">
-                                <span>{meta.label}</span>
-                                {c.durationMinutes && (
-                                  <>
-                                    <span className="text-muted-foreground/50">·</span>
-                                    <span>{c.durationMinutes} min</span>
-                                  </>
-                                )}
-                                {c.fileName && (
-                                  <>
-                                    <span className="text-muted-foreground/50">·</span>
-                                    <span className="truncate">{c.fileName}</span>
-                                  </>
-                                )}
-                                {c.fileSize && (
-                                  <>
-                                    <span className="text-muted-foreground/50">·</span>
-                                    <span>{c.fileSize}</span>
-                                  </>
-                                )}
-                              </div>
-                            </div>
-                            <Badge variant="outline" className="text-[10px] shrink-0 group-hover:border-primary/50 group-hover:text-primary transition-colors">
-                              {c.type === "link" ? "Open ↗" : "Preview"}
-                            </Badge>
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </div>
-                </div>
-              </Card>
-            ))}
-          </div>
+          <LessonsList lessons={mod.lessons} onPreview={setPreviewing} />
 
           <div className="mt-8 grid sm:grid-cols-3 gap-3">
             <Link href={`/teacher/modules/${slug}/questions`}>
@@ -495,6 +433,50 @@ export function AdminModuleView({
           </TabBody>
         </TabsContent>
 
+        {/* ─── CONTENT — lessons + items, with a jump to the full editor ── */}
+        <TabsContent value="content">
+          <TabBody>
+            <div className="flex items-center justify-between mb-4 flex-wrap gap-3">
+              <div>
+                <h3 className="text-lg font-semibold tracking-tight flex items-center gap-2">
+                  <Layers className="size-5 text-muted-foreground" /> Lessons &amp; content
+                </h3>
+                <p className="text-sm text-muted-foreground mt-0.5">
+                  {contentCounts.totalItems} items across {mod.lessons.length} lessons. Click any item to preview it.
+                </p>
+              </div>
+              <Button asChild>
+                <Link href={`/teacher/modules/${slug}/content`}>
+                  <Pencil className="size-4 mr-1.5" /> Edit content
+                </Link>
+              </Button>
+            </div>
+            <LessonsList lessons={mod.lessons} onPreview={setPreviewing} />
+          </TabBody>
+        </TabsContent>
+
+        {/* ─── QUESTIONS — bank summary + jump to the review screen ── */}
+        <TabsContent value="questions">
+          <TabBody>
+            <div className="flex items-center justify-between mb-4 flex-wrap gap-3">
+              <div>
+                <h3 className="text-lg font-semibold tracking-tight flex items-center gap-2">
+                  <ListChecks className="size-5 text-muted-foreground" /> Question bank
+                </h3>
+                <p className="text-sm text-muted-foreground mt-0.5">
+                  {approvedQs} of {questions.length} approved · {questions.filter((q) => q.pool === "retake").length} in the retake pool
+                </p>
+              </div>
+              <Button asChild>
+                <Link href={`/teacher/modules/${slug}/questions`}>
+                  <Pencil className="size-4 mr-1.5" /> Review &amp; edit questions
+                </Link>
+              </Button>
+            </div>
+            <QuestionBankList questions={questions} />
+          </TabBody>
+        </TabsContent>
+
         {/* ─── ROSTER — private per-employee info, separated from Overview ── */}
         <TabsContent value="roster">
           <TabBody>
@@ -632,6 +614,124 @@ function TallyRow({ icon: Icon, label, count, tint }: { icon: React.ComponentTyp
       </span>
       <span className="flex-1 text-muted-foreground">{label}</span>
       <span className="font-mono tabular-nums font-semibold">{count}</span>
+    </div>
+  );
+}
+
+/** Read-only lessons + content list, shared by the Overview and Content tabs. */
+function LessonsList({ lessons, onPreview }: { lessons: ModuleDef["lessons"]; onPreview: (c: LessonContent) => void }) {
+  if (lessons.length === 0) {
+    return (
+      <div className="rounded-lg border-2 border-dashed p-8 text-center text-sm text-muted-foreground">
+        No lessons yet. Use “Edit content” to add the first lesson.
+      </div>
+    );
+  }
+  return (
+    <div className="space-y-3">
+      {lessons.map((lesson) => (
+        <Card key={lesson.id} className="overflow-hidden">
+          <div className="grid grid-cols-[auto_1fr] gap-0">
+            <div className="bg-primary/5 border-r flex flex-col items-center justify-center p-5 min-w-[80px]">
+              <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Lesson</div>
+              <div className="text-3xl font-bold tabular-nums text-primary mt-1">{lesson.order}</div>
+              <div className="mt-2 inline-flex items-center gap-1 text-xs text-muted-foreground">
+                <Clock className="size-3" /> {lesson.durationMinutes} min
+              </div>
+            </div>
+
+            <div className="p-5">
+              <div className="font-semibold text-base">{lesson.title}</div>
+              <p className="text-sm text-muted-foreground mt-1">{lesson.description}</p>
+
+              <div className="mt-4 space-y-1.5">
+                {lesson.contents.map((c) => {
+                  const meta = TYPE_META[c.type];
+                  const Icon = meta.icon;
+                  return (
+                    <button
+                      key={c.id}
+                      type="button"
+                      onClick={() => onPreview(c)}
+                      className="w-full text-left flex items-center gap-3 px-3 py-2 rounded-md border bg-card hover:bg-accent/40 hover:border-primary/40 transition-colors group"
+                    >
+                      <div className={cn("size-7 rounded flex items-center justify-center shrink-0", meta.tint)}>
+                        <Icon className="size-3.5" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="text-sm font-medium truncate group-hover:text-primary transition-colors flex items-center gap-1.5">
+                          {c.title}
+                          {c.presentationHidden && (
+                            <Badge variant="outline" className="text-[9px] px-1 py-0 shrink-0 text-muted-foreground">Not on presentation day</Badge>
+                          )}
+                        </div>
+                        <div className="text-[11px] text-muted-foreground flex items-center gap-2">
+                          <span>{meta.label}</span>
+                          {c.durationMinutes && (<><span className="text-muted-foreground/50">·</span><span>{c.durationMinutes} min</span></>)}
+                          {c.fileName && (<><span className="text-muted-foreground/50">·</span><span className="truncate">{c.fileName}</span></>)}
+                          {c.fileSize && (<><span className="text-muted-foreground/50">·</span><span>{c.fileSize}</span></>)}
+                        </div>
+                      </div>
+                      <Badge variant="outline" className="text-[10px] shrink-0 group-hover:border-primary/50 group-hover:text-primary transition-colors">
+                        {c.type === "link" ? "Open ↗" : "Preview"}
+                      </Badge>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+        </Card>
+      ))}
+    </div>
+  );
+}
+
+/** Read-only question-bank summary for the Questions tab. */
+function QuestionBankList({ questions }: { questions: Question[] }) {
+  if (questions.length === 0) {
+    return (
+      <div className="rounded-lg border-2 border-dashed p-8 text-center text-sm text-muted-foreground">
+        No questions yet. Use “Review &amp; edit questions” to generate and approve a bank.
+      </div>
+    );
+  }
+  const pools: { key: "first-attempt" | "retake"; label: string }[] = [
+    { key: "first-attempt", label: "First attempt" },
+    { key: "retake", label: "Retake" },
+  ];
+  return (
+    <div className="space-y-6">
+      {pools.map(({ key, label }) => {
+        const list = questions.filter((q) => q.pool === key);
+        if (list.length === 0) return null;
+        return (
+          <div key={key}>
+            <div className="flex items-center gap-2 mb-2">
+              <h4 className="text-sm font-semibold">{label}</h4>
+              <Badge variant="outline" className="text-[10px]">{list.length}</Badge>
+            </div>
+            <div className="space-y-1.5">
+              {list.map((q) => {
+                const live = q.status === "approved" || q.status === "edited";
+                return (
+                  <div key={q.id} className="flex items-start gap-3 px-3 py-2 rounded-md border bg-card">
+                    {live ? (
+                      <CheckCircle2 className="size-4 text-emerald-500 shrink-0 mt-0.5" />
+                    ) : (
+                      <Clock className="size-4 text-muted-foreground/50 shrink-0 mt-0.5" />
+                    )}
+                    <div className="flex-1 min-w-0">
+                      <div className="text-sm line-clamp-2">{q.text}</div>
+                    </div>
+                    <StatusBadge variant={q.status} />
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        );
+      })}
     </div>
   );
 }
