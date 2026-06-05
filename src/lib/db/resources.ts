@@ -212,3 +212,119 @@ export async function listAcknowledgementStatus(resourceId: string): Promise<Ack
     }))
     .sort((a, b) => Number(a.acked) - Number(b.acked) || a.name.localeCompare(b.name));
 }
+
+// ─── Change audit (resource_versions) ──────────────────────────────────
+
+export interface ResourceVersionSnapshot {
+  title?: string;
+  category?: string;
+  department?: string;
+  description?: string | null;
+  body?: string | null;
+  storagePath?: string | null;
+  externalUrl?: string | null;
+  requiresAck?: boolean;
+  assignedRoles?: string[];
+  assignedCohorts?: string[] | null;
+}
+
+export interface ResourceVersion {
+  seq: number;
+  ackVersion: number;
+  snapshot: ResourceVersionSnapshot;
+  changeReason: string;
+  changedBy: string | null;
+  changedByName: string | null;
+  createdAt: string;
+}
+
+/** Resolve profile ids -> display names in one query. */
+async function resourceNamesByIds(sb: Awaited<ReturnType<typeof dbClient>>, ids: (string | null)[]): Promise<Map<string, string>> {
+  const unique = Array.from(new Set(ids.filter((x): x is string => !!x)));
+  if (unique.length === 0) return new Map();
+  const { data } = await sb.from("profiles").select("id, name").in("id", unique);
+  const m = new Map<string, string>();
+  for (const r of (data ?? []) as { id: string; name: string }[]) m.set(r.id, r.name);
+  return m;
+}
+
+/** Full change history for a resource, newest first, with editor names. */
+export async function listResourceVersions(resourceId: string): Promise<ResourceVersion[]> {
+  const sb = await dbClient();
+  const { data } = await sb
+    .from("resource_versions")
+    .select("seq, ack_version, snapshot, change_reason, changed_by, created_at")
+    .eq("resource_id", resourceId)
+    .order("seq", { ascending: false });
+  const rows = (data ?? []) as {
+    seq: number; ack_version: number; snapshot: ResourceVersionSnapshot;
+    change_reason: string; changed_by: string | null; created_at: string;
+  }[];
+  const names = await resourceNamesByIds(sb, rows.map((r) => r.changed_by));
+  return rows.map((r) => ({
+    seq: r.seq,
+    ackVersion: r.ack_version,
+    snapshot: r.snapshot ?? {},
+    changeReason: r.change_reason,
+    changedBy: r.changed_by,
+    changedByName: r.changed_by ? names.get(r.changed_by) ?? null : null,
+    createdAt: r.created_at,
+  }));
+}
+
+// ─── Acknowledgement history ("tree", grouped by version) ──────────────
+
+export interface AckHistoryEntry {
+  version: number;
+  /** The edit that introduced this version (who + when), if known. */
+  requiredByName: string | null;
+  requiredAt: string | null;
+  acks: { name: string; acknowledgedAt: string }[];
+}
+
+/** Every acknowledgement for a resource, grouped by version (newest first). */
+export async function listAcknowledgementHistory(resourceId: string): Promise<AckHistoryEntry[]> {
+  const sb = await dbClient();
+  const [{ data: ackRows }, { data: verRows }] = await Promise.all([
+    sb.from("acknowledgements")
+      .select("user_id, content_version, acknowledged_at")
+      .eq("content_type", "resource")
+      .eq("content_ref", resourceId),
+    sb.from("resource_versions")
+      .select("ack_version, change_reason, changed_by, created_at, seq")
+      .eq("resource_id", resourceId),
+  ]);
+
+  const acks = (ackRows ?? []) as { user_id: string; content_version: number; acknowledged_at: string }[];
+  const vers = (verRows ?? []) as { ack_version: number; change_reason: string; changed_by: string | null; created_at: string; seq: number }[];
+
+  const names = await resourceNamesByIds(sb, [
+    ...acks.map((a) => a.user_id),
+    ...vers.map((v) => v.changed_by),
+  ]);
+
+  // For each ack version, the latest edit that produced it.
+  const editByVersion = new Map<number, { changed_by: string | null; created_at: string }>();
+  for (const v of vers.sort((a, b) => a.seq - b.seq)) editByVersion.set(v.ack_version, { changed_by: v.changed_by, created_at: v.created_at });
+
+  const byVersion = new Map<number, AckHistoryEntry>();
+  for (const a of acks) {
+    if (!byVersion.has(a.content_version)) {
+      const edit = editByVersion.get(a.content_version);
+      byVersion.set(a.content_version, {
+        version: a.content_version,
+        requiredByName: edit?.changed_by ? names.get(edit.changed_by) ?? null : null,
+        requiredAt: edit?.created_at ?? null,
+        acks: [],
+      });
+    }
+    byVersion.get(a.content_version)!.acks.push({
+      name: names.get(a.user_id) ?? "Unknown",
+      acknowledgedAt: a.acknowledged_at,
+    });
+  }
+
+  return Array.from(byVersion.values())
+    .map((e) => ({ ...e, acks: e.acks.sort((x, y) => +new Date(y.acknowledgedAt) - +new Date(x.acknowledgedAt)) }))
+    .sort((a, b) => b.version - a.version);
+}

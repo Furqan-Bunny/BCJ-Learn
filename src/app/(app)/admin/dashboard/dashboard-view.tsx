@@ -58,6 +58,7 @@ const ACTIVITY_ICON = {
   session_started: { Icon: Play, color: "text-emerald-500" },
   session_ended: { Icon: Square, color: "text-slate-500" },
   user_login: { Icon: LogIn, color: "text-slate-500" },
+  resource_updated: { Icon: FileText, color: "text-sky-500" },
 } as const;
 
 interface AdminDashboardViewProps {

@@ -7,16 +7,75 @@ import { listAcknowledgementStatus, type AckStatusRow } from "@/lib/db/resources
 import type { Role } from "@/types";
 
 async function requireAdmin(): Promise<
-  { ok: true; userId: string } | { ok: false; error: string }
+  { ok: true; userId: string; userName: string } | { ok: false; error: string }
 > {
   const sb = await createClient();
   const { data: { user } } = await sb.auth.getUser();
   if (!user) return { ok: false, error: "Not signed in" };
-  const { data } = await sb.from("profiles").select("role").eq("id", user.id).single();
-  if ((data as { role?: string } | null)?.role !== "admin") {
+  const { data } = await sb.from("profiles").select("role, name").eq("id", user.id).single();
+  const p = data as { role?: string; name?: string } | null;
+  if (p?.role !== "admin") {
     return { ok: false, error: "Admin access required" };
   }
-  return { ok: true, userId: user.id };
+  return { ok: true, userId: user.id, userName: p.name ?? "An admin" };
+}
+
+type AdminClient = ReturnType<typeof createAdminClient>;
+
+/** Snapshot the current resource state into resource_versions (best-effort). */
+async function snapshotResourceVersion(
+  admin: AdminClient,
+  resourceId: string,
+  changeReason: "created" | "edited",
+  userId: string,
+): Promise<void> {
+  try {
+    const { data: r } = await admin
+      .from("resources")
+      .select("title, category, department, description, body, storage_path, external_url, requires_ack, assigned_roles, assigned_cohorts, version")
+      .eq("id", resourceId)
+      .maybeSingle();
+    if (!r) return;
+    const row = r as Record<string, unknown> & { version: number };
+    const { data: last } = await admin
+      .from("resource_versions")
+      .select("seq")
+      .eq("resource_id", resourceId)
+      .order("seq", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    const nextSeq = ((last as { seq?: number } | null)?.seq ?? 0) + 1;
+    await admin.from("resource_versions").insert({
+      resource_id: resourceId,
+      seq: nextSeq,
+      ack_version: row.version,
+      change_reason: changeReason,
+      changed_by: userId,
+      snapshot: {
+        title: row.title,
+        category: row.category,
+        department: row.department,
+        description: row.description,
+        body: row.body,
+        storagePath: row.storage_path,
+        externalUrl: row.external_url,
+        requiresAck: row.requires_ack,
+        assignedRoles: row.assigned_roles,
+        assignedCohorts: row.assigned_cohorts,
+      },
+    });
+  } catch {
+    // Auditing must never block the write.
+  }
+}
+
+/** Best-effort entry in the global activity feed for a resource change. */
+async function logResourceActivity(admin: AdminClient, userId: string, message: string): Promise<void> {
+  try {
+    await admin.from("activity").insert({ kind: "resource_updated", actor_id: userId, target_id: null, message });
+  } catch {
+    // ignore
+  }
 }
 
 /**
@@ -99,9 +158,13 @@ export async function createResource(
     .single();
   if (error) return { ok: false, error: error.message };
 
+  const newId = (data as { id: string }).id;
+  await snapshotResourceVersion(admin, newId, "created", guard.userId);
+  await logResourceActivity(admin, guard.userId, `${guard.userName} created resource "${input.title.trim()}"`);
+
   revalidatePath("/admin/resources");
   revalidatePath("/manager/resources");
-  return { ok: true, id: (data as { id: string }).id };
+  return { ok: true, id: newId };
 }
 
 // ─── editResource (admin) ──────────────────────────────────────────────
@@ -165,8 +228,16 @@ export async function editResource(
     );
   }
 
+  await snapshotResourceVersion(admin, id, "edited", guard.userId);
+  await logResourceActivity(
+    admin,
+    guard.userId,
+    `${guard.userName} updated resource "${input.title.trim()}"${input.requireReack ? " (re-acknowledgement required)" : ""}`,
+  );
+
   revalidatePath("/admin/resources");
   revalidatePath("/manager/resources");
+  revalidatePath(`/admin/resources/${id}`);
   return { ok: true };
 }
 
@@ -179,8 +250,12 @@ export async function deleteResource(id: string): Promise<{ ok: boolean; error?:
   if (DEMO_MODE) return { ok: true };
 
   const admin = createAdminClient();
+  const { data: existing } = await admin.from("resources").select("title").eq("id", id).maybeSingle();
+  const title = (existing as { title?: string } | null)?.title ?? "a resource";
   const { error } = await admin.from("resources").delete().eq("id", id);
   if (error) return { ok: false, error: error.message };
+
+  await logResourceActivity(admin, guard.userId, `${guard.userName} deleted resource "${title}"`);
 
   revalidatePath("/admin/resources");
   revalidatePath("/manager/resources");

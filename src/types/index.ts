@@ -185,7 +185,8 @@ export type ActivityKind =
   | "manager_checked_in"
   | "session_started"
   | "session_ended"
-  | "user_login";
+  | "user_login"
+  | "resource_updated";
 
 export interface ActivityEvent {
   id: string;
