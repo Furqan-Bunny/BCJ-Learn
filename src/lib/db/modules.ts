@@ -179,6 +179,7 @@ export interface ModuleContentVersion {
   versionNumber: number;
   changeReason: string;
   changedBy: string | null;
+  changedByName: string | null;
   createdAt: string;
   lessons: Lesson[];
 }
@@ -198,10 +199,21 @@ export async function listModuleContentVersions(slug: string): Promise<ModuleCon
     .select("version_number, change_reason, changed_by, created_at, snapshot")
     .eq("module_slug", slug)
     .order("version_number", { ascending: false });
-  return ((data ?? []) as ModuleContentVersionRow[]).map((r) => ({
+  const rows = (data ?? []) as ModuleContentVersionRow[];
+
+  // Resolve editor ids -> names in one query.
+  const editorIds = Array.from(new Set(rows.map((r) => r.changed_by).filter((x): x is string => !!x)));
+  const names = new Map<string, string>();
+  if (editorIds.length > 0) {
+    const { data: people } = await sb.from("profiles").select("id, name").in("id", editorIds);
+    for (const p of (people ?? []) as { id: string; name: string }[]) names.set(p.id, p.name);
+  }
+
+  return rows.map((r) => ({
     versionNumber: r.version_number,
     changeReason: r.change_reason,
     changedBy: r.changed_by,
+    changedByName: r.changed_by ? names.get(r.changed_by) ?? null : null,
     createdAt: r.created_at,
     lessons: r.snapshot ?? [],
   }));

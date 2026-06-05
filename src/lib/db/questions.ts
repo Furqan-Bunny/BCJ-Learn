@@ -87,6 +87,16 @@ export async function listQuestionsForModuleAsAdmin(slug: string, pool?: Questio
   return fetchQuestions(createAdminClient(), slug, pool);
 }
 
+/** Resolve a set of profile ids to their display names (one query). */
+async function namesByIds(sb: SupabaseClient, ids: (string | null)[]): Promise<Map<string, string>> {
+  const unique = Array.from(new Set(ids.filter((x): x is string => !!x)));
+  if (unique.length === 0) return new Map();
+  const { data } = await sb.from("profiles").select("id, name").in("id", unique);
+  const m = new Map<string, string>();
+  for (const r of (data ?? []) as { id: string; name: string }[]) m.set(r.id, r.name);
+  return m;
+}
+
 // ─── Version history ───────────────────────────────────────────────────
 
 export interface QuestionVersion {
@@ -98,6 +108,7 @@ export interface QuestionVersion {
   status: QuestionStatus;
   changeReason: string;
   changedBy: string | null;
+  changedByName: string | null;
   createdAt: string;
 }
 
@@ -122,7 +133,10 @@ export async function listQuestionVersions(questionId: string): Promise<Question
     .eq("question_id", questionId)
     .order("version_number", { ascending: false });
 
-  return ((data ?? []) as QuestionVersionRow[]).map((r) => ({
+  const rows = (data ?? []) as QuestionVersionRow[];
+  const names = await namesByIds(sb, rows.map((r) => r.changed_by));
+
+  return rows.map((r) => ({
     id: r.id,
     versionNumber: r.version_number,
     text: r.text,
@@ -131,6 +145,7 @@ export async function listQuestionVersions(questionId: string): Promise<Question
     status: r.status,
     changeReason: r.change_reason,
     changedBy: r.changed_by,
+    changedByName: r.changed_by ? names.get(r.changed_by) ?? null : null,
     createdAt: r.created_at,
   }));
 }

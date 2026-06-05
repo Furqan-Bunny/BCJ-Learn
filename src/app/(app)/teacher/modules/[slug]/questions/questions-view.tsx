@@ -542,7 +542,9 @@ function HistoryDialog({
                   <div className="flex items-center gap-2">
                     <Badge variant="outline" className="font-mono text-[10px]">v{v.versionNumber}</Badge>
                     <span className="text-xs font-medium">{REASON_LABEL[v.changeReason] ?? v.changeReason}</span>
-                    <span className="text-xs text-muted-foreground">· {fmtRelative(v.createdAt)}</span>
+                    <span className="text-xs text-muted-foreground">
+                      {v.changedByName ? `· by ${v.changedByName} ` : ""}· {fmtRelative(v.createdAt)}
+                    </span>
                   </div>
                   <Button
                     size="sm"
