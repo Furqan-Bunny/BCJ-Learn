@@ -482,6 +482,7 @@ function RespondersDialog({
 }) {
   const [loading, setLoading] = React.useState(false);
   const [responders, setResponders] = React.useState<QuestionResponder[] | null>(null);
+  const [search, setSearch] = React.useState("");
   const PER = 8;
   const [page, setPage] = React.useState(0);
 
@@ -489,6 +490,7 @@ function RespondersDialog({
     if (!open) return;
     setLoading(true);
     setResponders(null);
+    setSearch("");
     setPage(0);
     getQuestionResponders(question.id).then((res) => {
       setLoading(false);
@@ -497,8 +499,10 @@ function RespondersDialog({
     });
   }, [open, question.id]);
 
-  const correctCount = responders?.filter((r) => r.correct).length ?? 0;
-  const wrongCount = (responders?.length ?? 0) - correctCount;
+  const filtered = (responders ?? []).filter((r) => r.name.toLowerCase().includes(search.toLowerCase()));
+  React.useEffect(() => { setPage(0); }, [search]);
+  const correctCount = filtered.filter((r) => r.correct).length;
+  const wrongCount = filtered.length - correctCount;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -513,22 +517,35 @@ function RespondersDialog({
           <div className="p-6 text-center text-sm text-muted-foreground">No one has answered this question yet.</div>
         ) : (
           <>
+            <div className="relative">
+              <Search className="size-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Search by name…"
+                className="pl-9 h-9"
+              />
+            </div>
             <div className="flex items-center gap-4 text-xs text-muted-foreground">
               <span className="flex items-center gap-1.5"><span className="size-2 rounded-full bg-emerald-500" /> {correctCount} correct</span>
               <span className="flex items-center gap-1.5"><span className="size-2 rounded-full bg-rose-500" /> {wrongCount} wrong</span>
             </div>
-            <div className="rounded-md border divide-y">
-              {pageSlice(responders, page, PER).map((r, i) => (
-                <div key={i} className="flex items-center gap-2 px-3 py-2">
-                  {r.correct
-                    ? <CheckCircle2 className="size-4 text-emerald-500 shrink-0" />
-                    : <X className="size-4 text-rose-500 shrink-0" />}
-                  <span className="flex-1 min-w-0 truncate text-sm font-medium">{r.name}</span>
-                  <span className="text-[11px] text-muted-foreground shrink-0">{fmtDate(r.attemptedAt, "MMM d, h:mm a")}</span>
-                </div>
-              ))}
-            </div>
-            <Pagination page={page} total={responders.length} pageSize={PER} onPageChange={setPage} />
+            {filtered.length === 0 ? (
+              <div className="rounded-md border p-6 text-center text-sm text-muted-foreground">No one matches &ldquo;{search}&rdquo;.</div>
+            ) : (
+              <div className="rounded-md border divide-y">
+                {pageSlice(filtered, page, PER).map((r, i) => (
+                  <div key={i} className="flex items-center gap-2 px-3 py-2">
+                    {r.correct
+                      ? <CheckCircle2 className="size-4 text-emerald-500 shrink-0" />
+                      : <X className="size-4 text-rose-500 shrink-0" />}
+                    <span className="flex-1 min-w-0 truncate text-sm font-medium">{r.name}</span>
+                    <span className="text-[11px] text-muted-foreground shrink-0">{fmtDate(r.attemptedAt, "MMM d, h:mm a")}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+            <Pagination page={page} total={filtered.length} pageSize={PER} onPageChange={setPage} />
           </>
         )}
         <DialogFooter>
