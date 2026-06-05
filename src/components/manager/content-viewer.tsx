@@ -14,6 +14,7 @@ import type { LessonContent, ContentType } from "@/types";
 import { signedUrlForContent } from "@/lib/supabase/storage";
 import { saveVideoProgress, getVideoProgress } from "@/lib/server/progress-actions";
 import { useT } from "@/lib/i18n/provider";
+import { DocxPreview } from "@/components/shared/docx-preview";
 
 const TYPE_META: Record<ContentType, { icon: React.ComponentType<{ className?: string }>; label: string; tint: string }> = {
   video:    { icon: PlayCircle, label: "Video",    tint: "text-rose-600 bg-rose-100 dark:text-rose-300 dark:bg-rose-950/40" },
@@ -46,7 +47,7 @@ export function ContentViewer({ content, onClose, moduleSlug }: ContentViewerPro
 
   return (
     <Dialog open={true} onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="max-w-4xl max-h-[90vh] p-0 overflow-hidden flex flex-col">
+      <DialogContent showCloseButton={false} className="max-w-4xl max-h-[90vh] p-0 overflow-hidden flex flex-col">
         {/* Header */}
         <div className="px-6 py-4 border-b flex items-center gap-3">
           <span className={cn("size-9 rounded-md flex items-center justify-center shrink-0", meta.tint)}>
@@ -146,6 +147,7 @@ function StoredFileViewer({ content, moduleSlug }: { content: LessonContent; mod
   const ext = (content.fileName ?? "").toLowerCase().split(".").pop() ?? "";
   const isPdf = ext === "pdf";
   const isMp4 = ext === "mp4" || ext === "webm" || ext === "mov";
+  const isDocx = ext === "docx";
 
   if (content.type === "video" && isMp4) {
     return <VideoPlayer url={url} contentId={content.id} moduleSlug={moduleSlug} />;
@@ -155,7 +157,11 @@ function StoredFileViewer({ content, moduleSlug }: { content: LessonContent; mod
       <iframe src={url} loading="lazy" className="w-full h-[70vh] bg-white" title={content.title} />
     );
   }
-  // Word / PowerPoint / other — no inline preview; give a download link.
+  // Word .docx — render inline (converted to HTML), no download needed.
+  if (isDocx) {
+    return <DocxPreview url={url} fileName={content.fileName} />;
+  }
+  // Older .doc / PowerPoint / other — no inline preview; give a download link.
   return (
     <div className="p-12 text-center">
       <FileText className="size-12 mx-auto opacity-40 mb-3" />

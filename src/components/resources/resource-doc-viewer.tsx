@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { FileText, Loader2, Download, ExternalLink } from "lucide-react";
 import { signedUrlForContent } from "@/lib/supabase/storage";
 import { useT } from "@/lib/i18n/provider";
+import { DocxPreview } from "@/components/shared/docx-preview";
 
 export interface ResourceDocViewerResource {
   title: string;
@@ -38,6 +39,7 @@ export function ResourceDocViewer({ resource }: { resource: ResourceDocViewerRes
     const ext = resource.storagePath.toLowerCase().split(".").pop() ?? "";
     const isPdf = ext === "pdf";
     const isVideo = ext === "mp4" || ext === "webm" || ext === "mov";
+    const isDocx = ext === "docx";
 
     if (error) {
       return (
@@ -58,6 +60,13 @@ export function ResourceDocViewer({ resource }: { resource: ResourceDocViewerRes
     }
     if (isVideo) {
       return <video src={url} controls className="w-full rounded-lg border bg-black" />;
+    }
+    if (isDocx) {
+      return (
+        <div className="rounded-lg border max-h-[60vh] overflow-y-auto">
+          <DocxPreview url={url} fileName={resource.storagePath.split("/").pop()} />
+        </div>
+      );
     }
     return (
       <div className="rounded-lg border bg-muted/30 p-8 text-center">
