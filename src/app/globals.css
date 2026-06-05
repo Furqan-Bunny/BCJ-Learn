@@ -467,3 +467,10 @@
     }
   }
 }
+
+/* Print: show only the certificate, hide app chrome. */
+@media print {
+  body * { visibility: hidden !important; }
+  .certificate, .certificate * { visibility: visible !important; }
+  .certificate { position: absolute; inset: 0 auto auto 0; width: 100%; box-shadow: none !important; }
+}

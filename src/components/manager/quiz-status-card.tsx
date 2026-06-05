@@ -3,7 +3,7 @@
 import Link from "next/link";
 import {
   CheckCircle2, XCircle, AlertTriangle, Clock, Calendar, RefreshCcw,
-  Target, Trophy, ArrowRight, Lock, Sparkles, UserCheck,
+  Target, Trophy, ArrowRight, Lock, Sparkles, UserCheck, Award,
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -76,7 +76,13 @@ export function QuizStatusCard({
         eyebrow="You passed this module"
         title={`You scored ${fmtPct(state.passedAttempt.scorePct)} on ${mod.title}`}
         description="You don't need to retake the quiz. BCJ recommends an annual refresher to keep the material fresh."
-        primaryAction={null}
+        primaryAction={
+          <Button asChild variant="outline">
+            <Link href={`/manager/modules/${mod.slug}/certificate`}>
+              <Award className="size-4 mr-1.5" /> View certificate
+            </Link>
+          </Button>
+        }
         meta={[
           { icon: CheckCircle2, label: "Passed on", value: fmtDate(state.passedAttempt.submittedAt ?? state.passedAttempt.startedAt) },
           { icon: Calendar, label: "Refresher", value: fmtDate(state.refresherDueDate) },

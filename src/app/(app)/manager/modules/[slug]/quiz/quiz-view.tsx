@@ -382,7 +382,7 @@ export function ManagerQuizView({ mod }: { mod: ModuleDef }) {
             )}
             {result?.passed && (
               <Button asChild variant="outline" size="lg">
-                <Link href={`/manager/modules/${slug}`}>Review materials</Link>
+                <Link href={`/manager/modules/${slug}/certificate`}>View certificate</Link>
               </Button>
             )}
           </div>
