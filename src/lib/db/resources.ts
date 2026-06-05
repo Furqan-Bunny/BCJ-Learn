@@ -9,6 +9,8 @@ export interface Resource {
   id: string;
   title: string;
   category: string;
+  /** Department "folder" this resource is filed under (e.g. HR, Operations). */
+  department: string;
   description: string | null;
   /** Rich-text body (Markdown) when the admin types the SOP inline. */
   body: string | null;
@@ -28,6 +30,7 @@ interface ResourceRow {
   id: string;
   title: string;
   category: string;
+  department: string | null;
   description: string | null;
   body: string | null;
   storage_path: string | null;
@@ -47,6 +50,7 @@ function rowToResource(r: ResourceRow): Resource {
     id: r.id,
     title: r.title,
     category: r.category,
+    department: r.department ?? "General",
     description: r.description,
     body: r.body,
     storagePath: r.storage_path,
@@ -160,6 +164,7 @@ export interface AckStatusRow {
   name: string;
   email: string;
   acked: boolean;
+  acknowledgedAt: string | null;
 }
 
 /**
@@ -185,17 +190,25 @@ export async function listAcknowledgementStatus(resourceId: string): Promise<Ack
   const users = (people ?? []) as { id: string; name: string; email: string }[];
   if (users.length === 0) return [];
 
-  // Who acked the current version
+  // Who acked the current version (+ when)
   const { data: acks } = await sb
     .from("acknowledgements")
-    .select("user_id")
+    .select("user_id, acknowledged_at")
     .eq("content_type", "resource")
     .eq("content_ref", resourceId)
     .eq("content_version", r.version)
     .in("user_id", users.map((u) => u.id));
-  const ackedIds = new Set(((acks ?? []) as { user_id: string }[]).map((a) => a.user_id));
+  const ackedAtById = new Map(
+    ((acks ?? []) as { user_id: string; acknowledged_at: string }[]).map((a) => [a.user_id, a.acknowledged_at]),
+  );
 
   return users
-    .map((u) => ({ userId: u.id, name: u.name, email: u.email, acked: ackedIds.has(u.id) }))
+    .map((u) => ({
+      userId: u.id,
+      name: u.name,
+      email: u.email,
+      acked: ackedAtById.has(u.id),
+      acknowledgedAt: ackedAtById.get(u.id) ?? null,
+    }))
     .sort((a, b) => Number(a.acked) - Number(b.acked) || a.name.localeCompare(b.name));
 }

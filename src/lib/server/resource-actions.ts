@@ -57,6 +57,7 @@ const DEMO_MODE = process.env.NEXT_PUBLIC_DEMO_MODE === "true";
 export interface ResourceInput {
   title: string;
   category: string;
+  department?: string;
   description?: string | null;
   body?: string | null;
   storagePath?: string | null;
@@ -83,6 +84,7 @@ export async function createResource(
     .insert({
       title: input.title.trim(),
       category: input.category.trim() || "General",
+      department: input.department?.trim() || "General",
       description: input.description ?? null,
       body: input.body ?? null,
       storage_path: input.storagePath ?? null,
@@ -124,6 +126,7 @@ export async function editResource(
   const update: Record<string, unknown> = {
     title: input.title.trim(),
     category: input.category.trim() || "General",
+    department: input.department?.trim() || "General",
     description: input.description ?? null,
     body: input.body ?? null,
     storage_path: input.storagePath ?? null,

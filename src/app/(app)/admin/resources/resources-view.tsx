@@ -15,7 +15,7 @@ import {
   Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
 } from "@/components/ui/dialog";
 import { FileText, Plus, Users, CheckCircle2, AlertCircle, Sparkles, Upload, X as XIcon, Bold, Italic, List, Heading2, Pencil, Trash2, ChevronDown, Loader2, Circle } from "lucide-react";
-import { fmtRelative } from "@/lib/format";
+import { fmtRelative, fmtDate } from "@/lib/format";
 import { Stagger, StaggerItem } from "@/components/shared/animations";
 import { uploadResourceFile } from "@/lib/supabase/storage";
 import { createResource, editResource, deleteResource, getAcknowledgementStatus } from "@/lib/server/resource-actions";
@@ -45,6 +45,7 @@ export function ResourcesAdminView({ initialResources }: { initialResources: Enr
   const [editingId, setEditingId] = React.useState<string | null>(null);
   const [title, setTitle] = React.useState("");
   const [category, setCategory] = React.useState("General");
+  const [department, setDepartment] = React.useState("General");
   const [description, setDescription] = React.useState("");
   const [body, setBody] = React.useState("");
   const [file, setFile] = React.useState<File | null>(null);
@@ -83,7 +84,7 @@ export function ResourcesAdminView({ initialResources }: { initialResources: Enr
 
   function openCreate() {
     setEditingId(null);
-    setTitle(""); setCategory("General"); setDescription(""); setBody("");
+    setTitle(""); setCategory("General"); setDepartment("General"); setDescription(""); setBody("");
     setFile(null); setExistingPath(null); setExternalUrl("");
     setRequiresAck(true); setAssignedRoles(["manager"]); setMarkets([]);
     setNotifyOnUpdate(true); setRequireReack(false);
@@ -91,7 +92,7 @@ export function ResourcesAdminView({ initialResources }: { initialResources: Enr
   }
   function openEdit(r: EnrichedResource) {
     setEditingId(r.id);
-    setTitle(r.title); setCategory(r.category); setDescription(r.description ?? ""); setBody(r.body ?? "");
+    setTitle(r.title); setCategory(r.category); setDepartment(r.department ?? "General"); setDescription(r.description ?? ""); setBody(r.body ?? "");
     setFile(null); setExistingPath(r.storagePath ?? null); setExternalUrl(r.externalUrl ?? "");
     setRequiresAck(r.requiresAck); setAssignedRoles(r.assignedRoles?.length ? r.assignedRoles : ["manager"]);
     setMarkets(r.assignedCohorts ?? []); setNotifyOnUpdate(r.notifyOnUpdate); setRequireReack(false);
@@ -111,11 +112,13 @@ export function ResourcesAdminView({ initialResources }: { initialResources: Enr
     if (f) setFile(f);
   }
 
-  const byCategory = new Map<string, EnrichedResource[]>();
+  // Group into department "folders".
+  const byDepartment = new Map<string, EnrichedResource[]>();
   for (const r of initialResources) {
-    const list = byCategory.get(r.category) ?? [];
+    const dept = r.department || "General";
+    const list = byDepartment.get(dept) ?? [];
     list.push(r);
-    byCategory.set(r.category, list);
+    byDepartment.set(dept, list);
   }
 
   async function handleSubmit(e?: React.FormEvent | React.MouseEvent) {
@@ -140,6 +143,7 @@ export function ResourcesAdminView({ initialResources }: { initialResources: Enr
     const payload = {
       title: title.trim(),
       category: category.trim() || "General",
+      department: department.trim() || "General",
       description: description.trim() || null,
       body: body.trim() || null,
       storagePath,
@@ -176,7 +180,7 @@ export function ResourcesAdminView({ initialResources }: { initialResources: Enr
     <>
       <div className="flex items-center justify-between mb-6">
         <p className="text-sm text-muted-foreground">
-          {initialResources.length} resource{initialResources.length === 1 ? "" : "s"} across {byCategory.size} categor{byCategory.size === 1 ? "y" : "ies"}
+          {initialResources.length} resource{initialResources.length === 1 ? "" : "s"} across {byDepartment.size} department{byDepartment.size === 1 ? "" : "s"}
         </p>
         <Button onClick={openCreate}>
           <Plus className="size-4 mr-1.5" /> Add resource
@@ -197,10 +201,20 @@ export function ResourcesAdminView({ initialResources }: { initialResources: Enr
               <Input id="r-title" value={title} onChange={(e) => setTitle(e.target.value)}
                 placeholder="e.g., Floor care guide" className="h-10" autoFocus />
             </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="r-category" className="text-xs">Category</Label>
-              <Input id="r-category" value={category} onChange={(e) => setCategory(e.target.value)}
-                placeholder="HR / Safety / Operations / General" className="h-10" />
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label htmlFor="r-department" className="text-xs">Department</Label>
+                <Input id="r-department" value={department} onChange={(e) => setDepartment(e.target.value)}
+                  placeholder="HR / Operations / Safety" className="h-10" list="dept-suggestions" />
+                <datalist id="dept-suggestions">
+                  {Array.from(byDepartment.keys()).map((d) => <option key={d} value={d} />)}
+                </datalist>
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="r-category" className="text-xs">Category</Label>
+                <Input id="r-category" value={category} onChange={(e) => setCategory(e.target.value)}
+                  placeholder="Policy / Safety / Guide" className="h-10" />
+              </div>
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="r-desc" className="text-xs">Short description</Label>
@@ -331,9 +345,9 @@ export function ResourcesAdminView({ initialResources }: { initialResources: Enr
         </Card>
       )}
 
-      {Array.from(byCategory.entries()).map(([cat, list]) => (
-        <section key={cat} className="mb-8">
-          <h3 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground mb-3">{cat}</h3>
+      {Array.from(byDepartment.entries()).map(([dept, list]) => (
+        <section key={dept} className="mb-8">
+          <h3 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground mb-3">{dept}</h3>
           <Stagger className="grid lg:grid-cols-2 gap-3">
             {list.map((r) => {
               const ackPct = r.ackCount.total > 0 ? Math.round((r.ackCount.acked / r.ackCount.total) * 100) : 0;
@@ -463,8 +477,10 @@ function AckDrilldown({ resourceId, acked, total, ackPct }: { resourceId: string
                   <Circle className="size-3.5 text-muted-foreground/40 shrink-0" />
                 )}
                 <span className="flex-1 min-w-0 truncate font-medium">{u.name}</span>
-                <span className={cn("text-[10px] shrink-0", u.acked ? "text-emerald-600 dark:text-emerald-400" : "text-muted-foreground")}>
-                  {u.acked ? "Acknowledged" : "Pending"}
+                <span className={cn("text-[10px] shrink-0 text-right", u.acked ? "text-emerald-600 dark:text-emerald-400" : "text-muted-foreground")}>
+                  {u.acked
+                    ? (u.acknowledgedAt ? fmtDate(u.acknowledgedAt, "MMM d · h:mm a") : "Acknowledged")
+                    : "Pending"}
                 </span>
               </div>
             ))

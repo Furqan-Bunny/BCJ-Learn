@@ -23,11 +23,13 @@ export function ResourcesEmployeeView({ initialResources }: { initialResources: 
   const [viewing, setViewing] = React.useState<ResourceWithAck | null>(null);
   const [acking, setAcking] = React.useState(false);
 
+  // Grouped into department "folders".
   const byCategory = new Map<string, ResourceWithAck[]>();
   for (const r of initialResources) {
-    const list = byCategory.get(r.category) ?? [];
+    const dept = r.department || "General";
+    const list = byCategory.get(dept) ?? [];
     list.push(r);
-    byCategory.set(r.category, list);
+    byCategory.set(dept, list);
   }
 
   async function handleAcknowledge() {
