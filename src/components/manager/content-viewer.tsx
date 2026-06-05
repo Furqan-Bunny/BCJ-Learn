@@ -75,7 +75,7 @@ export function ContentViewer({ content, onClose, moduleSlug }: ContentViewerPro
     <Dialog open={true} onOpenChange={(o) => !o && onClose()}>
       <DialogContent
         showCloseButton={false}
-        className="max-w-6xl w-[96vw] h-[92vh] p-0 gap-0 overflow-hidden flex flex-col"
+        className="w-[96vw] max-w-[96vw] sm:max-w-[1400px] h-[92vh] p-0 gap-0 overflow-hidden flex flex-col"
       >
         {/* Header */}
         <div className="px-5 py-3 border-b flex items-center gap-3 bg-card">
