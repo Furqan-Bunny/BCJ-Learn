@@ -43,35 +43,13 @@ export default async function ManagerModulePage(props: PageProps<"/manager/modul
     listModuleSopsForUser(slug, me.id),
   ]);
   const myAttempts = allMyAttempts.filter((a) => a.moduleSlug === slug);
-  const alreadyPassed = myAttempts.some((a) => a.status === "passed");
 
-  // Hard gate: every linked SOP for this module must be signed at its current
-  // version before the employee can open materials or take the quiz. Passing
-  // the module previously also unlocks (legacy back-fill).
-  const allSopsSigned = moduleSops.every((s) => s.signed);
-  const sopsCleared = allSopsSigned || alreadyPassed;
-
-  // Materials are seminar-only AND SOP-gated. Until both gates pass, strip the
-  // content so it can't be read from the page source / network.
-  const canViewMaterials = sopsCleared && (checkInStatus.checkedIn || alreadyPassed);
-  const safeMod = canViewMaterials
-    ? mod
-    : {
-        ...mod,
-        lessons: mod.lessons.map((l) => ({
-          ...l,
-          contents: l.contents.map((c) => ({
-            id: c.id,
-            type: c.type,
-            title: c.title,
-            durationMinutes: c.durationMinutes,
-          })),
-        })),
-      };
-
+  // Content is pre-study material: any assigned employee can read it before the
+  // seminar. The QUIZ stays gated (required resources signed + seminar/check-in)
+  // — that's enforced by the quiz page + the quiz status card, not here.
   return (
     <ManagerModuleView
-      mod={safeMod}
+      mod={mod}
       totalMinutes={totalMinutes}
       teacher={teacher}
       managerId={me.id}

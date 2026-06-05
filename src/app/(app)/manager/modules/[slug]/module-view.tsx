@@ -61,25 +61,14 @@ export function ManagerModuleView({
   React.useEffect(() => { setSopsState(moduleSops); }, [moduleSops]);
   const pendingSops = sopsState.filter((s) => !s.signed);
 
-  // Materials are seminar-only AND SOP-gated. SOP-gate is hard: the entire
-  // module page locks until every linked SOP is signed.
+  // Content is OPEN pre-study material — any assigned employee can read it
+  // before the seminar. The required-resources gate is a reminder here; it only
+  // hard-blocks the QUIZ (enforced by the quiz page + quiz status card).
   const alreadyPassed = myAttempts.some((a) => a.status === "passed");
   const sopsCleared = pendingSops.length === 0 || alreadyPassed;
-  const canViewMaterials = sopsCleared && (isCheckedIn || alreadyPassed);
+  const canViewMaterials = true;
 
   function openContent(item: LessonContent) {
-    if (!sopsCleared) {
-      toast.info("Please sign the SOPs first", {
-        description: "All required SOPs must be signed before opening the module.",
-      });
-      return;
-    }
-    if (!canViewMaterials) {
-      toast.info("Materials open at the seminar", {
-        description: "Check in at the live session to view the content.",
-      });
-      return;
-    }
     setPreviewing(item);
   }
 
@@ -110,10 +99,10 @@ export function ManagerModuleView({
         description={mod.description}
       />
 
-      {/* ─── SOP gate ──────────────────────────────────────────────
-          The module is fully locked until every required SOP for it is
-          signed. Hides materials, hides the check-in / quiz card, shows
-          only this banner + the list of SOPs to sign. */}
+      {/* ─── Required-resources reminder ───────────────────────────
+          A non-blocking reminder: the employee can still study the content
+          below before the seminar, but the QUIZ stays locked until every
+          required resource is signed (enforced on the quiz page). */}
       {!sopsCleared && pendingSops.length > 0 && (
         <Card className="mb-6 border-amber-500/40 bg-amber-50/40 dark:bg-amber-950/15 overflow-hidden">
           <div className="h-1 bg-amber-500" />
@@ -123,9 +112,9 @@ export function ManagerModuleView({
                 <Lock className="size-5" />
               </div>
               <div>
-                <div className="font-semibold text-lg">Please sign the SOPs before you start this module</div>
+                <div className="font-semibold text-lg">Sign these required resources before the quiz</div>
                 <p className="text-sm text-muted-foreground mt-1">
-                  These Standard Operating Procedures are required reading. Open each one, read it, then sign to confirm. The module unlocks the moment everything is signed.
+                  These are required reading. Open each one, read it, then sign to confirm. You can still study the content below now — but the quiz stays locked until everything is signed.
                 </p>
               </div>
             </div>
@@ -175,15 +164,14 @@ export function ManagerModuleView({
 
             <div className="mt-4 pt-3 border-t text-xs text-muted-foreground flex items-center gap-2">
               <Lock className="size-3" />
-              {pendingSops.length} of {sopsState.length} SOP{sopsState.length === 1 ? "" : "s"} still to sign. The module stays locked until all are signed.
+              {pendingSops.length} of {sopsState.length} resource{sopsState.length === 1 ? "" : "s"} still to sign. The quiz stays locked until all are signed.
             </div>
           </CardContent>
         </Card>
       )}
 
-      {/* Everything below stays hidden until the SOP gate is cleared, so the
-          employee can't peek at the check-in / quiz / materials section. */}
-      {sopsCleared && (<>
+      {/* Content + quiz card always render — content is open pre-study. */}
+      {(<>
 
       {/* Check-in (only meaningful on the seminar day, once the trainer opens
           it). Lets the employee enter the room code right from the module. */}
@@ -233,7 +221,10 @@ export function ManagerModuleView({
         </CardContent>
       </Card>
 
-      <h3 className="text-lg font-semibold tracking-tight mb-3">Seminar outline</h3>
+      <div className="flex items-center justify-between mb-3">
+        <h3 className="text-lg font-semibold tracking-tight">Seminar outline</h3>
+        <Badge variant="secondary" className="text-[10px]">Available to preview now</Badge>
+      </div>
       <div className="space-y-3">
         {mod.lessons.map((lesson) => (
           <Card key={lesson.id} className="overflow-hidden">

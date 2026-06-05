@@ -189,20 +189,9 @@ export default function LoginPage() {
       {/* Left — brand panel */}
       <div className="relative hidden lg:flex flex-col justify-between p-12 bg-primary text-primary-foreground overflow-hidden">
         <MeshGradient />
-        <motion.div
-          className="absolute inset-y-0 left-0 w-[6px] bg-[var(--gold)] z-10"
-          initial={{ scaleY: 0 }}
-          animate={{ scaleY: 1 }}
-          transition={{ duration: 0.7, ease: [0.16, 1, 0.3, 1] }}
-          style={{ originY: 0 }}
-        />
+        <div className="absolute inset-y-0 left-0 w-[6px] bg-[var(--gold)] z-10" />
         <div className="relative z-10">
-          <motion.div
-            initial={{ opacity: 0, y: -8 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5, delay: 0.1 }}
-            className="flex items-center gap-2 mb-12"
-          >
+          <div className="flex items-center gap-2 mb-12">
             {logoOk ? (
               // eslint-disable-next-line @next/next/no-img-element
               <img
@@ -219,23 +208,13 @@ export default function LoginPage() {
                 <div className="font-semibold text-lg tracking-tight">BCJ Learn</div>
               </>
             )}
-          </motion.div>
-          <motion.h1
-            initial={{ opacity: 0, y: 12 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, delay: 0.2, ease: [0.16, 1, 0.3, 1] }}
-            className="text-4xl font-bold leading-tight tracking-tight max-w-md text-gradient-shift"
-          >
+          </div>
+          <h1 className="text-4xl font-bold leading-tight tracking-tight max-w-md">
             Train every team member. Build confidence at every level.
-          </motion.h1>
-          <motion.p
-            initial={{ opacity: 0, y: 12 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, delay: 0.32, ease: [0.16, 1, 0.3, 1] }}
-            className="mt-4 text-primary-foreground/80 max-w-md"
-          >
+          </h1>
+          <p className="mt-4 text-primary-foreground/80 max-w-md">
             BCJ&rsquo;s custom training platform for company-wide learning, manager development, and consistent standards across every team. Team members complete assigned modules, take BCJ-approved knowledge checks, get instant results, and are guided through retakes automatically.
-          </motion.p>
+          </p>
         </div>
 
         <div className="space-y-3 max-w-md relative z-10">
@@ -243,17 +222,11 @@ export default function LoginPage() {
             "Knowledge checks with an 85% readiness threshold",
             "Automatic retakes and reminders",
             "Live admin & department-level reporting for QBRs, HR, and compliance",
-          ].map((line, i) => (
-            <motion.div
-              key={line}
-              initial={{ opacity: 0, x: -12 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ duration: 0.4, delay: 0.5 + i * 0.08, ease: [0.16, 1, 0.3, 1] }}
-              className="flex items-center gap-3"
-            >
+          ].map((line) => (
+            <div key={line} className="flex items-center gap-3">
               <CheckCircle2 className="size-4 text-[var(--gold)]" />
               <span className="text-sm text-primary-foreground/85">{line}</span>
-            </motion.div>
+            </div>
           ))}
         </div>
 
@@ -264,12 +237,7 @@ export default function LoginPage() {
 
       {/* Right — login form */}
       <div className="flex items-center justify-center p-8 md:p-12">
-        <motion.div
-          initial={{ opacity: 0, y: 14 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.55, delay: 0.15, ease: [0.16, 1, 0.3, 1] }}
-          className="w-full max-w-md"
-        >
+        <div className="w-full max-w-md">
           <div className="lg:hidden flex items-center gap-2 mb-10">
             {logoOk ? (
               // eslint-disable-next-line @next/next/no-img-element
@@ -410,7 +378,7 @@ export default function LoginPage() {
             </p>
           </form>
           )}
-        </motion.div>
+        </div>
       </div>
 
       {/* Forgot password modal */}

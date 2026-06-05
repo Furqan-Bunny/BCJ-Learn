@@ -151,6 +151,17 @@ export function AddModuleSheet({ trigger, teachers, defaultNumber = 6, lockedOwn
     return employees.filter((e) => e.name.toLowerCase().includes(q) || e.email.toLowerCase().includes(q));
   }, [employees, empSearch]);
 
+  // Leave the module as a draft (already created in step 1) and close. Drafts
+  // stay visible to admins/leads but hidden from employees until published.
+  function saveDraftAndClose() {
+    setOpen(false);
+    resetAll();
+    toast.success(`${title || "Module"} saved as a draft`, {
+      description: "Not visible to employees until you publish it from the module page.",
+    });
+    router.refresh();
+  }
+
   // ─── Step 4 — publish + schedule + notify ─────────────────────────────
   async function handlePublish() {
     if (!createdSlug) return;
@@ -452,9 +463,12 @@ export function AddModuleSheet({ trigger, teachers, defaultNumber = 6, lockedOwn
             )}
             <div className="sticky bottom-0 -mx-6 px-6 py-3 flex justify-between gap-2 border-t bg-background/95 backdrop-blur">
               <Button variant="ghost" onClick={() => setStep(3)} disabled={submitting}><ArrowLeft className="size-4 mr-1" /> Back</Button>
-              <Button onClick={handlePublish} disabled={submitting}>
-                {submitting ? <><Loader2 className="size-4 animate-spin mr-1.5" /> {notify ? `Emailing ${notify.sent}/${notify.total}…` : "Publishing…"}</> : <><Rocket className="size-4 mr-1.5" /> {selected.size > 0 ? "Publish & send" : "Publish module"}</>}
-              </Button>
+              <div className="flex items-center gap-2">
+                <Button variant="outline" onClick={saveDraftAndClose} disabled={submitting}>Save as draft</Button>
+                <Button onClick={handlePublish} disabled={submitting}>
+                  {submitting ? <><Loader2 className="size-4 animate-spin mr-1.5" /> {notify ? `Emailing ${notify.sent}/${notify.total}…` : "Publishing…"}</> : <><Rocket className="size-4 mr-1.5" /> {selected.size > 0 ? "Publish & send" : "Publish module"}</>}
+                </Button>
+              </div>
             </div>
           </div>
         )}

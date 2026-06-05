@@ -357,7 +357,7 @@ export function ResourcesAdminView({ initialResources }: { initialResources: Enr
                         <div className="flex items-center gap-1 shrink-0">
                           {r.requiresAck && (
                             <Badge variant="outline" className="text-[10px] gap-1">
-                              <Sparkles className="size-2.5" /> Ack
+                              <Sparkles className="size-2.5" /> Acknowledgement required
                             </Badge>
                           )}
                           <button type="button" onClick={() => openEdit(r)} title="Edit"
