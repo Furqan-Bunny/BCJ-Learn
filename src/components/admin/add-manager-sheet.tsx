@@ -17,7 +17,7 @@ import { useRouter } from "next/navigation";
 
 const DEMO_MODE = process.env.NEXT_PUBLIC_DEMO_MODE === "true";
 
-const COHORTS: Cohort[] = ["Georgia", "Tennessee", "North Carolina"];
+const COHORTS: Cohort[] = ["Atlanta", "Nashville", "Charlotte"];
 
 export function AddManagerSheet() {
   const router = useRouter();

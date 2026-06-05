@@ -36,7 +36,7 @@ interface NewUser {
   name: string;
   role: Role;
   title?: string;
-  cohort?: "Georgia" | "Tennessee" | "North Carolina";
+  cohort?: "Atlanta" | "Nashville" | "Charlotte";
   status?: "active";
 }
 
@@ -44,7 +44,7 @@ const USERS: NewUser[] = [
   // ── 3 test users (one per role) ──────────────────────────────
   { email: "testadmin@bcj.com", name: "Test Admin", role: "admin", title: "Test Administrator" },
   { email: "testlead@bcj.com", name: "Test Lead", role: "teacher", title: "Test Department Lead" },
-  { email: "testemployee@bcj.com", name: "Test Employee", role: "manager", cohort: "Georgia", status: "active" },
+  { email: "testemployee@bcj.com", name: "Test Employee", role: "manager", cohort: "Atlanta", status: "active" },
 
   // ── Real admins (from the roster PDF; no Majed) ──────────────
   { email: "nancy@bcj.com", name: "Nancy McMinn", role: "admin", title: "Chief of Staff" },

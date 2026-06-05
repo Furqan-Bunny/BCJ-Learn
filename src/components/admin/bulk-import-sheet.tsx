@@ -26,7 +26,7 @@ interface ParsedRow {
   error?: string;
 }
 
-const VALID_COHORTS = new Set(["Georgia", "Tennessee", "North Carolina"]);
+const VALID_COHORTS = new Set(["Atlanta", "Nashville", "Charlotte"]);
 
 function parseCsv(text: string): ParsedRow[] {
   const lines = text.split(/\r?\n/).filter((l) => l.trim().length > 0);
@@ -37,7 +37,7 @@ function parseCsv(text: string): ParsedRow[] {
   return dataLines.map((line) => {
     const cells = line.split(",").map((c) => c.trim().replace(/^"|"$/g, ""));
     const [name = "", email = "", marketsCell = ""] = cells;
-    // markets cell may be "Georgia;Tennessee" or a single "Georgia".
+    // markets cell may be "Atlanta;Nashville" or a single "Atlanta".
     const markets = Array.from(
       new Set(marketsCell.split(/[;|]/).map((s) => s.trim()).filter(Boolean)),
     );
@@ -52,9 +52,9 @@ function parseCsv(text: string): ParsedRow[] {
 }
 
 const SAMPLE_CSV = `name,email,markets
-Jordan Patel,jordan@bcj.com,Georgia
-Maya Chen,maya@bcj.com,Tennessee;North Carolina
-Sam Carter,sam@bcj.com,North Carolina`;
+Jordan Patel,jordan@bcj.com,Atlanta
+Maya Chen,maya@bcj.com,Nashville;Charlotte
+Sam Carter,sam@bcj.com,Charlotte`;
 
 export function BulkImportSheet() {
   const [open, setOpen] = React.useState(false);
@@ -193,7 +193,7 @@ export function BulkImportSheet() {
               {fileName ? fileName : "Drop your CSV file here, or click to browse"}
             </div>
             <div className="text-[11px] text-muted-foreground mt-1">
-              Format: name, email, markets (Georgia · Tennessee · North Carolina; combine with ;)
+              Format: name, email, markets (Atlanta · Nashville · Charlotte; combine with ;)
             </div>
           </div>
 

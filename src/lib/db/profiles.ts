@@ -40,7 +40,7 @@ function toManager(r: ProfileRow): Manager {
     avatarColor: r.avatar_color,
     avatarUrl: r.avatar_url,
     role: "manager",
-    cohort: (markets[0] ?? "Georgia") as Cohort,
+    cohort: (markets[0] ?? "Atlanta") as Cohort,
     markets,
     joinedAt: r.joined_at,
     lastActiveAt: r.last_active_at,
