@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import {
   Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle,
 } from "@/components/ui/dialog";
-import { FileText, CheckCircle2, Sparkles, RotateCcw } from "lucide-react";
+import { FileText, CheckCircle2, Sparkles, RotateCcw, Folder, FolderOpen, ChevronDown } from "lucide-react";
 import { fmtRelative } from "@/lib/format";
 import { Stagger, StaggerItem } from "@/components/shared/animations";
 import { acknowledgeResource } from "@/lib/server/resource-actions";
@@ -30,6 +30,28 @@ export function ResourcesEmployeeView({ initialResources }: { initialResources: 
     const list = byCategory.get(dept) ?? [];
     list.push(r);
     byCategory.set(dept, list);
+  }
+  const departmentNames = Array.from(byCategory.keys());
+
+  // Collapsible folders. Default-open any folder that has an item still needing
+  // acknowledgement (so nothing required gets missed); else open the first.
+  const [openFolders, setOpenFolders] = React.useState<Set<string>>(new Set());
+  React.useEffect(() => {
+    setOpenFolders((prev) => {
+      if (prev.size) return prev;
+      const needs = departmentNames.filter((d) =>
+        (byCategory.get(d) ?? []).some((r) => r.requiresAck && r.ackStatus !== "acknowledged"),
+      );
+      return new Set(needs.length ? needs : departmentNames.slice(0, 1));
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [departmentNames.join("|")]);
+  function toggleFolder(d: string) {
+    setOpenFolders((prev) => {
+      const n = new Set(prev);
+      if (n.has(d)) n.delete(d); else n.add(d);
+      return n;
+    });
   }
 
   async function handleAcknowledge() {
@@ -74,10 +96,32 @@ export function ResourcesEmployeeView({ initialResources }: { initialResources: 
         </div>
       )}
 
-      {Array.from(byCategory.entries()).map(([cat, list]) => (
-        <section key={cat} className="mb-8">
-          <h3 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground mb-3">{cat}</h3>
-          <Stagger className="grid lg:grid-cols-2 gap-3">
+      {Array.from(byCategory.entries()).map(([cat, list]) => {
+        const open = openFolders.has(cat);
+        const pendingCount = list.filter((r) => r.requiresAck && r.ackStatus !== "acknowledged").length;
+        return (
+        <div key={cat} className="mb-3 rounded-lg border bg-card overflow-hidden">
+          <button
+            type="button"
+            onClick={() => toggleFolder(cat)}
+            className="w-full flex items-center gap-3 px-4 py-3 hover:bg-accent/40 transition-colors text-left"
+          >
+            <div className="size-9 rounded-md bg-primary/10 text-primary flex items-center justify-center shrink-0">
+              {open ? <FolderOpen className="size-4" /> : <Folder className="size-4" />}
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="font-semibold">{cat}</div>
+              <div className="text-[11px] text-muted-foreground">{list.length} resource{list.length === 1 ? "" : "s"}</div>
+            </div>
+            {pendingCount > 0 && (
+              <Badge className="bg-amber-500/15 text-amber-700 dark:text-amber-300 border-amber-500/20 text-[10px]">
+                {pendingCount} to review
+              </Badge>
+            )}
+            <ChevronDown className={`size-4 text-muted-foreground transition-transform ${open ? "rotate-180" : ""}`} />
+          </button>
+          {open && (
+          <Stagger className="grid lg:grid-cols-2 gap-3 p-3 border-t bg-muted/20">
             {list.map((r) => (
               <StaggerItem key={r.id} className="h-full">
                 <button
@@ -121,8 +165,10 @@ export function ResourcesEmployeeView({ initialResources }: { initialResources: 
               </StaggerItem>
             ))}
           </Stagger>
-        </section>
-      ))}
+          )}
+        </div>
+        );
+      })}
 
       <Dialog open={!!viewing} onOpenChange={(v) => { if (!v) setViewing(null); }}>
         <DialogContent className="sm:max-w-2xl">

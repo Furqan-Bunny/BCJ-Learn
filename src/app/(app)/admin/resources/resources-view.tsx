@@ -15,7 +15,7 @@ import {
   Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
 } from "@/components/ui/dialog";
 import Link from "next/link";
-import { FileText, Plus, Users, CheckCircle2, AlertCircle, Sparkles, Upload, X as XIcon, Bold, Italic, List, Heading2, Pencil, Trash2, ChevronDown, Loader2, Circle, ArrowRight } from "lucide-react";
+import { FileText, Plus, Users, CheckCircle2, AlertCircle, Sparkles, Upload, X as XIcon, Bold, Italic, List, Heading2, Pencil, Trash2, ChevronDown, Loader2, Circle, ArrowRight, Folder, FolderOpen } from "lucide-react";
 import { fmtRelative, fmtDate } from "@/lib/format";
 import { Stagger, StaggerItem } from "@/components/shared/animations";
 import { uploadResourceFile } from "@/lib/supabase/storage";
@@ -130,6 +130,21 @@ export function ResourcesAdminView({ initialResources }: { initialResources: Enr
     const list = byDepartment.get(dept) ?? [];
     list.push(r);
     byDepartment.set(dept, list);
+  }
+  const departmentNames = Array.from(byDepartment.keys());
+
+  // Collapsible folders. Default: open the first department so something shows.
+  const [openFolders, setOpenFolders] = React.useState<Set<string>>(new Set());
+  React.useEffect(() => {
+    setOpenFolders((prev) => (prev.size ? prev : new Set(departmentNames.slice(0, 1))));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [departmentNames.join("|")]);
+  function toggleFolder(d: string) {
+    setOpenFolders((prev) => {
+      const n = new Set(prev);
+      if (n.has(d)) n.delete(d); else n.add(d);
+      return n;
+    });
   }
 
   async function handleSubmit(e?: React.FormEvent | React.MouseEvent) {
@@ -356,10 +371,26 @@ export function ResourcesAdminView({ initialResources }: { initialResources: Enr
         </Card>
       )}
 
-      {Array.from(byDepartment.entries()).map(([dept, list]) => (
-        <section key={dept} className="mb-8">
-          <h3 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground mb-3">{dept}</h3>
-          <Stagger className="grid lg:grid-cols-2 gap-3">
+      {Array.from(byDepartment.entries()).map(([dept, list]) => {
+        const open = openFolders.has(dept);
+        return (
+        <div key={dept} className="mb-3 rounded-lg border bg-card overflow-hidden">
+          <button
+            type="button"
+            onClick={() => toggleFolder(dept)}
+            className="w-full flex items-center gap-3 px-4 py-3 hover:bg-accent/40 transition-colors text-left"
+          >
+            <div className="size-9 rounded-md bg-primary/10 text-primary flex items-center justify-center shrink-0">
+              {open ? <FolderOpen className="size-4" /> : <Folder className="size-4" />}
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="font-semibold">{dept}</div>
+              <div className="text-[11px] text-muted-foreground">{list.length} resource{list.length === 1 ? "" : "s"}</div>
+            </div>
+            <ChevronDown className={cn("size-4 text-muted-foreground transition-transform", open && "rotate-180")} />
+          </button>
+          {open && (
+          <Stagger className="grid lg:grid-cols-2 gap-3 p-3 border-t bg-muted/20">
             {list.map((r) => (
               <StaggerItem key={r.id} className="h-full">
                 <Card className="card-lift h-full">
@@ -410,8 +441,10 @@ export function ResourcesAdminView({ initialResources }: { initialResources: Enr
               </StaggerItem>
             ))}
           </Stagger>
-        </section>
-      ))}
+          )}
+        </div>
+        );
+      })}
 
       {/* Delete confirmation */}
       <Dialog open={!!deleteTarget} onOpenChange={(o) => !o && setDeleteTarget(null)}>
