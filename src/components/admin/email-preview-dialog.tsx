@@ -37,10 +37,29 @@ interface EmailPreviewDialogProps {
   subject: string;
   bodyMarkdown: string;
   trigger?: React.ReactNode;
+  /** Controlled open state (omit to use the built-in trigger). */
+  open?: boolean;
+  onOpenChange?: (o: boolean) => void;
+  /** When provided, a confirm button is shown (e.g. "Send reminder"). */
+  confirmLabel?: string;
+  onConfirm?: () => void;
+  confirming?: boolean;
 }
 
-export function EmailPreviewDialog({ subject, bodyMarkdown, trigger }: EmailPreviewDialogProps) {
-  const [open, setOpen] = React.useState(false);
+export function EmailPreviewDialog({
+  subject,
+  bodyMarkdown,
+  trigger,
+  open: openProp,
+  onOpenChange,
+  confirmLabel,
+  onConfirm,
+  confirming = false,
+}: EmailPreviewDialogProps) {
+  const [openState, setOpenState] = React.useState(false);
+  const controlled = openProp !== undefined;
+  const open = controlled ? openProp : openState;
+  const setOpen = (o: boolean) => { if (controlled) onOpenChange?.(o); else setOpenState(o); };
   const usedVars = React.useMemo(
     () => extractVars(subject, bodyMarkdown),
     [subject, bodyMarkdown],
@@ -65,13 +84,15 @@ export function EmailPreviewDialog({ subject, bodyMarkdown, trigger }: EmailPrev
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        {trigger ?? (
-          <Button variant="outline">
-            <Eye aria-hidden="true" className="size-3.5 mr-1.5" /> Preview
-          </Button>
-        )}
-      </DialogTrigger>
+      {!controlled && (
+        <DialogTrigger asChild>
+          {trigger ?? (
+            <Button variant="outline">
+              <Eye aria-hidden="true" className="size-3.5 mr-1.5" /> Preview
+            </Button>
+          )}
+        </DialogTrigger>
+      )}
       <DialogContent className="sm:max-w-3xl">
         <DialogHeader>
           <DialogTitle>Email preview</DialogTitle>
@@ -119,9 +140,14 @@ export function EmailPreviewDialog({ subject, bodyMarkdown, trigger }: EmailPrev
         </div>
 
         <DialogFooter>
-          <Button variant="outline" onClick={() => setOpen(false)}>
-            Close
+          <Button variant="outline" onClick={() => setOpen(false)} disabled={confirming}>
+            {confirmLabel ? "Cancel" : "Close"}
           </Button>
+          {confirmLabel && onConfirm && (
+            <Button onClick={onConfirm} disabled={confirming}>
+              {confirming ? "Sending…" : confirmLabel}
+            </Button>
+          )}
         </DialogFooter>
       </DialogContent>
     </Dialog>

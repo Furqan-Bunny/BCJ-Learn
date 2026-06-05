@@ -1,9 +1,14 @@
 import { atRiskManagers } from "@/lib/db/queries";
 import { listAttempts } from "@/lib/db/attempts";
+import { getEmailTemplate } from "@/lib/db/email-templates";
 import { AtRiskView } from "./at-risk-view";
 
 export default async function AtRiskPage() {
-  const [list, allAttempts] = await Promise.all([atRiskManagers(), listAttempts()]);
+  const [list, allAttempts, reminderTpl] = await Promise.all([
+    atRiskManagers(),
+    listAttempts(),
+    getEmailTemplate("overdue_reminder"),
+  ]);
 
   // Derive flagged reasons from attempts for each at-risk manager.
   const enriched = list.map((m) => {
@@ -30,5 +35,11 @@ export default async function AtRiskPage() {
     };
   });
 
-  return <AtRiskView list={enriched} />;
+  return (
+    <AtRiskView
+      list={enriched}
+      reminderSubject={reminderTpl?.subject ?? "A reminder about your BCJ training"}
+      reminderBody={reminderTpl?.bodyMarkdown ?? "Hi {{name}}, this is a reminder to complete your assigned BCJ training module."}
+    />
+  );
 }

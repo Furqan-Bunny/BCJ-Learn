@@ -13,43 +13,54 @@ import { initials, fmtRelative } from "@/lib/format";
 import { toast } from "sonner";
 import { Stagger, StaggerItem } from "@/components/shared/animations";
 import { sendReminder, sendBulkReminders } from "@/lib/server/reminder-actions";
+import { EmailPreviewDialog } from "@/components/admin/email-preview-dialog";
 import type { Manager } from "@/types";
 
 const FLAG_RULES = [
-  { icon: X, title: "Failed twice on a module", description: "Couldn't pass the first attempt or the easier retake — needs a coaching session." },
+  { icon: X, title: "Failed twice on a module", description: "Couldn't pass the first attempt or the retake — needs a coaching session." },
   { icon: Calendar, title: "Missed a deadline", description: "Didn't take the quiz on the scheduled training day — no attempt logged." },
   { icon: Clock, title: "Hasn't logged in 14+ days", description: "Disengaged — may need a check-in to confirm they're still on the team." },
   { icon: TrendingDown, title: "First attempt below 70%", description: "Even when they passed eventually, the gap suggests the material didn't land." },
   { icon: FileQuestion, title: "No quiz attempt for an assigned module", description: "Assigned but never started — may have missed the email invite." },
 ];
 
-export function AtRiskView({ list }: { list: Manager[] }) {
+type ReminderTarget = { kind: "bulk" } | { kind: "one"; m: Manager };
+
+export function AtRiskView({
+  list,
+  reminderSubject = "",
+  reminderBody = "",
+}: {
+  list: Manager[];
+  reminderSubject?: string;
+  reminderBody?: string;
+}) {
   const router = useRouter();
   const [showRules, setShowRules] = React.useState(false);
   const [busy, setBusy] = React.useState<string | null>(null);
+  // The admin previews the exact email before it goes out.
+  const [pending, setPending] = React.useState<ReminderTarget | null>(null);
 
-  async function handleBulkRemind() {
-    setBusy("bulk");
-    const res = await sendBulkReminders(list.map((m) => m.id));
-    setBusy(null);
-    if (!res.ok) {
-      toast.error(res.error ?? "Could not send reminders");
-      return;
+  async function confirmSend() {
+    if (!pending) return;
+    if (pending.kind === "bulk") {
+      setBusy("bulk");
+      const res = await sendBulkReminders(list.map((m) => m.id));
+      setBusy(null);
+      setPending(null);
+      if (!res.ok) { toast.error(res.error ?? "Could not send reminders"); return; }
+      toast.success(`Reminder sent to ${res.sent} employees${res.failed ? ` (${res.failed} failed)` : ""}`);
+      router.refresh();
+    } else {
+      const m = pending.m;
+      setBusy(m.id);
+      const res = await sendReminder(m.id);
+      setBusy(null);
+      setPending(null);
+      if (!res.ok) { toast.error(res.error ?? "Could not send reminder"); return; }
+      toast.success(`Reminder sent to ${m.name}`);
+      router.refresh();
     }
-    toast.success(`Bulk reminder sent to ${res.sent} employees${res.failed ? ` (${res.failed} failed)` : ""}`);
-    router.refresh();
-  }
-
-  async function handleRemindOne(m: Manager) {
-    setBusy(m.id);
-    const res = await sendReminder(m.id);
-    setBusy(null);
-    if (!res.ok) {
-      toast.error(res.error ?? "Could not send reminder");
-      return;
-    }
-    toast.success(`Reminder sent to ${m.name}`);
-    router.refresh();
   }
   return (
     <>
@@ -62,7 +73,7 @@ export function AtRiskView({ list }: { list: Manager[] }) {
             <Button variant="outline" onClick={() => setShowRules((v) => !v)}>
               <Info className="mr-2 size-4" /> {showRules ? "Hide" : "What is at-risk?"}
             </Button>
-            <Button onClick={handleBulkRemind} disabled={busy === "bulk"}>
+            <Button onClick={() => setPending({ kind: "bulk" })} disabled={busy === "bulk" || list.length === 0}>
               <Bell className="mr-2 size-4" /> {busy === "bulk" ? "Sending…" : "Send reminder to all"}
             </Button>
           </div>
@@ -149,9 +160,10 @@ export function AtRiskView({ list }: { list: Manager[] }) {
                   <Button
                     size="sm"
                     variant="outline"
-                    onClick={() => handleRemindOne(m)}
+                    onClick={() => setPending({ kind: "one", m })}
                     disabled={busy === m.id}
                     aria-label="Send reminder"
+                    title="Preview & send reminder"
                   >
                     <Bell className="size-3.5" />
                   </Button>
@@ -168,6 +180,17 @@ export function AtRiskView({ list }: { list: Manager[] }) {
           No employees are currently at risk. Nice work!
         </div>
       )}
+
+      {/* Preview the exact reminder email, then confirm send. */}
+      <EmailPreviewDialog
+        open={!!pending}
+        onOpenChange={(o) => { if (!o) setPending(null); }}
+        subject={reminderSubject}
+        bodyMarkdown={reminderBody}
+        confirmLabel={pending?.kind === "bulk" ? `Send to ${list.length} employees` : pending?.kind === "one" ? `Send to ${pending.m.name}` : "Send reminder"}
+        onConfirm={confirmSend}
+        confirming={busy !== null}
+      />
     </>
   );
 }
