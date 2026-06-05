@@ -51,7 +51,7 @@ export function ResourcesEmployeeView({ initialResources }: { initialResources: 
           <FileText className="size-10 mx-auto opacity-30 mb-3" />
           <div className="font-medium">No resources assigned yet</div>
           <div className="text-sm text-muted-foreground mt-1">
-            Check back later — your team will share SOPs and policies here.
+            Check back later — your team will share resources and policies here.
           </div>
         </CardContent>
       </Card>
@@ -235,7 +235,7 @@ function ResourceDocViewer({ resource }: { resource: Resource }) {
     return (
       <div className="rounded-lg border bg-muted/30 p-6 text-sm text-center">
         <ExternalLink className="size-8 mx-auto opacity-40 mb-2 text-muted-foreground" />
-        <p className="text-muted-foreground mb-3">This SOP lives on an external page.</p>
+        <p className="text-muted-foreground mb-3">This resource lives on an external page.</p>
         <Button asChild variant="outline">
           <a href={resource.externalUrl} target="_blank" rel="noopener noreferrer">
             <ExternalLink className="size-4 mr-1.5" /> Open document

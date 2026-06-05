@@ -1,5 +1,4 @@
-import { notFound } from "next/navigation";
-import { getModule } from "@/lib/db/modules";
+import { getAccessibleModuleOr404 } from "@/lib/auth/module-access";
 import { listAttemptsForModule } from "@/lib/db/attempts";
 import { listQuestionsForModule } from "@/lib/db/questions";
 import { listManagers } from "@/lib/db/profiles";
@@ -10,8 +9,7 @@ import type { Manager } from "@/types";
 
 export default async function TeacherModuleResultsPage(props: PageProps<"/teacher/modules/[slug]/results">) {
   const { slug } = await props.params;
-  const mod = await getModule(slug);
-  if (!mod) return notFound();
+  const mod = await getAccessibleModuleOr404(slug);
 
   const [attempts, questions, managers, distribution, roster, counts] = await Promise.all([
     listAttemptsForModule(slug),

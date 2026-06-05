@@ -188,14 +188,14 @@ export function ResourcesAdminView({ initialResources }: { initialResources: Enr
           <SheetHeader>
             <SheetTitle>{editingId ? "Edit resource" : "Add a resource"}</SheetTitle>
             <SheetDescription>
-              SOPs, policies, safety updates. Choose who sees it and whether they must acknowledge.
+              Resources, policies, safety updates. Choose who sees it and whether they must acknowledge.
             </SheetDescription>
           </SheetHeader>
           <form onSubmit={handleSubmit} className="px-4 pb-4 space-y-4">
             <div className="space-y-1.5">
               <Label htmlFor="r-title" className="text-xs">Title</Label>
               <Input id="r-title" value={title} onChange={(e) => setTitle(e.target.value)}
-                placeholder="e.g., Floor care SOP" className="h-10" autoFocus />
+                placeholder="e.g., Floor care guide" className="h-10" autoFocus />
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="r-category" className="text-xs">Category</Label>
@@ -205,7 +205,7 @@ export function ResourcesAdminView({ initialResources }: { initialResources: Enr
             <div className="space-y-1.5">
               <Label htmlFor="r-desc" className="text-xs">Short description</Label>
               <Textarea id="r-desc" value={description} onChange={(e) => setDescription(e.target.value)}
-                placeholder="One-liner that shows on the SOP card." rows={2} className="resize-none" />
+                placeholder="One-liner that shows on the resource card." rows={2} className="resize-none" />
             </div>
 
             {/* Audience: roles + markets */}
@@ -279,7 +279,7 @@ export function ResourcesAdminView({ initialResources }: { initialResources: Enr
 
             {/* Markdown body */}
             <div className="space-y-1.5">
-              <Label htmlFor="r-body" className="text-xs">Or type the SOP here</Label>
+              <Label htmlFor="r-body" className="text-xs">Or type the resource here</Label>
               <div className="rounded-md border bg-card">
                 <div className="flex items-center gap-1 px-1.5 py-1 border-b bg-muted/40">
                   <button type="button" onClick={() => wrapMarkdown("**")} className="p-1.5 rounded hover:bg-accent" title="Bold"><Bold className="size-3.5" /></button>
@@ -326,7 +326,7 @@ export function ResourcesAdminView({ initialResources }: { initialResources: Enr
           <CardContent className="p-12 text-center">
             <FileText className="size-10 mx-auto opacity-30 mb-3" />
             <div className="font-medium">No resources yet</div>
-            <div className="text-sm text-muted-foreground mt-1">Add an SOP, safety document, or policy to get started.</div>
+            <div className="text-sm text-muted-foreground mt-1">Add a resource, safety document, or policy to get started.</div>
           </CardContent>
         </Card>
       )}

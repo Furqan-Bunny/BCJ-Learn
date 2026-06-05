@@ -89,7 +89,7 @@ export const NAV_BY_ROLE: Record<Role, NavNode[]> = {
       icon: FolderTree,
       children: [
         { kind: "link", label: "Modules", href: "/admin/modules", icon: BookOpen },
-        { kind: "link", label: "Resources / SOPs", href: "/admin/resources", icon: FileText },
+        { kind: "link", label: "Resources", href: "/admin/resources", icon: FileText },
         { kind: "link", label: "Question library", href: "/admin/questions", icon: ListChecks },
       ],
     },

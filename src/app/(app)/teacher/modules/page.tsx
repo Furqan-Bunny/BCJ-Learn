@@ -20,7 +20,6 @@ export default async function TeacherModulesListPage() {
 
   const [allModules, allTeachers] = await Promise.all([listModules(), listTeachers()]);
   const myModules = allModules.filter((m) => ownedSlugs.has(m.slug));
-  const otherModules = allModules.filter((m) => !ownedSlugs.has(m.slug));
 
   // Enrich teachers with owned-module counts for the AddModuleSheet picker.
   const ownedByTeacher = new Map<string, string[]>();
@@ -40,7 +39,6 @@ export default async function TeacherModulesListPage() {
     <TeacherModulesView
       me={{ id: me.id }}
       myModules={myModules}
-      otherModules={otherModules}
       teachers={enrichedTeachers}
       defaultNumber={defaultNumber}
     />

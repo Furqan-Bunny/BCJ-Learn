@@ -1,5 +1,5 @@
-import { notFound } from "next/navigation";
 import { getModule } from "@/lib/db/modules";
+import { getAccessibleModuleOr404 } from "@/lib/auth/module-access";
 import { listAttemptsForModule } from "@/lib/db/attempts";
 import { listManagers } from "@/lib/db/profiles";
 import { listDeliveriesForModule, getCurrentDelivery } from "@/lib/db/deliveries";
@@ -16,8 +16,7 @@ export async function generateMetadata(props: PageProps<"/teacher/modules/[slug]
 
 export default async function TeacherModulePage(props: PageProps<"/teacher/modules/[slug]">) {
   const { slug } = await props.params;
-  const mod = await getModule(slug);
-  if (!mod) return notFound();
+  const mod = await getAccessibleModuleOr404(slug);
 
   const [attempts, allManagers, deliveries, roster, counts, currentDelivery] = await Promise.all([
     listAttemptsForModule(slug),

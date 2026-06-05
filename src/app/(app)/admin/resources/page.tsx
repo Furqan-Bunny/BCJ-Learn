@@ -17,7 +17,7 @@ export default async function AdminResourcesPage() {
     <>
       <PageHeader
         eyebrow="Resources"
-        title="SOPs & policies"
+        title="Resources & policies"
         description="Documents available to employees alongside training modules. Toggle 'requires acknowledgement' to force a read-and-understand sign-off."
       />
       <ResourcesAdminView initialResources={enriched} />

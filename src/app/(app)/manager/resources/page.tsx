@@ -11,7 +11,7 @@ export default async function EmployeeResourcesPage() {
     <>
       <PageHeader
         eyebrow="Resources"
-        title="SOPs & policies"
+        title="Resources & policies"
         description="Documents your leadership team has shared. Items marked as new or updated need a quick acknowledgement."
       />
       <ResourcesEmployeeView initialResources={resources} />

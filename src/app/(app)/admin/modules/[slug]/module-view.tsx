@@ -92,7 +92,7 @@ export function AdminModuleView({
     const res = await linkResourceToModule(slug, sop.id);
     if (!res.ok) {
       setSops((prev) => prev.filter((s) => s.id !== sop.id));
-      toast.error(res.error ?? "Could not link the SOP");
+      toast.error(res.error ?? "Could not link the resource");
       return;
     }
     toast.success(`Linked: ${sop.title}`);
@@ -103,7 +103,7 @@ export function AdminModuleView({
     const res = await unlinkResourceFromModule(slug, sop.id);
     if (!res.ok) {
       setSops((prev) => [...prev, sop]);
-      toast.error(res.error ?? "Could not unlink the SOP");
+      toast.error(res.error ?? "Could not unlink the resource");
       return;
     }
     toast.success(`Unlinked: ${sop.title}`);
@@ -329,12 +329,12 @@ export function AdminModuleView({
             <CardHeader className="pb-2 flex flex-row items-center justify-between">
               <CardTitle className="text-sm flex items-center gap-1.5">
                 <FileText className="size-3.5 text-amber-600 dark:text-amber-400" />
-                Required SOPs
+                Required resources
               </CardTitle>
               {unlinkedSops.length > 0 && (
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
-                    <Button size="xs" variant="outline">+ Link SOP</Button>
+                    <Button size="xs" variant="outline">+ Link resource</Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end" className="max-h-72 overflow-y-auto">
                     {unlinkedSops.map((s) => (
@@ -349,7 +349,7 @@ export function AdminModuleView({
             <CardContent className="space-y-2">
               {sops.length === 0 ? (
                 <p className="text-xs text-muted-foreground">
-                  No SOPs linked. Employees can start this module without signing anything.
+                  No resources linked. Employees can start this module without signing anything.
                 </p>
               ) : (
                 <>

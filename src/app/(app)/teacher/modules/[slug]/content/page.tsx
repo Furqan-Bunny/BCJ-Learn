@@ -1,10 +1,8 @@
-import { notFound } from "next/navigation";
-import { getModule } from "@/lib/db/modules";
+import { getAccessibleModuleOr404 } from "@/lib/auth/module-access";
 import { TeacherContentView } from "./content-view";
 
 export default async function TeacherContentPage(props: PageProps<"/teacher/modules/[slug]/content">) {
   const { slug } = await props.params;
-  const mod = await getModule(slug);
-  if (!mod) return notFound();
+  const mod = await getAccessibleModuleOr404(slug);
   return <TeacherContentView mod={mod} />;
 }

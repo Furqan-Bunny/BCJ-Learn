@@ -333,10 +333,10 @@ export function AddModuleSheet({ trigger, teachers, defaultNumber = 6, lockedOwn
             {allSops.length > 0 && (
               <div className="space-y-2 -mx-2 px-2 py-3 rounded-lg bg-amber-50/40 dark:bg-amber-950/15 border border-amber-500/20">
                 <Label className="text-xs font-semibold uppercase tracking-wider flex items-center gap-1.5 px-1 text-amber-700 dark:text-amber-300">
-                  Required SOPs <span className="text-muted-foreground/70 font-normal lowercase">(optional)</span>
+                  Required resources <span className="text-muted-foreground/70 font-normal lowercase">(optional)</span>
                 </Label>
                 <p className="text-[11px] text-muted-foreground px-1">
-                  Employees will have to sign every SOP picked here before they can open this module.
+                  Employees will have to sign every resource picked here before they can take this module&rsquo;s quiz.
                 </p>
                 <div className="max-h-40 overflow-y-auto space-y-1 mt-2">
                   {allSops.map((s) => {
@@ -357,7 +357,7 @@ export function AddModuleSheet({ trigger, teachers, defaultNumber = 6, lockedOwn
                 </div>
                 {selectedSopIds.size > 0 && (
                   <p className="text-[11px] text-amber-700 dark:text-amber-300 px-1">
-                    {selectedSopIds.size} SOP{selectedSopIds.size === 1 ? "" : "s"} will be linked to this module.
+                    {selectedSopIds.size} resource{selectedSopIds.size === 1 ? "" : "s"} will be linked to this module.
                   </p>
                 )}
               </div>

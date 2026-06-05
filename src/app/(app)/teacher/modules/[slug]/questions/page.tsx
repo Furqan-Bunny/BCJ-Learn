@@ -1,15 +1,11 @@
-import { notFound } from "next/navigation";
-import { getModule } from "@/lib/db/modules";
+import { getAccessibleModuleOr404 } from "@/lib/auth/module-access";
 import { listQuestionsForModule } from "@/lib/db/questions";
 import { TeacherQuestionsView } from "./questions-view";
 
 export default async function TeacherQuestionsPage(props: PageProps<"/teacher/modules/[slug]/questions">) {
   const { slug } = await props.params;
-  const [mod, questions] = await Promise.all([
-    getModule(slug),
-    listQuestionsForModule(slug),
-  ]);
-  if (!mod) return notFound();
+  const mod = await getAccessibleModuleOr404(slug);
+  const questions = await listQuestionsForModule(slug);
 
   return <TeacherQuestionsView mod={mod} initialQuestions={questions} />;
 }

@@ -18,12 +18,11 @@ function totalMinutes(m: ModuleDef): number {
 export interface TeacherModulesViewProps {
   me: { id: string };
   myModules: ModuleDef[];
-  otherModules: ModuleDef[];
   teachers: Teacher[];
   defaultNumber: number;
 }
 
-export function TeacherModulesView({ me, myModules, otherModules, teachers, defaultNumber }: TeacherModulesViewProps) {
+export function TeacherModulesView({ me, myModules, teachers, defaultNumber }: TeacherModulesViewProps) {
   return (
     <>
       <PageHeader
@@ -34,26 +33,21 @@ export function TeacherModulesView({ me, myModules, otherModules, teachers, defa
       />
 
       <h3 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground mb-3">
-        You own ({myModules.length})
+        Your modules ({myModules.length})
       </h3>
-      <Stagger className="grid lg:grid-cols-2 gap-4 mb-10">
-        {myModules.map((m) => (
-          <StaggerItem key={m.slug} className="h-full">
-            <ModuleCard m={m} ownerView />
-          </StaggerItem>
-        ))}
-      </Stagger>
-
-      <h3 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground mb-3">
-        Other modules in the program
-      </h3>
-      <Stagger className="grid lg:grid-cols-2 gap-4" delay={0.1}>
-        {otherModules.map((m) => (
-          <StaggerItem key={m.slug}>
-            <ModuleCard m={m} />
-          </StaggerItem>
-        ))}
-      </Stagger>
+      {myModules.length === 0 ? (
+        <div className="rounded-lg border-2 border-dashed p-8 text-center text-sm text-muted-foreground">
+          You don&rsquo;t own any modules yet. An admin assigns modules to department leads.
+        </div>
+      ) : (
+        <Stagger className="grid lg:grid-cols-2 gap-4">
+          {myModules.map((m) => (
+            <StaggerItem key={m.slug} className="h-full">
+              <ModuleCard m={m} ownerView />
+            </StaggerItem>
+          ))}
+        </Stagger>
+      )}
     </>
   );
 }

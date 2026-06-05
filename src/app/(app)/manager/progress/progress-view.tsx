@@ -20,9 +20,9 @@ export interface ManagerProgressViewProps {
   myAttempts: Attempt[];
 }
 
+// 12-hour date+time from one timestamp (date-fns "h:mm a" is always 12-hour).
 function fmtDateTime(iso: string): string {
-  const d = new Date(iso);
-  return d.toLocaleString(undefined, { month: "short", day: "numeric", year: "numeric", hour: "numeric", minute: "2-digit" });
+  return fmtDate(iso, "MMM d, yyyy 'at' h:mm a");
 }
 
 function fmtDuration(sec?: number): string | null {

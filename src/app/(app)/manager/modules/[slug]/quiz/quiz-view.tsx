@@ -131,7 +131,7 @@ export function ManagerQuizView({ mod }: { mod: ModuleDef }) {
       <>
         <PageHeader
           eyebrow={`Module ${mod.number} quiz`}
-          title="Ready when you are"
+          title={`${mod.title} quiz`}
           description="A quick overview before you start. You can pause anytime by closing the tab — your progress is saved."
         />
         <div className="max-w-2xl">
