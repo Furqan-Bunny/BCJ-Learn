@@ -147,6 +147,7 @@ export interface Question {
   createdAt: string;
   approvedAt?: string;
   approvedBy?: string; // teacher id
+  approvedByName?: string; // resolved display name of the approver
   hits: number; // how many times asked
   missRate: number; // 0-1
 }

@@ -750,6 +750,60 @@ export async function editQuestion(input: EditQuestionInput): Promise<{ ok: bool
   return { ok: true };
 }
 
+// ─── Who answered this question (admin/lead drill-down) ────────────────
+
+export interface QuestionResponder {
+  name: string;
+  correct: boolean;
+  attemptedAt: string;
+}
+
+/** Everyone who has answered a given question, with right/wrong + when. */
+export async function getQuestionResponders(
+  questionId: string,
+): Promise<{ ok: true; responders: QuestionResponder[] } | { ok: false; error: string }> {
+  const sb = await createClient();
+  const { data: q } = await sb.from("questions").select("module_slug").eq("id", questionId).single();
+  if (!q) return { ok: false, error: "Question not found" };
+  const slug = (q as { module_slug: string }).module_slug;
+
+  const guard = await requireAdminOrModuleOwner(slug);
+  if (!guard.ok) return { ok: false, error: guard.error };
+
+  const admin = createAdminClient();
+  const { data: answers } = await admin
+    .from("attempt_answers")
+    .select("attempt_id, correct, answered_at")
+    .eq("question_id", questionId);
+  const ansRows = (answers ?? []) as { attempt_id: string; correct: boolean; answered_at: string }[];
+  if (ansRows.length === 0) return { ok: true, responders: [] };
+
+  const { data: attempts } = await admin
+    .from("attempts")
+    .select("id, manager_id")
+    .in("id", ansRows.map((a) => a.attempt_id));
+  const managerByAttempt = new Map(
+    ((attempts ?? []) as { id: string; manager_id: string }[]).map((a) => [a.id, a.manager_id]),
+  );
+
+  const managerIds = Array.from(new Set([...managerByAttempt.values()]));
+  const { data: people } = await admin.from("profiles").select("id, name").in("id", managerIds);
+  const nameById = new Map(((people ?? []) as { id: string; name: string }[]).map((p) => [p.id, p.name]));
+
+  const responders = ansRows
+    .map((a) => {
+      const managerId = managerByAttempt.get(a.attempt_id);
+      return {
+        name: (managerId && nameById.get(managerId)) || "Unknown",
+        correct: a.correct,
+        attemptedAt: a.answered_at,
+      };
+    })
+    .sort((x, y) => +new Date(y.attemptedAt) - +new Date(x.attemptedAt));
+
+  return { ok: true, responders };
+}
+
 // ─── Version history: list + restore ───────────────────────────────────
 
 export async function getQuestionVersions(

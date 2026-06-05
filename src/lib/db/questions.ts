@@ -28,7 +28,7 @@ interface OptionRow {
   order: number;
 }
 
-function hydrate(qRows: QuestionRow[], optsByQ: Map<string, OptionRow[]>): Question[] {
+function hydrate(qRows: QuestionRow[], optsByQ: Map<string, OptionRow[]>, approverNames?: Map<string, string>): Question[] {
   return qRows.map((r) => ({
     id: r.id,
     moduleSlug: r.module_slug,
@@ -41,6 +41,7 @@ function hydrate(qRows: QuestionRow[], optsByQ: Map<string, OptionRow[]>): Quest
     createdAt: r.created_at,
     approvedAt: r.approved_at ?? undefined,
     approvedBy: r.approved_by ?? undefined,
+    approvedByName: r.approved_by ? approverNames?.get(r.approved_by) : undefined,
     hits: r.hits,
     missRate: r.miss_rate,
   }));
@@ -67,7 +68,8 @@ async function fetchQuestions(sb: SupabaseClient, slug: string, pool?: QuestionP
     optsByQ.set(o.question_id, list);
   }
 
-  return hydrate(qRows, optsByQ);
+  const approverNames = await namesByIds(sb, qRows.map((r) => r.approved_by));
+  return hydrate(qRows, optsByQ, approverNames);
 }
 
 export async function listQuestionsForModule(slug: string, pool?: QuestionPool): Promise<Question[]> {

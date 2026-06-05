@@ -11,11 +11,11 @@ import {
   Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
 } from "@/components/ui/dialog";
 import {
-  Check, X, RefreshCw, Edit3, Sparkles, Search, Filter, CheckCircle2, AlertCircle, Loader2, History, RotateCcw,
+  Check, X, RefreshCw, Edit3, Sparkles, Search, Filter, CheckCircle2, AlertCircle, Loader2, History, RotateCcw, Users,
 } from "lucide-react";
 import { PageHeader } from "@/components/shared/page-header";
 import { StatusBadge } from "@/components/shared/status-badge";
-import { fmtRelative } from "@/lib/format";
+import { fmtDate, fmtRelative } from "@/lib/format";
 import type { ModuleDef, Question, QuestionPool, QuestionStatus } from "@/types";
 import type { QuestionVersion } from "@/lib/db/questions";
 import { toast } from "sonner";
@@ -31,6 +31,8 @@ import {
   restoreQuestionVersion,
   setQuestionPool,
   duplicateQuestionToRetake,
+  getQuestionResponders,
+  type QuestionResponder,
 } from "@/lib/server/ai-actions";
 import { publishModule } from "@/lib/server/module-actions";
 
@@ -53,6 +55,7 @@ export function TeacherQuestionsView({ mod, initialQuestions }: TeacherQuestions
   const [busyId, setBusyId] = React.useState<string | null>(null);
   const [editOpen, setEditOpen] = React.useState(false);
   const [historyOpen, setHistoryOpen] = React.useState(false);
+  const [respondersOpen, setRespondersOpen] = React.useState(false);
 
   // Keep local state in sync if server data refreshes.
   React.useEffect(() => {
@@ -326,9 +329,15 @@ export function TeacherQuestionsView({ mod, initialQuestions }: TeacherQuestions
                     </div>
                   </div>
                   <div className="text-xs text-muted-foreground tabular-nums">
-                    Hits: {current.hits} · Miss rate: {Math.round(current.missRate * 100)}%
+                    Attempts: {current.hits} · Pass rate: {Math.round((1 - current.missRate) * 100)}%
                   </div>
                 </div>
+
+                {current.approvedByName && (current.status === "approved" || current.status === "edited") && (
+                  <div className="text-xs text-muted-foreground">
+                    Approved by <span className="font-medium text-foreground">{current.approvedByName}</span>
+                  </div>
+                )}
 
                 <h2 className="text-xl font-semibold leading-snug mt-4">{current.text}</h2>
 
@@ -399,6 +408,14 @@ export function TeacherQuestionsView({ mod, initialQuestions }: TeacherQuestions
                   )}
                   <Button
                     variant="outline"
+                    onClick={() => setRespondersOpen(true)}
+                    disabled={busyId === current.id}
+                    className="gap-2"
+                  >
+                    <Users className="size-4" /> Who answered
+                  </Button>
+                  <Button
+                    variant="outline"
                     onClick={() => setHistoryOpen(true)}
                     disabled={busyId === current.id}
                     className="gap-2"
@@ -445,7 +462,75 @@ export function TeacherQuestionsView({ mod, initialQuestions }: TeacherQuestions
           }}
         />
       )}
+
+      {current && (
+        <RespondersDialog open={respondersOpen} onOpenChange={setRespondersOpen} question={current} />
+      )}
     </>
+  );
+}
+
+function RespondersDialog({
+  open,
+  onOpenChange,
+  question,
+}: {
+  open: boolean;
+  onOpenChange: (o: boolean) => void;
+  question: Question;
+}) {
+  const [loading, setLoading] = React.useState(false);
+  const [responders, setResponders] = React.useState<QuestionResponder[] | null>(null);
+
+  React.useEffect(() => {
+    if (!open) return;
+    setLoading(true);
+    setResponders(null);
+    getQuestionResponders(question.id).then((res) => {
+      setLoading(false);
+      if (res.ok) setResponders(res.responders);
+      else toast.error(res.error);
+    });
+  }, [open, question.id]);
+
+  const correctCount = responders?.filter((r) => r.correct).length ?? 0;
+  const wrongCount = (responders?.length ?? 0) - correctCount;
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-lg">
+        <DialogHeader>
+          <DialogTitle>Who answered this question</DialogTitle>
+          <DialogDescription className="line-clamp-2">{question.text}</DialogDescription>
+        </DialogHeader>
+        {loading ? (
+          <div className="p-8 text-center"><Loader2 className="size-5 animate-spin mx-auto text-muted-foreground" /></div>
+        ) : !responders || responders.length === 0 ? (
+          <div className="p-6 text-center text-sm text-muted-foreground">No one has answered this question yet.</div>
+        ) : (
+          <>
+            <div className="flex items-center gap-4 text-xs text-muted-foreground">
+              <span className="flex items-center gap-1.5"><span className="size-2 rounded-full bg-emerald-500" /> {correctCount} correct</span>
+              <span className="flex items-center gap-1.5"><span className="size-2 rounded-full bg-rose-500" /> {wrongCount} wrong</span>
+            </div>
+            <div className="max-h-72 overflow-y-auto rounded-md border divide-y">
+              {responders.map((r, i) => (
+                <div key={i} className="flex items-center gap-2 px-3 py-2">
+                  {r.correct
+                    ? <CheckCircle2 className="size-4 text-emerald-500 shrink-0" />
+                    : <X className="size-4 text-rose-500 shrink-0" />}
+                  <span className="flex-1 min-w-0 truncate text-sm font-medium">{r.name}</span>
+                  <span className="text-[11px] text-muted-foreground shrink-0">{fmtDate(r.attemptedAt, "MMM d, h:mm a")}</span>
+                </div>
+              ))}
+            </div>
+          </>
+        )}
+        <DialogFooter>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>Close</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
 
