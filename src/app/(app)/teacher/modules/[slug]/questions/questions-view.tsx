@@ -14,6 +14,7 @@ import {
   Check, X, RefreshCw, Edit3, Sparkles, Search, Filter, CheckCircle2, AlertCircle, Loader2, History, RotateCcw, Users,
 } from "lucide-react";
 import { PageHeader } from "@/components/shared/page-header";
+import { Pagination, pageSlice } from "@/components/ui/pagination";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { fmtDate, fmtRelative } from "@/lib/format";
 import type { ModuleDef, Question, QuestionPool, QuestionStatus } from "@/types";
@@ -329,7 +330,7 @@ export function TeacherQuestionsView({ mod, initialQuestions }: TeacherQuestions
                     </div>
                   </div>
                   <div className="text-xs text-muted-foreground tabular-nums">
-                    Attempts: {current.hits} · Pass rate: {Math.round((1 - current.missRate) * 100)}%
+                    Attempts: {current.hits} · Pass rate: {current.hits > 0 ? `${Math.round((1 - current.missRate) * 100)}%` : "—"}
                   </div>
                 </div>
 
@@ -481,11 +482,14 @@ function RespondersDialog({
 }) {
   const [loading, setLoading] = React.useState(false);
   const [responders, setResponders] = React.useState<QuestionResponder[] | null>(null);
+  const PER = 8;
+  const [page, setPage] = React.useState(0);
 
   React.useEffect(() => {
     if (!open) return;
     setLoading(true);
     setResponders(null);
+    setPage(0);
     getQuestionResponders(question.id).then((res) => {
       setLoading(false);
       if (res.ok) setResponders(res.responders);
@@ -513,8 +517,8 @@ function RespondersDialog({
               <span className="flex items-center gap-1.5"><span className="size-2 rounded-full bg-emerald-500" /> {correctCount} correct</span>
               <span className="flex items-center gap-1.5"><span className="size-2 rounded-full bg-rose-500" /> {wrongCount} wrong</span>
             </div>
-            <div className="max-h-72 overflow-y-auto rounded-md border divide-y">
-              {responders.map((r, i) => (
+            <div className="rounded-md border divide-y">
+              {pageSlice(responders, page, PER).map((r, i) => (
                 <div key={i} className="flex items-center gap-2 px-3 py-2">
                   {r.correct
                     ? <CheckCircle2 className="size-4 text-emerald-500 shrink-0" />
@@ -524,6 +528,7 @@ function RespondersDialog({
                 </div>
               ))}
             </div>
+            <Pagination page={page} total={responders.length} pageSize={PER} onPageChange={setPage} />
           </>
         )}
         <DialogFooter>

@@ -206,7 +206,7 @@ export function TeacherQuestionLibraryView({ myModules, myQuestions }: TeacherQu
                         M{mod?.number} · {mod?.title}
                       </Badge>
                       <span className="text-xs text-muted-foreground ml-auto">
-                        Pass rate: <span className="font-mono font-semibold text-emerald-600 dark:text-emerald-400">{Math.round((1 - q.missRate) * 100)}%</span>
+                        Pass rate: <span className="font-mono font-semibold text-emerald-600 dark:text-emerald-400">{q.hits > 0 ? `${Math.round((1 - q.missRate) * 100)}%` : "—"}</span>
                       </span>
                     </div>
                   </div>
