@@ -64,6 +64,48 @@ export async function getBrandingSettings(): Promise<BrandingSettings> {
   };
 }
 
+export interface CertificateSettings {
+  heading: string;
+  introLine: string;
+  completionLine: string;
+  orgName: string;
+  footer: string;
+  signatoryName: string;
+  signatoryTitle: string;
+  showLogo: boolean;
+}
+
+const DEFAULT_CERTIFICATE: CertificateSettings = {
+  heading: "Certificate of Completion",
+  introLine: "This certifies that",
+  completionLine: "has successfully completed",
+  orgName: "BCJ Building Services",
+  footer: "BCJ Learn — Training Platform",
+  signatoryName: "",
+  signatoryTitle: "",
+  showLogo: true,
+};
+
+export async function getCertificateSettings(): Promise<CertificateSettings> {
+  const sb = await dbClient();
+  const { data } = await sb.from("certificate_settings").select("*").eq("id", "global").maybeSingle();
+  if (!data) return DEFAULT_CERTIFICATE;
+  const r = data as {
+    heading: string; intro_line: string; completion_line: string; org_name: string;
+    footer: string; signatory_name: string; signatory_title: string; show_logo: boolean;
+  };
+  return {
+    heading: r.heading,
+    introLine: r.intro_line,
+    completionLine: r.completion_line,
+    orgName: r.org_name,
+    footer: r.footer,
+    signatoryName: r.signatory_name,
+    signatoryTitle: r.signatory_title,
+    showLogo: r.show_logo,
+  };
+}
+
 export async function getReminderRules(): Promise<ReminderRules> {
   const sb = await dbClient();
   const { data } = await sb.from("reminder_rules").select("*").eq("id", "global").maybeSingle();

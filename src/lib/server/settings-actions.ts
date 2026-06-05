@@ -60,6 +60,45 @@ export async function updateBrandingSettings(input: UpdateBrandingInput): Promis
   return { ok: true };
 }
 
+export interface UpdateCertificateInput {
+  heading: string;
+  introLine: string;
+  completionLine: string;
+  orgName: string;
+  footer: string;
+  signatoryName: string;
+  signatoryTitle: string;
+  showLogo: boolean;
+}
+
+export async function updateCertificateSettings(input: UpdateCertificateInput): Promise<{ ok: boolean; error?: string }> {
+  const guard = await requireAdmin();
+  if (!guard.ok) return { ok: false, error: guard.error };
+  if (!input.heading.trim()) return { ok: false, error: "Heading is required" };
+
+  if (DEMO_MODE) return { ok: true };
+
+  const admin = createAdminClient();
+  const { error } = await admin
+    .from("certificate_settings")
+    .update({
+      heading: input.heading.trim(),
+      intro_line: input.introLine.trim(),
+      completion_line: input.completionLine.trim(),
+      org_name: input.orgName.trim(),
+      footer: input.footer.trim(),
+      signatory_name: input.signatoryName.trim(),
+      signatory_title: input.signatoryTitle.trim(),
+      show_logo: input.showLogo,
+      updated_by: guard.userId,
+    })
+    .eq("id", "global");
+  if (error) return { ok: false, error: error.message };
+
+  revalidatePath("/admin/settings/certificate");
+  return { ok: true };
+}
+
 export interface UpdateReminderRulesInput {
   autoReminders: boolean;
   overdueDays: number;
