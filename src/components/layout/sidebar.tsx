@@ -14,6 +14,7 @@ import {
   Bell,
   Settings,
   Award,
+  HelpCircle,
   History,
   PlayCircle,
   ListChecks,
@@ -54,6 +55,7 @@ export const NAV_BY_ROLE: Record<Role, NavNode[]> = {
     { kind: "link", label: "Modules", href: "/manager/modules", icon: BookOpen },
     { kind: "link", label: "Resources", href: "/manager/resources", icon: FileText },
     { kind: "link", label: "My Progress", href: "/manager/progress", icon: PlayCircle },
+    { kind: "link", label: "Help", href: "/help", icon: HelpCircle },
   ],
 
   teacher: [
@@ -69,6 +71,7 @@ export const NAV_BY_ROLE: Record<Role, NavNode[]> = {
       ],
     },
     { kind: "link", label: "My team", href: "/teacher/managers", icon: Users },
+    { kind: "link", label: "Help", href: "/help", icon: HelpCircle },
   ],
 
   admin: [
@@ -114,6 +117,7 @@ export const NAV_BY_ROLE: Record<Role, NavNode[]> = {
         { kind: "link", label: "Certificate", href: "/admin/settings/certificate", icon: Award },
       ],
     },
+    { kind: "link", label: "Help", href: "/help", icon: HelpCircle },
   ],
 };
 

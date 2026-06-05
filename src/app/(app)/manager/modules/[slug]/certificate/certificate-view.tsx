@@ -53,7 +53,7 @@ export function CertificateView({
       </div>
 
       <div className="mx-auto max-w-3xl">
-        <div className="certificate relative bg-white text-[#041D39] rounded-lg overflow-hidden border-8 border-double border-[#041D39] p-10 md:p-14 text-center shadow-sm">
+        <div className="certificate printable relative bg-white text-[#041D39] rounded-lg overflow-hidden border-8 border-double border-[#041D39] p-10 md:p-14 text-center shadow-sm">
           <div className="absolute inset-x-0 top-0 h-2 bg-[#12D7CD]" />
 
           {settings.showLogo && (
