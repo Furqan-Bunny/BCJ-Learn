@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import Link from "next/link";
+import { useT } from "@/lib/i18n/provider";
 import { Pagination, pageSlice } from "@/components/ui/pagination";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -35,6 +36,7 @@ function fmtDuration(sec?: number): string | null {
 }
 
 export function ManagerProgressView({ me, modules, myAttempts }: ManagerProgressViewProps) {
+  const t = useT();
   const ordered = [...modules].sort((a, b) => a.number - b.number);
   const moduleBySlug = new Map(modules.map((m) => [m.slug, m]));
 
@@ -48,15 +50,15 @@ export function ManagerProgressView({ me, modules, myAttempts }: ManagerProgress
   return (
     <>
       <PageHeader
-        eyebrow="Your progress"
-        title="My training history"
-        description="Every module, every attempt, every score. This is what your supervisor sees too."
+        eyebrow={t("progress.eyebrow")}
+        title={t("progress.title")}
+        description={t("progress.descFull")}
       />
 
       <div className="grid sm:grid-cols-3 gap-3 mb-8">
         <Card>
           <CardContent className="p-5">
-            <div className="text-xs text-muted-foreground uppercase tracking-wider">Modules passed</div>
+            <div className="text-xs text-muted-foreground uppercase tracking-wider">{t("progress.modulesPassed")}</div>
             <div className="text-3xl font-bold tabular-nums mt-2">
               {me.modulesCompleted} <span className="text-muted-foreground text-base font-normal">of {ordered.length}</span>
             </div>
@@ -64,7 +66,7 @@ export function ManagerProgressView({ me, modules, myAttempts }: ManagerProgress
         </Card>
         <Card>
           <CardContent className="p-5">
-            <div className="text-xs text-muted-foreground uppercase tracking-wider">Average score</div>
+            <div className="text-xs text-muted-foreground uppercase tracking-wider">{t("progress.averageScore")}</div>
             <div className="text-3xl font-bold tabular-nums mt-2">
               {me.averageScore || "—"}
               <span className="text-muted-foreground text-base font-normal">{me.averageScore ? "%" : ""}</span>
@@ -73,7 +75,7 @@ export function ManagerProgressView({ me, modules, myAttempts }: ManagerProgress
         </Card>
         <Card>
           <CardContent className="p-5">
-            <div className="text-xs text-muted-foreground uppercase tracking-wider">Quiz attempts</div>
+            <div className="text-xs text-muted-foreground uppercase tracking-wider">{t("progress.totalAttempts")}</div>
             <div className="text-3xl font-bold tabular-nums mt-2">{history.length}</div>
           </CardContent>
         </Card>
@@ -82,12 +84,12 @@ export function ManagerProgressView({ me, modules, myAttempts }: ManagerProgress
       {/* ─── Full attempt history ──────────────────────────────────── */}
       <Card className="mb-8">
         <CardHeader>
-          <CardTitle className="text-base flex items-center gap-2"><History className="size-4 text-muted-foreground" /> Quiz history</CardTitle>
+          <CardTitle className="text-base flex items-center gap-2"><History className="size-4 text-muted-foreground" /> {t("progress.quizHistory")}</CardTitle>
         </CardHeader>
         <CardContent>
           {history.length === 0 ? (
             <div className="py-10 text-center text-sm text-muted-foreground">
-              You haven&rsquo;t taken any quizzes yet. Once you attend a seminar and take the quiz, every attempt shows up here.
+              {t("progress.noQuizzes")}
             </div>
           ) : (
             <ul className="divide-y">
@@ -106,15 +108,15 @@ export function ManagerProgressView({ me, modules, myAttempts }: ManagerProgress
                         <div className="flex items-center gap-2 flex-wrap">
                           <span className="font-medium truncate">{m ? `M${m.number}: ${m.title}` : a.moduleSlug}</span>
                           <Badge variant="outline" className="text-[10px] capitalize">
-                            {a.pool === "retake" ? "Retake" : "First attempt"}
+                            {a.pool === "retake" ? t("modules.status.retake") : t("progress.firstAttempt")}
                           </Badge>
                           <StatusBadge variant={a.status as "passed" | "failed"} />
                         </div>
                         <div className="text-xs text-muted-foreground mt-1 flex flex-wrap items-center gap-x-4 gap-y-1">
                           <span className="flex items-center gap-1.5"><Calendar className="size-3.5" /> {fmtDateTime(when)}</span>
-                          <span className="flex items-center gap-1.5"><Target className="size-3.5" /> {a.correctCount}/{a.totalCount} correct</span>
+                          <span className="flex items-center gap-1.5"><Target className="size-3.5" /> {t("progress.correctOf", { correct: a.correctCount, total: a.totalCount })}</span>
                           {duration && <span className="flex items-center gap-1.5"><Clock className="size-3.5" /> {duration}</span>}
-                          <span className="text-primary">Review answers <ArrowUpRight className="size-3 inline" /></span>
+                          <span className="text-primary">{t("progress.reviewAnswers")} <ArrowUpRight className="size-3 inline" /></span>
                         </div>
                       </div>
                       <div className="flex items-center gap-3 shrink-0">
@@ -135,7 +137,7 @@ export function ManagerProgressView({ me, modules, myAttempts }: ManagerProgress
       {/* ─── Module-by-module overview ─────────────────────────────── */}
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">Module-by-module</CardTitle>
+          <CardTitle className="text-base">{t("progress.moduleByModule")}</CardTitle>
         </CardHeader>
         <CardContent>
           <ul className="divide-y">
@@ -154,8 +156,8 @@ export function ManagerProgressView({ me, modules, myAttempts }: ManagerProgress
                       {attempts.length > 0
                         ? `${attempts.length} attempt${attempts.length > 1 ? "s" : ""} · last ${fmtRelative(latest.startedAt)}`
                         : m.scheduledDate
-                          ? `Scheduled ${fmtDate(m.scheduledDate)}`
-                          : "Not yet scheduled"}
+                          ? t("progress.scheduled", { date: fmtDate(m.scheduledDate) })
+                          : t("progress.notScheduled")}
                     </div>
                   </div>
                   <div className="flex items-center gap-3 shrink-0">

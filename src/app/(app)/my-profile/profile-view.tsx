@@ -5,6 +5,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { PageHeader } from "@/components/shared/page-header";
 import { StatusBadge } from "@/components/shared/status-badge";
+import { LanguageToggle } from "@/components/shared/language-toggle";
 import { initials, fmtDate, fmtRelative, fmtPct, fmtDuration } from "@/lib/format";
 import {
   Mail,
@@ -206,6 +207,15 @@ export function MyProfileView({
               )}
             </CardContent>
           </Card>
+
+          {/* Language — employees only */}
+          {role === "manager" && (
+            <Card>
+              <CardContent className="p-5">
+                <LanguageToggle />
+              </CardContent>
+            </Card>
+          )}
         </aside>
 
         {/* ─── Main column ─────────────────────────────────── */}

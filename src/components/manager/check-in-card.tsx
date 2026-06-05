@@ -12,6 +12,7 @@ import type { ModuleDef } from "@/types";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { logCheckIn, logCheckOut } from "@/lib/server/attendance-actions";
+import { useT } from "@/lib/i18n/provider";
 
 interface CheckInCardProps {
   manager: { id: string; name: string };
@@ -39,6 +40,7 @@ export function CheckInCard({
   alwaysShow = true,
 }: CheckInCardProps) {
   const router = useRouter();
+  const t = useT();
   const [isCheckedIn, setIsCheckedIn] = React.useState(initialCheckedIn);
   const [checkedInAt, setCheckedInAt] = React.useState<string | null>(initialCheckedInAt);
   const [busy, setBusy] = React.useState(false);
@@ -75,7 +77,7 @@ export function CheckInCard({
     setIsCheckedIn(true);
     setCheckedInAt(new Date().toISOString());
     toast.success(`You're checked in for ${mod.title}`, {
-      description: "Sit tight — the quiz unlocks right after the seminar.",
+      description: t("checkin.toastSitTight"),
     });
     router.refresh();
   }
@@ -105,15 +107,15 @@ export function CheckInCard({
             </div>
             <div className="flex-1 min-w-0">
               <Badge className="bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-emerald-500/30 mb-1">
-                You&rsquo;re checked in
+                {t("checkin.youreCheckedIn")}
               </Badge>
-              <div className="font-semibold text-lg">Welcome to {mod.title}</div>
+              <div className="font-semibold text-lg">{t("checkin.welcome", { module: mod.title })}</div>
               <p className="text-sm text-muted-foreground mt-0.5">
-                Checked in {checkedInAt ? fmtRelative(checkedInAt) : "just now"} · Sit tight, the quiz unlocks right after the seminar.
+                {t("checkin.checkedInAt", { when: checkedInAt ? fmtRelative(checkedInAt) : t("checkin.justNow") })}
               </p>
             </div>
             <Button variant="ghost" size="sm" onClick={handleUndo} className="shrink-0" disabled={busy}>
-              {busy ? "…" : "Undo"}
+              {busy ? "…" : t("checkin.undo")}
             </Button>
           </div>
         </CardContent>
@@ -132,10 +134,10 @@ export function CheckInCard({
             <Lock className="size-5" />
           </div>
           <div className="flex-1 min-w-0">
-            <Badge variant="outline" className="text-[10px] uppercase tracking-wider mb-1">Check-in not open yet</Badge>
+            <Badge variant="outline" className="text-[10px] uppercase tracking-wider mb-1">{t("checkin.notOpen")}</Badge>
             <div className="font-semibold text-lg">{mod.title}</div>
             <p className="text-sm text-muted-foreground mt-0.5">
-              Check-in opens when your trainer starts the seminar. You&rsquo;ll get a code on the room screen — enter it here to check in.
+              {t("checkin.opensWhen")}
             </p>
           </div>
         </CardContent>
@@ -156,17 +158,17 @@ export function CheckInCard({
               {sessionLive ? (
                 <Badge className="bg-rose-500/15 text-rose-700 dark:text-rose-300 border-rose-500/30 uppercase tracking-wider text-[10px] gap-1.5">
                   <span className="size-1.5 rounded-full bg-rose-500 animate-pulse" />
-                  Live now
+                  {t("checkin.liveNow")}
                 </Badge>
               ) : (
                 <Badge className="bg-[var(--gold)]/15 text-[var(--gold)] border-[var(--gold)]/30 uppercase tracking-wider text-[10px]">
-                  Today&rsquo;s session
+                  {t("checkin.todaySession")}
                 </Badge>
               )}
             </div>
             <div className="font-semibold text-lg">{mod.title}</div>
             <p className="text-sm text-muted-foreground mt-0.5 mb-3">
-              Enter the code shown on the room screen to check in. Only people in the room can.
+              {t("checkin.enterCode")}
             </p>
             <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 text-xs text-muted-foreground">
               {mod.scheduledDate && (
@@ -175,10 +177,10 @@ export function CheckInCard({
                 </span>
               )}
               <span className="flex items-center gap-1.5">
-                <Clock className="size-3.5" /> {mod.lessons.reduce((s, l) => s + l.durationMinutes, 0)} min seminar
+                <Clock className="size-3.5" /> {t("checkin.minSeminar", { n: mod.lessons.reduce((s, l) => s + l.durationMinutes, 0) })}
               </span>
               <span className="flex items-center gap-1.5">
-                <MapPin className="size-3.5" /> On-site Training Room
+                <MapPin className="size-3.5" /> {t("checkin.onsiteRoom")}
               </span>
             </div>
           </div>
@@ -187,7 +189,7 @@ export function CheckInCard({
               value={code}
               onChange={(e) => setCode(e.target.value.replace(/\D/g, "").slice(0, 4))}
               inputMode="numeric"
-              placeholder="Code"
+              placeholder={t("checkin.codePlaceholder")}
               aria-label="Check-in code"
               className="h-12 text-center text-xl font-mono tracking-[0.3em]"
             />
@@ -198,7 +200,7 @@ export function CheckInCard({
               className="h-12 px-6 text-base bg-[var(--gold)] hover:bg-[var(--gold)]/90 text-slate-900 shadow-md"
             >
               {busy ? <Loader2 className="size-5 mr-2 animate-spin" /> : <UserCheck className="size-5 mr-2" />}
-              Check in
+              {t("checkin.checkIn")}
             </Button>
           </div>
         </div>
@@ -215,6 +217,7 @@ interface ModuleCheckInPillProps {
 
 /** Compact "checked in" pill — receives state as a prop. */
 export function ModuleCheckInPill({ checkedIn = false }: ModuleCheckInPillProps) {
+  const t = useT();
   if (!checkedIn) return null;
   return (
     <Badge className={cn(
@@ -222,7 +225,7 @@ export function ModuleCheckInPill({ checkedIn = false }: ModuleCheckInPillProps)
       "dark:bg-emerald-950/40 dark:text-emerald-200 dark:border-emerald-900",
     )}>
       <CheckCircle2 className="size-3 mr-1" />
-      Checked in
+      {t("checkin.checkedInPill")}
     </Badge>
   );
 }

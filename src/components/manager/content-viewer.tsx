@@ -13,6 +13,7 @@ import { cn } from "@/lib/utils";
 import type { LessonContent, ContentType } from "@/types";
 import { signedUrlForContent } from "@/lib/supabase/storage";
 import { saveVideoProgress, getVideoProgress } from "@/lib/server/progress-actions";
+import { useT } from "@/lib/i18n/provider";
 
 const TYPE_META: Record<ContentType, { icon: React.ComponentType<{ className?: string }>; label: string; tint: string }> = {
   video:    { icon: PlayCircle, label: "Video",    tint: "text-rose-600 bg-rose-100 dark:text-rose-300 dark:bg-rose-950/40" },
@@ -29,6 +30,7 @@ interface ContentViewerProps {
 
 /** Read-only viewer used by managers for OPTIONAL pre-study (per scope §5.1.3). */
 export function ContentViewer({ content, onClose, moduleSlug }: ContentViewerProps) {
+  const t = useT();
   // External links open in a new tab — no need for a modal
   React.useEffect(() => {
     if (content && content.type === "link" && content.externalUrl) {
@@ -52,13 +54,13 @@ export function ContentViewer({ content, onClose, moduleSlug }: ContentViewerPro
           </span>
           <div className="flex-1 min-w-0">
             <Badge variant="outline" className="text-[10px] uppercase tracking-wider mb-1">
-              {meta.label} · Optional pre-study
+              {t(("type." + content.type) as Parameters<typeof t>[0])} · {t("content.optionalPreStudy")}
             </Badge>
             <DialogTitle className="text-lg truncate">{content.title}</DialogTitle>
           </div>
           {content.durationMinutes && (
             <div className="text-xs text-muted-foreground flex items-center gap-1.5 shrink-0">
-              <Clock className="size-3.5" /> {content.durationMinutes} min
+              <Clock className="size-3.5" /> {content.durationMinutes} {t("common.minutes")}
             </div>
           )}
           <Button variant="ghost" size="icon" onClick={onClose} className="size-8 shrink-0">
@@ -100,7 +102,7 @@ export function ContentViewer({ content, onClose, moduleSlug }: ContentViewerPro
 
         {/* Footer hint */}
         <div className="px-6 py-3 border-t text-xs text-muted-foreground bg-muted/40">
-          Reviewing this is optional — you don&rsquo;t need to finish it before the seminar. The trainer will walk through the same material live.
+          {t("content.optionalDisclaimer")}
         </div>
       </DialogContent>
     </Dialog>
@@ -113,6 +115,7 @@ export function ContentViewer({ content, onClose, moduleSlug }: ContentViewerPro
  * (Word, PowerPoint) fall back to a download button.
  */
 function StoredFileViewer({ content, moduleSlug }: { content: LessonContent; moduleSlug?: string }) {
+  const t = useT();
   const [url, setUrl] = React.useState<string | null>(null);
   const [error, setError] = React.useState<string | null>(null);
 
@@ -128,14 +131,14 @@ function StoredFileViewer({ content, moduleSlug }: { content: LessonContent; mod
   if (error) {
     return (
       <div className="p-12 text-center text-sm text-muted-foreground">
-        Could not load this file. {error}
+        {t("content.loadError", { error })}
       </div>
     );
   }
   if (!url) {
     return (
       <div className="p-12 text-center text-sm text-muted-foreground flex items-center justify-center gap-2">
-        <Loader2 className="size-4 animate-spin" /> Preparing preview…
+        <Loader2 className="size-4 animate-spin" /> {t("content.preparing")}
       </div>
     );
   }
@@ -157,11 +160,11 @@ function StoredFileViewer({ content, moduleSlug }: { content: LessonContent; mod
     <div className="p-12 text-center">
       <FileText className="size-12 mx-auto opacity-40 mb-3" />
       <div className="text-sm text-muted-foreground mb-4">
-        {content.fileName ?? "Uploaded file"} — preview unavailable for this format.
+        {t("content.previewUnavailable", { name: content.fileName ?? t("content.uploadedFile") })}
       </div>
       <Button asChild>
         <a href={url} download={content.fileName ?? undefined} target="_blank" rel="noreferrer">
-          <Download className="size-4 mr-1.5" /> Download to view
+          <Download className="size-4 mr-1.5" /> {t("common.download")}
         </a>
       </Button>
     </div>
@@ -226,6 +229,7 @@ function VideoPlayer({ url, contentId, moduleSlug }: { url: string; contentId: s
 }
 
 function DocumentReader({ pages }: { pages: string[] }) {
+  const t = useT();
   const [pageIdx, setPageIdx] = React.useState(0);
   const text = pages[pageIdx] ?? "";
   const lines = text.split("\n").filter(Boolean);
@@ -241,11 +245,11 @@ function DocumentReader({ pages }: { pages: string[] }) {
       {pages.length > 1 && (
         <div className="flex items-center justify-between px-6 py-3 border-t bg-muted/30">
           <Button variant="ghost" size="sm" disabled={pageIdx === 0} onClick={() => setPageIdx((i) => Math.max(0, i - 1))}>
-            ← Previous
+            {t("content.prevPage")}
           </Button>
-          <div className="text-xs text-muted-foreground tabular-nums">Page {pageIdx + 1} of {pages.length}</div>
+          <div className="text-xs text-muted-foreground tabular-nums">{t("content.pageOf", { i: pageIdx + 1, n: pages.length })}</div>
           <Button variant="ghost" size="sm" disabled={pageIdx === pages.length - 1} onClick={() => setPageIdx((i) => Math.min(pages.length - 1, i + 1))}>
-            Next →
+            {t("content.nextPage")}
           </Button>
         </div>
       )}
@@ -254,6 +258,7 @@ function DocumentReader({ pages }: { pages: string[] }) {
 }
 
 function SlideViewer({ slides }: { slides: { title: string; bullets: string[] }[] }) {
+  const t = useT();
   const [idx, setIdx] = React.useState(0);
   const slide = slides[idx];
   if (!slide) return null;
@@ -272,10 +277,10 @@ function SlideViewer({ slides }: { slides: { title: string; bullets: string[] }[
       </div>
       <div className="flex items-center justify-between px-6 py-3 border-t bg-muted/30">
         <Button variant="ghost" size="sm" disabled={idx === 0} onClick={() => setIdx((i) => Math.max(0, i - 1))}>
-          ← Previous slide
+          {t("content.prevSlide")}
         </Button>
         <div className="flex flex-col items-center gap-1">
-          <span className="text-[11px] text-muted-foreground tabular-nums">Slide {idx + 1} of {slides.length}</span>
+          <span className="text-[11px] text-muted-foreground tabular-nums">{t("content.slideOf", { i: idx + 1, n: slides.length })}</span>
           <div className="flex items-center gap-1.5">
             {slides.map((_, i) => (
               <button
@@ -290,7 +295,7 @@ function SlideViewer({ slides }: { slides: { title: string; bullets: string[] }[
           </div>
         </div>
         <Button variant="ghost" size="sm" disabled={idx === slides.length - 1} onClick={() => setIdx((i) => Math.min(slides.length - 1, i + 1))}>
-          Next slide →
+          {t("content.nextSlide")}
         </Button>
       </div>
     </div>

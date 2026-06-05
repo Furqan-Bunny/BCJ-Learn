@@ -12,6 +12,7 @@ import { computeQuizState } from "@/lib/quiz-state";
 import { fmtDate, fmtRelative, fmtPct, fmtTime } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import type { ModuleDef, Attempt } from "@/types";
+import { useT } from "@/lib/i18n/provider";
 
 interface QuizStatusCardProps {
   managerId: string;
@@ -40,6 +41,7 @@ export function QuizStatusCard({
   variant = "full",
 }: QuizStatusCardProps) {
   void managerId; // not used directly; attempts already filtered by host
+  const t = useT();
   const sessionLive = !!sessionStartedAt && !sessionEndedAt;
   const timeStr = fmtTime(mod.scheduledTime);
 
@@ -56,12 +58,12 @@ export function QuizStatusCard({
         variant={variant}
         accent="slate"
         icon={Lock}
-        eyebrow="Not in this delivery"
-        title={`You're not assigned to the next ${mod.title} delivery`}
-        description="The next delivery is for retakes and new hires. If you think this is wrong, talk to your trainer."
+        eyebrow={t("status.notInvitedEyebrow")}
+        title={t("status.notInvitedTitle", { module: mod.title })}
+        description={t("status.notInvitedDesc")}
         primaryAction={null}
         meta={[
-          { icon: Calendar, label: "Next delivery", value: mod.scheduledDate ? fmtDate(mod.scheduledDate) : "—" },
+          { icon: Calendar, label: t("status.metaNextDelivery"), value: mod.scheduledDate ? fmtDate(mod.scheduledDate) : "—" },
         ]}
       />
     );
@@ -73,19 +75,19 @@ export function QuizStatusCard({
         variant={variant}
         accent="emerald"
         icon={Trophy}
-        eyebrow="You passed this module"
-        title={`You scored ${fmtPct(state.passedAttempt.scorePct)} on ${mod.title}`}
-        description="You don't need to retake the quiz. BCJ recommends an annual refresher to keep the material fresh."
+        eyebrow={t("status.passedEyebrow")}
+        title={t("status.passedTitle", { score: fmtPct(state.passedAttempt.scorePct), module: mod.title })}
+        description={t("status.passedDesc")}
         primaryAction={
           <Button asChild variant="outline">
             <Link href={`/manager/modules/${mod.slug}/certificate`}>
-              <Award className="size-4 mr-1.5" /> View certificate
+              <Award className="size-4 mr-1.5" /> {t("status.viewCertificate")}
             </Link>
           </Button>
         }
         meta={[
-          { icon: CheckCircle2, label: "Passed on", value: fmtDate(state.passedAttempt.submittedAt ?? state.passedAttempt.startedAt) },
-          { icon: Calendar, label: "Refresher", value: fmtDate(state.refresherDueDate) },
+          { icon: CheckCircle2, label: t("status.metaPassedOn"), value: fmtDate(state.passedAttempt.submittedAt ?? state.passedAttempt.startedAt) },
+          { icon: Calendar, label: t("status.metaRefresher"), value: fmtDate(state.refresherDueDate) },
         ]}
       />
     );
@@ -97,19 +99,19 @@ export function QuizStatusCard({
         variant={variant}
         accent="amber"
         icon={RefreshCcw}
-        eyebrow="Retake available"
-        title={`You scored ${fmtPct(state.failedAttempt.scorePct)} — needed ${Math.round(mod.passThreshold * 100)}%`}
-        description={`You have ${state.attemptsRemaining} attempt${state.attemptsRemaining === 1 ? "" : "s"} left. The retake covers the same material — review it, then try again.`}
+        eyebrow={t("status.retakeEyebrow")}
+        title={t("status.retakeTitle", { score: fmtPct(state.failedAttempt.scorePct), threshold: Math.round(mod.passThreshold * 100) })}
+        description={t("status.retakeDesc", { n: state.attemptsRemaining })}
         primaryAction={
           <Button asChild>
             <Link href={`/manager/modules/${mod.slug}/quiz`}>
-              Retake quiz now <ArrowRight className="size-4 ml-1" />
+              {t("status.retakeNow")} <ArrowRight className="size-4 ml-1" />
             </Link>
           </Button>
         }
         meta={[
-          { icon: XCircle, label: "Last score", value: fmtPct(state.failedAttempt.scorePct) },
-          { icon: RefreshCcw, label: "Attempts left", value: String(state.attemptsRemaining) },
+          { icon: XCircle, label: t("status.metaLastScore"), value: fmtPct(state.failedAttempt.scorePct) },
+          { icon: RefreshCcw, label: t("status.metaAttemptsLeft"), value: String(state.attemptsRemaining) },
         ]}
       />
     );
@@ -121,13 +123,13 @@ export function QuizStatusCard({
         variant={variant}
         accent="rose"
         icon={AlertTriangle}
-        eyebrow="Out of attempts"
-        title="Talk to your trainer about next steps"
-        description={`You've used all ${state.attemptsUsed} attempts without reaching ${Math.round(mod.passThreshold * 100)}%. The platform has flagged you for review — your trainer will reach out.`}
+        eyebrow={t("status.lockedEyebrow")}
+        title={t("status.lockedTitle")}
+        description={t("status.lockedDesc", { n: state.attemptsUsed, threshold: Math.round(mod.passThreshold * 100) })}
         primaryAction={null}
         meta={[
-          { icon: XCircle, label: "Last score", value: fmtPct(state.lastAttempt.scorePct) },
-          { icon: AlertTriangle, label: "Attempts used", value: String(state.attemptsUsed) },
+          { icon: XCircle, label: t("status.metaLastScore"), value: fmtPct(state.lastAttempt.scorePct) },
+          { icon: AlertTriangle, label: t("status.metaAttemptsUsed"), value: String(state.attemptsUsed) },
         ]}
       />
     );
@@ -139,19 +141,19 @@ export function QuizStatusCard({
         variant={variant}
         accent="slate"
         icon={Lock}
-        eyebrow="Quiz locked"
-        title={`Quiz unlocks after the live seminar on ${fmtDate(state.seminarDate)}${timeStr ? ` at ${timeStr}` : ""}`}
-        description="The quiz is delivered on-site immediately after the live seminar. You'll be able to take it once you've attended and checked in to that day's session."
+        eyebrow={t("status.awaitingEyebrow")}
+        title={t("status.awaitingTitle", { date: fmtDate(state.seminarDate) }) + (timeStr ? t("status.awaitingTimeSuffix", { time: timeStr }) : "")}
+        description={t("status.awaitingDesc")}
         primaryAction={
           <Button asChild variant="outline">
             <Link href={`/manager/modules/${mod.slug}`}>
-              Review materials <ArrowRight className="size-4 ml-1" />
+              {t("status.reviewMaterials")} <ArrowRight className="size-4 ml-1" />
             </Link>
           </Button>
         }
         meta={[
-          { icon: Calendar, label: "Training day", value: timeStr ? `${fmtDate(state.seminarDate)} · ${timeStr}` : fmtDate(state.seminarDate) },
-          { icon: Target, label: "Pass at", value: `${Math.round(mod.passThreshold * 100)}%` },
+          { icon: Calendar, label: t("status.metaTrainingDay"), value: timeStr ? `${fmtDate(state.seminarDate)} · ${timeStr}` : fmtDate(state.seminarDate) },
+          { icon: Target, label: t("status.metaPassAt"), value: `${Math.round(mod.passThreshold * 100)}%` },
         ]}
       />
     );
@@ -163,13 +165,13 @@ export function QuizStatusCard({
         variant={variant}
         accent="amber"
         icon={AlertTriangle}
-        eyebrow="You missed this session"
-        title={`The ${mod.title} session was on ${fmtDate(state.seminarDate)}`}
-        description="You weren't checked in to that day's seminar, so the quiz didn't open for you. Your trainer will reschedule you to the next delivery."
+        eyebrow={t("status.missedEyebrow")}
+        title={t("status.missedTitle", { module: mod.title, date: fmtDate(state.seminarDate) })}
+        description={t("status.missedDesc")}
         primaryAction={null}
         meta={[
-          { icon: Calendar, label: "Original session", value: fmtDate(state.seminarDate) },
-          { icon: RefreshCcw, label: "Status", value: "Awaiting reschedule" },
+          { icon: Calendar, label: t("status.metaOriginalSession"), value: fmtDate(state.seminarDate) },
+          { icon: RefreshCcw, label: t("status.metaStatus"), value: t("status.metaAwaitingReschedule") },
         ]}
       />
     );
@@ -182,20 +184,20 @@ export function QuizStatusCard({
         variant={variant}
         accent="brand"
         icon={Sparkles}
-        eyebrow="Quiz is open"
-        title={`Ready to take the ${mod.title} quiz`}
-        description="The seminar has wrapped up. Take the quiz now — everyone gets the same questions. If you don't pass, a retake is auto-assigned (up to 3 attempts in total)."
+        eyebrow={t("status.readyEyebrow")}
+        title={t("status.readyTitle", { module: mod.title })}
+        description={t("status.readyDesc")}
         primaryAction={
           <Button asChild size={variant === "full" ? "lg" : "default"} className={variant === "full" ? "h-11" : ""}>
             <Link href={`/manager/modules/${mod.slug}/quiz`}>
-              Start {mod.title} Quiz <ArrowRight className="size-4 ml-1" />
+              {t("status.startQuiz", { module: mod.title })} <ArrowRight className="size-4 ml-1" />
             </Link>
           </Button>
         }
         meta={[
-          { icon: UserCheck, label: "Checked in", value: state.checkedIn ? "Yes" : "Not required" },
-          { icon: Target, label: "Pass at", value: `${Math.round(mod.passThreshold * 100)}%` },
-          { icon: Clock, label: "Time limit", value: mod.timeLimitMinutes ? `${mod.timeLimitMinutes} min` : "Untimed" },
+          { icon: UserCheck, label: t("status.metaCheckedIn"), value: state.checkedIn ? t("status.metaYes") : t("status.metaNotRequired") },
+          { icon: Target, label: t("status.metaPassAt"), value: `${Math.round(mod.passThreshold * 100)}%` },
+          { icon: Clock, label: t("status.metaTimeLimit"), value: mod.timeLimitMinutes ? `${mod.timeLimitMinutes} min` : "Untimed" },
         ]}
       />
     );
@@ -207,14 +209,14 @@ export function QuizStatusCard({
         variant={variant}
         accent="brand"
         icon={Sparkles}
-        eyebrow="🔴 Live now"
-        title={`${mod.title} seminar is in progress`}
-        description="You're checked in. Sit tight, listen to your trainer — the quiz unlocks the moment they end the session."
+        eyebrow={t("status.liveEyebrow")}
+        title={t("status.liveTitle", { module: mod.title })}
+        description={t("status.liveDesc")}
         primaryAction={null}
         meta={[
-          { icon: UserCheck, label: "Checked in", value: "Yes" },
-          { icon: Sparkles, label: "Status", value: "Seminar live" },
-          { icon: Target, label: "Pass at", value: `${Math.round(mod.passThreshold * 100)}%` },
+          { icon: UserCheck, label: t("status.metaCheckedIn"), value: t("status.metaYes") },
+          { icon: Sparkles, label: t("status.metaStatus"), value: t("status.metaSeminarLive") },
+          { icon: Target, label: t("status.metaPassAt"), value: `${Math.round(mod.passThreshold * 100)}%` },
         ]}
       />
     );
@@ -225,19 +227,19 @@ export function QuizStatusCard({
       variant={variant}
       accent="slate"
       icon={Lock}
-      eyebrow="Checked in — waiting for trainer"
-      title={`You're early — ${mod.title} hasn't started yet`}
-      description="Your trainer will start the session shortly. The quiz will open once they end the live seminar."
+      eyebrow={t("status.earlyEyebrow")}
+      title={t("status.earlyTitle", { module: mod.title })}
+      description={t("status.earlyDesc")}
       primaryAction={
         <Button asChild variant="outline">
           <Link href={`/manager/modules/${mod.slug}`}>
-            Review materials <ArrowRight className="size-4 ml-1" />
+            {t("status.reviewMaterials")} <ArrowRight className="size-4 ml-1" />
           </Link>
         </Button>
       }
       meta={[
-        { icon: UserCheck, label: "Checked in", value: "Yes" },
-        { icon: Calendar, label: "Training day", value: mod.scheduledDate ? (timeStr ? `${fmtDate(mod.scheduledDate)} · ${timeStr}` : fmtDate(mod.scheduledDate)) : "—" },
+        { icon: UserCheck, label: t("status.metaCheckedIn"), value: t("status.metaYes") },
+        { icon: Calendar, label: t("status.metaTrainingDay"), value: mod.scheduledDate ? (timeStr ? `${fmtDate(mod.scheduledDate)} · ${timeStr}` : fmtDate(mod.scheduledDate)) : "—" },
       ]}
     />
   );

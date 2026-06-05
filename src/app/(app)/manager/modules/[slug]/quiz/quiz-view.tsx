@@ -16,6 +16,7 @@ import {
   submitQuiz,
   type QuizQuestion,
 } from "@/lib/server/quiz-actions";
+import { useT } from "@/lib/i18n/provider";
 
 type Phase = "intro" | "in-progress" | "submitted";
 
@@ -27,6 +28,7 @@ interface RenderQuestion {
 
 export function ManagerQuizView({ mod }: { mod: ModuleDef }) {
   const router = useRouter();
+  const t = useT();
   const slug = mod.slug;
 
   const [phase, setPhase] = React.useState<Phase>("intro");
@@ -79,7 +81,7 @@ export function ManagerQuizView({ mod }: { mod: ModuleDef }) {
 
   async function submit() {
     if (!attemptId) {
-      toast.error("Lost the attempt session — please reload and start again.");
+      toast.error(t("quiz.toastLostSession"));
       return;
     }
 
@@ -111,16 +113,16 @@ export function ManagerQuizView({ mod }: { mod: ModuleDef }) {
     setPhase("submitted");
     toast(
       r.passed
-        ? `🎉 Passed at ${r.score}%`
+        ? t("quiz.toastPassed", { score: r.score })
         : r.locked
-          ? `${r.score}% — no attempts left`
-          : `${r.score}% — retake scheduled`,
+          ? t("quiz.toastNoAttempts", { score: r.score })
+          : t("quiz.toastRetakeScheduled", { score: r.score }),
       {
         description: r.passed
-          ? `Module ${mod.number + 1} unlocks next month.`
+          ? t("quiz.toastUnlockNext", { n: mod.number + 1 })
           : r.locked
-            ? "You've used all your attempts. Your Department Lead has been notified and will reach out."
-            : `${r.attemptsRemaining} ${r.attemptsRemaining === 1 ? "attempt" : "attempts"} left — a retake has been scheduled.`,
+            ? t("quiz.toastLockedDesc")
+            : t("quiz.toastRetakeDesc", { n: r.attemptsRemaining, attempts: r.attemptsRemaining === 1 ? t("quiz.attempt") : t("quiz.attempts") }),
       },
     );
   }
@@ -130,21 +132,21 @@ export function ManagerQuizView({ mod }: { mod: ModuleDef }) {
     return (
       <>
         <PageHeader
-          eyebrow={`Module ${mod.number} quiz`}
-          title={`${mod.title} quiz`}
-          description="A quick overview before you start. You can pause anytime by closing the tab — your progress is saved."
+          eyebrow={t("quiz.eyebrow", { n: mod.number })}
+          title={t("quiz.title", { module: mod.title })}
+          description={t("quiz.intro")}
         />
         <div className="max-w-2xl">
           <Card>
             <CardContent className="p-6 md:p-8">
               <h2 className="text-xl font-semibold tracking-tight">{mod.title}</h2>
-              <p className="text-muted-foreground mt-1">Read each question carefully. Pick the best answer.</p>
+              <p className="text-muted-foreground mt-1">{t("quiz.readEach")}</p>
 
               <div className="grid grid-cols-2 gap-3 mt-6">
-                <Stat icon={Layers} label="Questions" value={`${introQuestionCount}`} />
-                <Stat icon={Target} label="Pass at" value={`${Math.round(mod.passThreshold * 100)}%`} />
-                <Stat icon={Clock} label="Time" value={`${mod.timeLimitMinutes ?? "—"} min`} />
-                <Stat icon={Sparkles} label="Format" value="Multiple choice" />
+                <Stat icon={Layers} label={t("quiz.questions")} value={`${introQuestionCount}`} />
+                <Stat icon={Target} label={t("quiz.passAt")} value={`${Math.round(mod.passThreshold * 100)}%`} />
+                <Stat icon={Clock} label={t("quiz.time")} value={`${mod.timeLimitMinutes ?? "—"} min`} />
+                <Stat icon={Sparkles} label={t("quiz.format")} value={t("quiz.multipleChoice")} />
               </div>
 
               {activePool === "retake" && (
@@ -152,9 +154,9 @@ export function ManagerQuizView({ mod }: { mod: ModuleDef }) {
                   <div className="flex items-start gap-2">
                     <Sparkles className="size-4 text-violet-600 dark:text-violet-400 mt-0.5 shrink-0" />
                     <div>
-                      <div className="font-semibold text-violet-900 dark:text-violet-200">This is your retake</div>
+                      <div className="font-semibold text-violet-900 dark:text-violet-200">{t("quiz.thisIsRetake")}</div>
                       <div className="text-violet-800/80 dark:text-violet-300/80 mt-0.5">
-                        The questions cover the same material as before, reworded. Take your time and read each one carefully.
+                        {t("quiz.retakeDesc")}
                       </div>
                     </div>
                   </div>
@@ -166,8 +168,8 @@ export function ManagerQuizView({ mod }: { mod: ModuleDef }) {
                   <AlertCircle className="size-4 text-amber-500 mt-0.5 shrink-0" />
                   <div className="text-muted-foreground">
                     {activePool === "first-attempt"
-                      ? "Everyone gets the same questions in a randomised order. If you don't pass, BCJ Learn will automatically schedule a retake — you get up to 3 attempts in total."
-                      : "If you don't pass this retake either, your trainer will be notified and will reach out to schedule additional support."}
+                      ? t("quiz.firstHint")
+                      : t("quiz.retakeHint")}
                   </div>
                 </div>
               </div>
@@ -181,13 +183,13 @@ export function ManagerQuizView({ mod }: { mod: ModuleDef }) {
               <div className="mt-6 flex items-center gap-3">
                 <Button onClick={start} size="lg" className="h-12" disabled={starting}>
                   {starting ? (
-                    <><Loader2 className="size-4 animate-spin mr-1" /> Preparing…</>
+                    <><Loader2 className="size-4 animate-spin mr-1" /> {t("quiz.preparing")}</>
                   ) : (
-                    <>Start Module {mod.number} Quiz <ArrowRight className="ml-1 size-4" /></>
+                    <>{t("quiz.start", { n: mod.number })} <ArrowRight className="ml-1 size-4" /></>
                   )}
                 </Button>
                 <Button variant="outline" size="lg" className="h-12" onClick={() => router.push(`/manager/modules/${slug}`)}>
-                  Review materials first
+                  {t("quiz.reviewFirst")}
                 </Button>
               </div>
             </CardContent>
@@ -208,7 +210,7 @@ export function ManagerQuizView({ mod }: { mod: ModuleDef }) {
       <>
         <div className="sticky top-14 -mx-4 md:-mx-8 px-4 md:px-8 py-3 bg-background/95 backdrop-blur border-b z-30 flex items-center justify-between">
           <div className="text-sm font-medium">
-            Question {idx + 1} <span className="text-muted-foreground font-normal">of {allQuestions.length}</span>
+            {t("quiz.questionOf", { i: idx + 1, n: allQuestions.length })}
           </div>
           <div className="flex-1 mx-4 md:mx-8 max-w-md h-1.5 bg-muted rounded-full overflow-hidden">
             <motion.div
@@ -279,14 +281,14 @@ export function ManagerQuizView({ mod }: { mod: ModuleDef }) {
               onClick={() => setIdx((i) => Math.max(0, i - 1))}
               disabled={idx === 0}
             >
-              <ArrowLeft className="size-4 mr-1" /> Previous
+              <ArrowLeft className="size-4 mr-1" /> {t("quiz.previous")}
             </Button>
             <div className="text-xs text-muted-foreground">
-              {Object.keys(answers).length} answered
+              {t("quiz.answered", { n: Object.keys(answers).length })}
             </div>
             {idx < allQuestions.length - 1 ? (
               <Button onClick={() => setIdx((i) => i + 1)} disabled={!selected}>
-                Next <ArrowRight className="size-4 ml-1" />
+                {t("quiz.next")} <ArrowRight className="size-4 ml-1" />
               </Button>
             ) : (
               <Button
@@ -294,9 +296,9 @@ export function ManagerQuizView({ mod }: { mod: ModuleDef }) {
                 disabled={submitting || Object.keys(answers).length < allQuestions.length / 2}
               >
                 {submitting ? (
-                  <><Loader2 className="size-4 animate-spin mr-1" /> Submitting…</>
+                  <><Loader2 className="size-4 animate-spin mr-1" /> {t("quiz.submitting")}</>
                 ) : (
-                  "Submit quiz"
+                  t("quiz.submit")
                 )}
               </Button>
             )}
@@ -334,55 +336,58 @@ export function ManagerQuizView({ mod }: { mod: ModuleDef }) {
             )}
           </motion.div>
           <h1 className="text-3xl font-bold tracking-tight">
-            {result?.passed ? `Congratulations, you passed!` : `Not quite there`}
+            {result?.passed ? t("quiz.passedTitle") : t("quiz.failedTitle")}
           </h1>
           <div className="mt-2 text-muted-foreground">
-            You scored{" "}
+            {t("quiz.youScored")}{" "}
             <span className="font-semibold text-foreground">
               <CountUp value={result?.score ?? 0} suffix="%" durationMs={1200} />
             </span>{" "}
-            on {mod.title}.
+            {t("quiz.on", { module: mod.title })}
           </div>
 
           <div className="mt-8 grid grid-cols-3 gap-3 max-w-md mx-auto">
             <motion.div className="rounded-lg border p-4" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }}>
-              <div className="text-xs text-muted-foreground">Score</div>
+              <div className="text-xs text-muted-foreground">{t("quiz.score")}</div>
               <div className="text-2xl font-bold tabular-nums mt-0.5">
                 <CountUp value={result?.score ?? 0} suffix="%" durationMs={1400} />
               </div>
             </motion.div>
             <motion.div className="rounded-lg border p-4" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.4 }}>
-              <div className="text-xs text-muted-foreground">Correct</div>
+              <div className="text-xs text-muted-foreground">{t("quiz.correct")}</div>
               <div className="text-2xl font-bold tabular-nums mt-0.5">
                 <CountUp value={result?.correct ?? 0} durationMs={1100} /> / {result?.total}
               </div>
             </motion.div>
             <motion.div className="rounded-lg border p-4" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.5 }}>
-              <div className="text-xs text-muted-foreground">Pass at</div>
+              <div className="text-xs text-muted-foreground">{t("quiz.passAtShort")}</div>
               <div className="text-2xl font-bold tabular-nums mt-0.5">{Math.round(mod.passThreshold * 100)}%</div>
             </motion.div>
           </div>
 
           <div className="mt-8 text-sm text-muted-foreground max-w-md mx-auto">
             {result?.passed
-              ? `Module ${mod.number + 1} will unlock for you next month. Keep an eye out for the email invitation.`
+              ? t("quiz.unlocksNext", { n: mod.number + 1 })
               : result?.locked
-                ? `You've used all 3 of your attempts for this module. Your Department Lead has been notified and will reach out to support you.`
-                : `A retake has been scheduled — you have ${result?.attemptsRemaining ?? 0} ${result?.attemptsRemaining === 1 ? "attempt" : "attempts"} left. Your Department Lead will follow up with the date.`}
+                ? t("quiz.lockedMsg")
+                : t("quiz.retakeScheduled", {
+                    n: result?.attemptsRemaining ?? 0,
+                    attempts: result?.attemptsRemaining === 1 ? t("quiz.attempt") : t("quiz.attempts"),
+                  })}
           </div>
 
           <div className="mt-8 flex items-center justify-center gap-3">
             <Button asChild size="lg">
-              <Link href="/manager/dashboard">Back to dashboard</Link>
+              <Link href="/manager/dashboard">{t("quiz.backToDashboard")}</Link>
             </Button>
             {!result?.passed && (
               <Button asChild variant="outline" size="lg">
-                <Link href={`/manager/attempts/${attemptId}`}>Review my answers</Link>
+                <Link href={`/manager/attempts/${attemptId}`}>{t("quiz.reviewMyAnswers")}</Link>
               </Button>
             )}
             {result?.passed && (
               <Button asChild variant="outline" size="lg">
-                <Link href={`/manager/modules/${slug}/certificate`}>View certificate</Link>
+                <Link href={`/manager/modules/${slug}/certificate`}>{t("quiz.viewCertificate")}</Link>
               </Button>
             )}
           </div>

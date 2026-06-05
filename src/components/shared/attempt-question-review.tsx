@@ -14,6 +14,7 @@ import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { CheckCircle2, XCircle, Sparkles, ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useT } from "@/lib/i18n/provider";
 import type { Attempt, Question } from "@/types";
 
 export interface ReviewedQuestion {
@@ -56,6 +57,7 @@ export interface AttemptQuestionReviewProps {
 }
 
 export function AttemptQuestionReview({ reviewed, answerBadge, subtitle, hideCorrect = false, collapsible = false }: AttemptQuestionReviewProps) {
+  const t = useT();
   const correctCount = reviewed.filter((a) => a.correct).length;
   const wrongCount = reviewed.length - correctCount;
 
@@ -63,17 +65,17 @@ export function AttemptQuestionReview({ reviewed, answerBadge, subtitle, hideCor
     <Card>
       <CardHeader className="flex flex-row items-center justify-between">
         <div>
-          <CardTitle className="text-base">Question-by-question breakdown</CardTitle>
+          <CardTitle className="text-base">{t("review.title")}</CardTitle>
           {subtitle && <p className="text-xs text-muted-foreground mt-1">{subtitle}</p>}
         </div>
         <div className="flex items-center gap-3 text-xs shrink-0">
           <span className="flex items-center gap-1.5">
             <span className="size-2 rounded-full bg-emerald-500" />
-            <span className="text-muted-foreground">{correctCount} correct</span>
+            <span className="text-muted-foreground">{t("review.nCorrect", { n: correctCount })}</span>
           </span>
           <span className="flex items-center gap-1.5">
             <span className="size-2 rounded-full bg-rose-500" />
-            <span className="text-muted-foreground">{wrongCount} wrong</span>
+            <span className="text-muted-foreground">{t("review.nWrong", { n: wrongCount })}</span>
           </span>
         </div>
       </CardHeader>
@@ -108,6 +110,7 @@ function ReviewRow({
   hideCorrect: boolean;
   collapsible: boolean;
 }) {
+  const t = useT();
   // Collapsed by default in employee (collapsible) mode; always open otherwise.
   const [open, setOpen] = React.useState(!collapsible);
 
@@ -139,7 +142,7 @@ function ReviewRow({
             : "border-rose-500/40 text-rose-700 dark:text-rose-300",
         )}
       >
-        {aq.correct ? "Correct" : "Incorrect"}
+        {aq.correct ? t("review.correct") : t("review.incorrect")}
       </Badge>
       {collapsible && (
         <ChevronDown className={cn("size-4 text-muted-foreground shrink-0 mt-1 transition-transform", open && "rotate-180")} />
@@ -207,7 +210,7 @@ function ReviewRow({
                 )}
                 {revealCorrect && !isSelected && (
                   <Badge variant="outline" className="text-[10px] shrink-0 border-emerald-500/40 text-emerald-700 dark:text-emerald-300">
-                    Correct answer
+                    {t("review.correctAnswer")}
                   </Badge>
                 )}
               </div>
@@ -216,7 +219,7 @@ function ReviewRow({
 
           {!hideCorrect && aq.question.explanation && (
             <div className="mt-3 rounded-md bg-muted/50 px-3 py-2 text-xs text-muted-foreground">
-              <span className="font-semibold text-foreground/80">Why: </span>
+              <span className="font-semibold text-foreground/80">{t("review.why")}</span>
               {aq.question.explanation}
             </div>
           )}

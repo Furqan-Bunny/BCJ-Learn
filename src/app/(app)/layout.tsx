@@ -8,6 +8,7 @@ import { getCurrentUser } from "@/lib/supabase/current-user";
 import { listMyNotifications, getMyUnreadCount } from "@/lib/db/notifications";
 import { getBrandingSettings } from "@/lib/db/settings";
 import { resolveBrandingLogoUrl, buildBrandingCss } from "@/lib/branding";
+import { LocaleProvider } from "@/lib/i18n/provider";
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const user = await getCurrentUser();
@@ -18,7 +19,11 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     ? await Promise.all([listMyNotifications(20), getMyUnreadCount()])
     : [[], 0];
 
+  // Only employees switch to Spanish; staff (admin/teacher) stay in English.
+  const locale = user?.role === "manager" && user.locale === "es" ? "es" : "en";
+
   return (
+    <LocaleProvider locale={locale}>
     <div className="flex min-h-screen">
       {brandingCss && <style dangerouslySetInnerHTML={{ __html: brandingCss }} />}
       <RouteProgress />
@@ -36,5 +41,6 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       </div>
       <WelcomeModal />
     </div>
+    </LocaleProvider>
   );
 }

@@ -16,6 +16,7 @@ import { fmtRelative, initials } from "@/lib/format";
 import { differenceInCalendarDays } from "date-fns";
 import { Stagger, StaggerItem, CountUp, motion, useReducedMotion } from "@/components/shared/animations";
 import type { ModuleDef, Attempt, ActivityEvent, ManagerStatus, Cohort } from "@/types";
+import { useT } from "@/lib/i18n/provider";
 
 export interface ManagerDashboardProps {
   me: {
@@ -43,6 +44,7 @@ export function ManagerDashboardView({
   nextModuleCheckIn,
   nextModuleSession,
 }: ManagerDashboardProps) {
+  const t = useT();
   const passedSlugs = new Set(myAttempts.filter((a) => a.status === "passed").map((a) => a.moduleSlug));
   // A published module is unlocked — full stop. No "pass the previous one
   // first" gating. We only show published modules and order them by their
@@ -67,9 +69,9 @@ export function ManagerDashboardView({
   return (
     <>
       <PageHeader
-        eyebrow={`Welcome back, ${me.name.split(" ")[0]}`}
-        title="Your training dashboard"
-        description="Track your progress through the BCJ Employee training program."
+        eyebrow={t("dash.welcome", { name: me.name.split(" ")[0] })}
+        title={t("dash.title")}
+        description={t("dash.trackProgress")}
       />
 
       {nextModule && !nextModuleSession.sessionEndedAt && (
@@ -117,20 +119,20 @@ export function ManagerDashboardView({
         <div className="mt-3 flex items-center gap-2">
           <Button asChild variant="outline" size="sm">
             <Link href={`/manager/modules/${nextModule.slug}`}>
-              <ArrowRight className="size-3.5 mr-1.5" /> Open {nextModule.title} materials
+              <ArrowRight className="size-3.5 mr-1.5" /> {t("dash.openMaterials", { module: nextModule.title })}
             </Link>
           </Button>
           <span className="text-xs text-muted-foreground">
-            {daysToNext > 0 ? `Training day in ${daysToNext} days` : daysToNext === 0 ? "Training is today" : "Training day has passed"}
+            {daysToNext > 0 ? t("dash.daysToTraining", { days: daysToNext }) : daysToNext === 0 ? t("dash.trainingToday") : t("dash.trainingPassed")}
           </span>
         </div>
       )}
 
       <section className="mt-10">
         <div className="flex items-center justify-between mb-4">
-          <h3 className="text-lg font-semibold tracking-tight">Your 5-module program</h3>
+          <h3 className="text-lg font-semibold tracking-tight">{t("dash.program")}</h3>
           <Button asChild variant="ghost" size="sm">
-            <Link href="/manager/modules">View all <ArrowRight className="ml-1 size-3" /></Link>
+            <Link href="/manager/modules">{t("common.viewAll")} <ArrowRight className="ml-1 size-3" /></Link>
           </Button>
         </div>
         <Stagger className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
@@ -168,19 +170,19 @@ export function ManagerDashboardView({
                     {passed && myAttempt && (
                       <div className="mt-3 text-xs">
                         <span className="text-emerald-600 dark:text-emerald-400 font-semibold">{myAttempt.scorePct}%</span>
-                        <span className="text-muted-foreground ml-1">on first try</span>
+                        <span className="text-muted-foreground ml-1">{t("dash.onFirstTrySuffix")}</span>
                       </div>
                     )}
                     {locked && (
-                      <div className="mt-3 text-xs text-rose-600 dark:text-rose-400 font-medium">No attempts left</div>
+                      <div className="mt-3 text-xs text-rose-600 dark:text-rose-400 font-medium">{t("dash.noAttemptsLeft")}</div>
                     )}
                     {needsRetake && (
                       <div className="mt-3 text-xs text-amber-600 dark:text-amber-400 font-medium">
-                        {MAX_STRIKES - failedCount} of {MAX_STRIKES} attempts left
+                        {t("dash.attemptsLeft", { n: MAX_STRIKES - failedCount, max: MAX_STRIKES })}
                       </div>
                     )}
                     {!passed && !locked && !needsRetake && isNext && (
-                      <div className="mt-3 text-xs text-primary font-medium">Up next →</div>
+                      <div className="mt-3 text-xs text-primary font-medium">{t("dash.upNext")}</div>
                     )}
                   </CardContent>
                 </Card>
@@ -194,12 +196,12 @@ export function ManagerDashboardView({
       <section className="mt-10 grid lg:grid-cols-3 gap-6">
         <Card className="lg:col-span-2">
           <CardHeader>
-            <CardTitle className="text-base">Your recent activity</CardTitle>
+            <CardTitle className="text-base">{t("dash.recentActivity")}</CardTitle>
           </CardHeader>
           <CardContent>
             {myActivity.length === 0 ? (
               <div className="text-sm text-muted-foreground py-8 text-center">
-                Nothing yet — your activity will appear here.
+                {t("dash.nothingYetLong")}
               </div>
             ) : (
               <ul className="divide-y">
@@ -224,12 +226,12 @@ export function ManagerDashboardView({
 
         <Card>
           <CardHeader>
-            <CardTitle className="text-base">Your stats</CardTitle>
+            <CardTitle className="text-base">{t("dash.yourStats")}</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            <Stat icon={Trophy} label="Modules passed" value={`${me.modulesCompleted} of ${orderedModules.length}`} />
-            <Stat icon={Target} label="Average score" value={`${me.averageScore || "—"}${me.averageScore ? "%" : ""}`} />
-            <Stat icon={BookOpen} label="Cohort" value={me.cohort ?? "—"} />
+            <Stat icon={Trophy} label={t("dash.modulesPassed")} value={`${me.modulesCompleted} of ${orderedModules.length}`} />
+            <Stat icon={Target} label={t("dash.averageScore")} value={`${me.averageScore || "—"}${me.averageScore ? "%" : ""}`} />
+            <Stat icon={BookOpen} label={t("dash.cohort")} value={me.cohort ?? "—"} />
             <div className="pt-2">
               <StatusBadge variant={me.status as "active" | "completed" | "at-risk" | "inactive"} />
             </div>
@@ -241,6 +243,7 @@ export function ManagerDashboardView({
 }
 
 function ProgressRing({ value }: { value: number }) {
+  const t = useT();
   const r = 64;
   const circ = 2 * Math.PI * r;
   const reduced = useReducedMotion();
@@ -268,7 +271,7 @@ function ProgressRing({ value }: { value: number }) {
         <div className="text-3xl font-bold tabular-nums">
           <CountUp value={value} suffix="%" durationMs={1400} />
         </div>
-        <div className="text-xs text-muted-foreground mt-1">Program complete</div>
+        <div className="text-xs text-muted-foreground mt-1">{t("dash.programComplete")}</div>
       </div>
     </div>
   );

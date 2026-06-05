@@ -28,6 +28,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useRoleStore } from "@/store/role-store";
+import { useT } from "@/lib/i18n/provider";
 import type { Role } from "@/types";
 import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
 
@@ -36,6 +37,8 @@ type IconType = React.ComponentType<{ className?: string }>;
 interface NavLink {
   kind: "link";
   label: string;
+  /** Optional i18n key — resolved with the active locale at render (employee nav). */
+  labelKey?: string;
   href: string;
   icon: IconType;
 }
@@ -43,6 +46,7 @@ interface NavLink {
 interface NavGroup {
   kind: "group";
   label: string;
+  labelKey?: string;
   icon: IconType;
   children: NavLink[];
 }
@@ -51,11 +55,11 @@ type NavNode = NavLink | NavGroup;
 
 export const NAV_BY_ROLE: Record<Role, NavNode[]> = {
   manager: [
-    { kind: "link", label: "Dashboard", href: "/manager/dashboard", icon: LayoutDashboard },
-    { kind: "link", label: "Modules", href: "/manager/modules", icon: BookOpen },
-    { kind: "link", label: "Resources", href: "/manager/resources", icon: FileText },
-    { kind: "link", label: "My Progress", href: "/manager/progress", icon: PlayCircle },
-    { kind: "link", label: "Help", href: "/help", icon: HelpCircle },
+    { kind: "link", label: "Dashboard", labelKey: "nav.dashboard", href: "/manager/dashboard", icon: LayoutDashboard },
+    { kind: "link", label: "Modules", labelKey: "nav.modules", href: "/manager/modules", icon: BookOpen },
+    { kind: "link", label: "Resources", labelKey: "nav.resources", href: "/manager/resources", icon: FileText },
+    { kind: "link", label: "My Progress", labelKey: "nav.progress", href: "/manager/progress", icon: PlayCircle },
+    { kind: "link", label: "Help", labelKey: "nav.help", href: "/help", icon: HelpCircle },
   ],
 
   teacher: [
@@ -380,11 +384,13 @@ function LinkRow({
   dense?: boolean;
 }) {
   const Icon = item.icon;
+  const t = useT();
+  const label = item.labelKey ? t(item.labelKey) : item.label;
   return (
     <Link
       href={item.href}
-      title={collapsed ? item.label : undefined}
-      aria-label={item.label}
+      title={collapsed ? label : undefined}
+      aria-label={label}
       className={cn(
         "group relative flex items-center rounded-md text-sm transition-colors duration-200",
         collapsed
@@ -424,7 +430,7 @@ function LinkRow({
           !active && "group-hover:scale-110",
         )}
       />
-      {!collapsed && <span className="truncate">{item.label}</span>}
+      {!collapsed && <span className="truncate">{label}</span>}
     </Link>
   );
 }

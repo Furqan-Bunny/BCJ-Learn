@@ -19,6 +19,7 @@ import { ContentViewer } from "@/components/manager/content-viewer";
 import { fmtDate } from "@/lib/format";
 import type { ContentType, LessonContent, ModuleDef, Attempt } from "@/types";
 import { cn } from "@/lib/utils";
+import { useT } from "@/lib/i18n/provider";
 
 const TYPE_META: Record<ContentType, { icon: React.ComponentType<{ className?: string }>; label: string; tint: string }> = {
   video:    { icon: PlayCircle, label: "Video",    tint: "text-rose-600 dark:text-rose-400 bg-rose-100 dark:bg-rose-950/40" },
@@ -54,6 +55,7 @@ export function ManagerModuleView({
   managerName = "",
   moduleSops = [],
 }: ManagerModuleViewProps) {
+  const t = useT();
   const [previewing, setPreviewing] = React.useState<LessonContent | null>(null);
   // Locally-tracked signed status — flips optimistically when the employee
   // signs an SOP so the gate unlocks without a page refresh.
@@ -79,10 +81,10 @@ export function ManagerModuleView({
     if (!res.ok) {
       // Roll back if the server rejected
       setSopsState((prev) => prev.map((s) => (s.id === sop.id ? { ...s, signed: false, signedAt: null } : s)));
-      toast.error(res.error ?? "Could not record your signature");
+      toast.error(res.error ?? t("module.signError"));
       return;
     }
-    toast.success(`Signed: ${sop.title}`);
+    toast.success(t("module.signedToast", { title: sop.title }));
   }
 
   return (
@@ -112,9 +114,9 @@ export function ManagerModuleView({
                 <Lock className="size-5" />
               </div>
               <div>
-                <div className="font-semibold text-lg">Sign these required resources before the quiz</div>
+                <div className="font-semibold text-lg">{t("module.signResources")}</div>
                 <p className="text-sm text-muted-foreground mt-1">
-                  These are required reading. Open each one, read it, then sign to confirm. You can still study the content below now — but the quiz stays locked until everything is signed.
+                  {t("module.signResourcesDesc")}
                 </p>
               </div>
             </div>
@@ -145,17 +147,17 @@ export function ManagerModuleView({
                   {sop.externalUrl && (
                     <Button asChild variant="ghost" size="sm">
                       <a href={sop.externalUrl} target="_blank" rel="noreferrer">
-                        Open
+                        {t("module.openExternal")}
                       </a>
                     </Button>
                   )}
                   {sop.signed ? (
                     <Badge variant="outline" className="text-[10px] border-emerald-500/40 text-emerald-700 dark:text-emerald-300">
-                      ✓ Signed
+                      ✓ {t("module.signed")}
                     </Badge>
                   ) : (
                     <Button size="sm" onClick={() => signSop(sop)}>
-                      I have read and understood
+                      {t("module.readUnderstood")}
                     </Button>
                   )}
                 </div>
@@ -164,7 +166,7 @@ export function ManagerModuleView({
 
             <div className="mt-4 pt-3 border-t text-xs text-muted-foreground flex items-center gap-2">
               <Lock className="size-3" />
-              {pendingSops.length} of {sopsState.length} resource{sopsState.length === 1 ? "" : "s"} still to sign. The quiz stays locked until all are signed.
+              {t("module.stillToSign", { n: pendingSops.length, total: sopsState.length })}
             </div>
           </CardContent>
         </Card>
@@ -201,10 +203,10 @@ export function ManagerModuleView({
       </div>
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
-        <StatCard icon={Calendar} label="Training day" value={mod.scheduledDate ? fmtDate(mod.scheduledDate) : "—"} />
-        <StatCard icon={Clock} label="Total length" value={`${totalMinutes} min`} sub={`${mod.lessons.length} lessons`} />
-        <StatCard icon={Target} label="Pass at" value={`${Math.round(mod.passThreshold * 100)}%`} />
-        <StatCard icon={Layers} label="Quiz" value={`${mod.questionCount} questions`} sub={mod.timeLimitMinutes ? `${mod.timeLimitMinutes} min limit` : "Untimed"} />
+        <StatCard icon={Calendar} label={t("module.trainingDay")} value={mod.scheduledDate ? fmtDate(mod.scheduledDate) : "—"} />
+        <StatCard icon={Clock} label={t("module.totalLength")} value={`${totalMinutes} ${t("common.minutes")}`} sub={t("module.lessons", { n: mod.lessons.length })} />
+        <StatCard icon={Target} label={t("module.passAt")} value={`${Math.round(mod.passThreshold * 100)}%`} />
+        <StatCard icon={Layers} label={t("module.quiz")} value={t("module.questions", { n: mod.questionCount })} sub={mod.timeLimitMinutes ? t("module.timeLimit", { n: mod.timeLimitMinutes }) : t("module.untimed")} />
       </div>
 
       <Card className={cn("mb-6", canViewMaterials ? "border-primary/20 bg-primary/[0.03]" : "border-amber-500/30 bg-amber-50/50 dark:bg-amber-950/15")}>
@@ -213,7 +215,7 @@ export function ManagerModuleView({
             ? <Info className="size-5 text-primary shrink-0 mt-0.5" />
             : <Lock className="size-5 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />}
           <div className="text-sm">
-            <span className="font-semibold text-foreground">How this works.</span>
+            <span className="font-semibold text-foreground">{t("module.howThisWorks")}</span>
             <span className="text-muted-foreground"> This module is delivered as a <span className="font-medium text-foreground">{totalMinutes}-minute live in-person session</span> by {teacher?.name ?? "your trainer"}, broken into <span className="font-medium text-foreground">{mod.lessons.length} lessons</span>. {canViewMaterials
               ? "Show up to the room, listen, then take the quiz right after."
               : "The materials below stay locked until you check in at the live seminar — that's where you learn the content, then take the quiz right after."}</span>
@@ -222,18 +224,18 @@ export function ManagerModuleView({
       </Card>
 
       <div className="flex items-center justify-between mb-3">
-        <h3 className="text-lg font-semibold tracking-tight">Seminar outline</h3>
-        <Badge variant="secondary" className="text-[10px]">Available to preview now</Badge>
+        <h3 className="text-lg font-semibold tracking-tight">{t("module.seminarOutline")}</h3>
+        <Badge variant="secondary" className="text-[10px]">{t("module.availableNow")}</Badge>
       </div>
       <div className="space-y-3">
         {mod.lessons.map((lesson) => (
           <Card key={lesson.id} className="overflow-hidden">
             <div className="grid grid-cols-[auto_1fr] gap-0">
               <div className="bg-primary/5 border-r flex flex-col items-center justify-center p-5 min-w-[80px]">
-                <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Lesson</div>
+                <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">{t("module.lessonCol")}</div>
                 <div className="text-3xl font-bold tabular-nums text-primary mt-1">{lesson.order}</div>
                 <div className="mt-2 inline-flex items-center gap-1 text-xs text-muted-foreground">
-                  <Clock className="size-3" /> {lesson.durationMinutes} min
+                  <Clock className="size-3" /> {lesson.durationMinutes} {t("common.minutes")}
                 </div>
               </div>
 
@@ -260,11 +262,11 @@ export function ManagerModuleView({
                         <div className="flex-1 min-w-0">
                           <div className={cn("text-sm font-medium truncate", canViewMaterials && "group-hover:text-primary transition-colors")}>{item.title}</div>
                           <div className="text-[11px] text-muted-foreground flex items-center gap-2">
-                            <span>{meta.label}</span>
+                            <span>{t(("type." + item.type) as Parameters<typeof t>[0])}</span>
                             {item.durationMinutes && (
                               <>
                                 <span className="text-muted-foreground/50">·</span>
-                                <span>{item.durationMinutes} min</span>
+                                <span>{item.durationMinutes} {t("common.minutes")}</span>
                               </>
                             )}
                             {canViewMaterials && item.fileName && (
@@ -277,7 +279,7 @@ export function ManagerModuleView({
                         </div>
                         {canViewMaterials ? (
                           <Badge variant="outline" className="text-[10px] shrink-0 group-hover:border-primary/50 group-hover:text-primary transition-colors">
-                            {item.type === "link" ? "Open ↗" : "Preview"}
+                            {item.type === "link" ? t("module.openNewBadge") : t("module.previewBadge")}
                           </Badge>
                         ) : (
                           <Lock className="size-3.5 shrink-0 text-muted-foreground" />
@@ -295,16 +297,16 @@ export function ManagerModuleView({
       {canViewMaterials && mod.flashcards && mod.flashcards.length > 0 && (
         <section className="mt-10">
           <div className="flex items-center justify-between mb-3">
-            <h3 className="text-lg font-semibold tracking-tight">Optional self-study</h3>
+            <h3 className="text-lg font-semibold tracking-tight">{t("module.optionalSelfStudy")}</h3>
             <Badge variant="secondary" className="text-[10px]">
               <Sparkles className="size-3 mr-1 text-[var(--ai)]" />
-              {mod.flashcards.length} flashcards
+              {t("module.flashcards", { n: mod.flashcards.length })}
             </Badge>
           </div>
           <Card>
             <CardContent className="p-5">
               <p className="text-sm text-muted-foreground">
-                Quick recall cards if you want to review key facts before the seminar. AI-generated from the module content.
+                {t("module.flashcardsDesc")}
               </p>
               <div className="mt-4 grid sm:grid-cols-2 gap-2">
                 {mod.flashcards.slice(0, 4).map((f, i) => (
@@ -316,7 +318,7 @@ export function ManagerModuleView({
               </div>
               {mod.flashcards.length > 4 && (
                 <Button variant="ghost" size="sm" className="mt-3 -ml-2">
-                  See all {mod.flashcards.length} flashcards →
+                  {t("module.seeAllFlashcards", { n: mod.flashcards.length })}
                 </Button>
               )}
             </CardContent>
@@ -327,7 +329,7 @@ export function ManagerModuleView({
       <div className="mt-10 pt-6 border-t flex items-center gap-3 text-sm">
         <BookOpen className="size-4 text-muted-foreground" />
         <span className="text-muted-foreground">
-          This module is taught by <span className="font-medium text-foreground">{teacher?.name ?? "—"}</span>
+          {t("module.taughtBy")} <span className="font-medium text-foreground">{teacher?.name ?? "—"}</span>
           {teacher?.bio && ` · ${teacher.bio}`}
         </span>
       </div>

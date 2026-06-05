@@ -17,6 +17,7 @@ export interface CurrentUser {
   status: ManagerStatus | null;
   bio: string | null;
   title: string | null;
+  locale: "en" | "es";
 }
 
 interface ProfileRow {
@@ -30,6 +31,7 @@ interface ProfileRow {
   status: ManagerStatus | null;
   bio: string | null;
   title: string | null;
+  locale: string | null;
 }
 
 export async function getCurrentUser(): Promise<CurrentUser | null> {
@@ -54,6 +56,7 @@ export async function getCurrentUser(): Promise<CurrentUser | null> {
     status: r.status,
     bio: r.bio,
     title: r.title,
+    locale: r.locale === "es" ? "es" : "en",
   };
 }
 

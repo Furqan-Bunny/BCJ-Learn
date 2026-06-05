@@ -15,11 +15,13 @@ import { ResourceDocViewer } from "@/components/resources/resource-doc-viewer";
 import type { Resource } from "@/lib/db/resources";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
+import { useT } from "@/lib/i18n/provider";
 
 type ResourceWithAck = Resource & { ackStatus: "new" | "acknowledged" | "updated" };
 
 export function ResourcesEmployeeView({ initialResources }: { initialResources: ResourceWithAck[] }) {
   const router = useRouter();
+  const t = useT();
   const [viewing, setViewing] = React.useState<ResourceWithAck | null>(null);
   const [acking, setAcking] = React.useState(false);
 
@@ -73,9 +75,9 @@ export function ResourcesEmployeeView({ initialResources }: { initialResources: 
       <Card>
         <CardContent className="p-12 text-center">
           <FileText className="size-10 mx-auto opacity-30 mb-3" />
-          <div className="font-medium">No resources assigned yet</div>
+          <div className="font-medium">{t("resources.empty")}</div>
           <div className="text-sm text-muted-foreground mt-1">
-            Check back later — your team will share resources and policies here.
+            {t("resources.emptyDesc")}
           </div>
         </CardContent>
       </Card>
@@ -90,8 +92,8 @@ export function ResourcesEmployeeView({ initialResources }: { initialResources: 
         <div className="mb-6 rounded-lg border border-amber-500/30 bg-amber-50/50 dark:bg-amber-950/20 p-4 flex items-start gap-3">
           <Sparkles className="size-4 text-amber-600 dark:text-amber-400 mt-0.5 shrink-0" />
           <div className="text-sm">
-            <span className="font-semibold">{needsAck} resource{needsAck === 1 ? "" : "s"} need your attention.</span>{" "}
-            <span className="text-muted-foreground">Review each and click &ldquo;I have read and understood.&rdquo;</span>
+            <span className="font-semibold">{t("resources.needAttention", { n: needsAck })}</span>{" "}
+            <span className="text-muted-foreground">{t("resources.reviewEach")}</span>
           </div>
         </div>
       )}
@@ -111,11 +113,11 @@ export function ResourcesEmployeeView({ initialResources }: { initialResources: 
             </div>
             <div className="flex-1 min-w-0">
               <div className="font-semibold">{cat}</div>
-              <div className="text-[11px] text-muted-foreground">{list.length} resource{list.length === 1 ? "" : "s"}</div>
+              <div className="text-[11px] text-muted-foreground">{t("resources.itemCount", { n: list.length })}</div>
             </div>
             {pendingCount > 0 && (
               <Badge className="bg-amber-500/15 text-amber-700 dark:text-amber-300 border-amber-500/20 text-[10px]">
-                {pendingCount} to review
+                {t("resources.toReview", { n: pendingCount })}
               </Badge>
             )}
             <ChevronDown className={`size-4 text-muted-foreground transition-transform ${open ? "rotate-180" : ""}`} />
@@ -139,15 +141,15 @@ export function ResourcesEmployeeView({ initialResources }: { initialResources: 
                             <div className="font-semibold truncate">{r.title}</div>
                             {r.ackStatus === "acknowledged" ? (
                               <Badge className="bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-emerald-500/20 gap-1 shrink-0 text-[10px]">
-                                <CheckCircle2 className="size-2.5" /> Acknowledged
+                                <CheckCircle2 className="size-2.5" /> {t("resources.acknowledged")}
                               </Badge>
                             ) : r.ackStatus === "updated" ? (
                               <Badge className="bg-rose-500/15 text-rose-700 dark:text-rose-300 border-rose-500/20 gap-1 shrink-0 text-[10px]">
-                                <RotateCcw className="size-2.5" /> Updated
+                                <RotateCcw className="size-2.5" /> {t("resources.updated")}
                               </Badge>
                             ) : (
                               <Badge className="bg-amber-500/15 text-amber-700 dark:text-amber-300 border-amber-500/20 gap-1 shrink-0 text-[10px]">
-                                <Sparkles className="size-2.5" /> New
+                                <Sparkles className="size-2.5" /> {t("resources.new")}
                               </Badge>
                             )}
                           </div>
@@ -155,7 +157,7 @@ export function ResourcesEmployeeView({ initialResources }: { initialResources: 
                             <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{r.description}</p>
                           )}
                           <div className="text-[11px] text-muted-foreground mt-2">
-                            Updated {fmtRelative(r.updatedAt)}
+                            {t("resources.updatedAt", { when: fmtRelative(r.updatedAt) })}
                           </div>
                         </div>
                       </div>
@@ -188,17 +190,17 @@ export function ResourcesEmployeeView({ initialResources }: { initialResources: 
             <div className="flex items-center justify-between gap-3 pt-2 border-t mt-2">
               <div className="text-xs text-muted-foreground">
                 {viewing.ackStatus === "acknowledged"
-                  ? "You already acknowledged this version."
+                  ? t("resources.alreadyAcked")
                   : viewing.ackStatus === "updated"
-                    ? "This was updated since you last acknowledged. Please re-confirm."
-                    : "Click to confirm you've read and understood."}
+                    ? t("resources.reConfirm")
+                    : t("resources.confirmRead")}
               </div>
               <Button onClick={handleAcknowledge} disabled={acking || viewing.ackStatus === "acknowledged"}>
                 {viewing.ackStatus === "acknowledged"
-                  ? <><CheckCircle2 className="size-4 mr-1.5" /> Acknowledged</>
+                  ? <><CheckCircle2 className="size-4 mr-1.5" /> {t("resources.acknowledged")}</>
                   : acking
-                    ? "Saving…"
-                    : "I have read and understood"}
+                    ? t("resources.savingBtn")
+                    : t("resources.readUnderstood")}
               </Button>
             </div>
           )}

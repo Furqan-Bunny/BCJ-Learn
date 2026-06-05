@@ -8,6 +8,7 @@ import * as React from "react";
 import { Button } from "@/components/ui/button";
 import { FileText, Loader2, Download, ExternalLink } from "lucide-react";
 import { signedUrlForContent } from "@/lib/supabase/storage";
+import { useT } from "@/lib/i18n/provider";
 
 export interface ResourceDocViewerResource {
   title: string;
@@ -17,6 +18,7 @@ export interface ResourceDocViewerResource {
 }
 
 export function ResourceDocViewer({ resource }: { resource: ResourceDocViewerResource }) {
+  const t = useT();
   const [url, setUrl] = React.useState<string | null>(null);
   const [error, setError] = React.useState<string | null>(null);
 
@@ -40,14 +42,14 @@ export function ResourceDocViewer({ resource }: { resource: ResourceDocViewerRes
     if (error) {
       return (
         <div className="rounded-lg border bg-muted/30 p-6 text-sm text-muted-foreground text-center">
-          Could not load this document. {error}
+          {t("doc.loadError", { error })}
         </div>
       );
     }
     if (!url) {
       return (
         <div className="rounded-lg border bg-muted/30 p-8 text-sm text-muted-foreground flex items-center justify-center gap-2">
-          <Loader2 className="size-4 animate-spin" /> Preparing document…
+          <Loader2 className="size-4 animate-spin" /> {t("doc.preparing")}
         </div>
       );
     }
@@ -60,10 +62,10 @@ export function ResourceDocViewer({ resource }: { resource: ResourceDocViewerRes
     return (
       <div className="rounded-lg border bg-muted/30 p-8 text-center">
         <FileText className="size-10 mx-auto opacity-40 mb-3" />
-        <div className="text-sm text-muted-foreground mb-4">Preview isn&rsquo;t available for this file type.</div>
+        <div className="text-sm text-muted-foreground mb-4">{t("doc.noPreview")}</div>
         <Button asChild>
           <a href={url} download target="_blank" rel="noreferrer">
-            <Download className="size-4 mr-1.5" /> Download to view
+            <Download className="size-4 mr-1.5" /> {t("common.download")}
           </a>
         </Button>
       </div>
@@ -90,10 +92,10 @@ export function ResourceDocViewer({ resource }: { resource: ResourceDocViewerRes
     return (
       <div className="rounded-lg border bg-muted/30 p-6 text-sm text-center">
         <ExternalLink className="size-8 mx-auto opacity-40 mb-2 text-muted-foreground" />
-        <p className="text-muted-foreground mb-3">This resource lives on an external page.</p>
+        <p className="text-muted-foreground mb-3">{t("doc.external")}</p>
         <Button asChild variant="outline">
           <a href={resource.externalUrl} target="_blank" rel="noopener noreferrer">
-            <ExternalLink className="size-4 mr-1.5" /> Open document
+            <ExternalLink className="size-4 mr-1.5" /> {t("doc.openDocument")}
           </a>
         </Button>
       </div>
@@ -103,7 +105,7 @@ export function ResourceDocViewer({ resource }: { resource: ResourceDocViewerRes
   // 4) Notice-only.
   return (
     <div className="rounded-lg border p-4 text-sm text-muted-foreground italic">
-      No document attached. Acknowledge to confirm you&rsquo;ve seen this notice.
+      {t("doc.noDocument")}
     </div>
   );
 }

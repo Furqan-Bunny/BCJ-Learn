@@ -16,6 +16,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Pagination, pageSlice } from "@/components/ui/pagination";
 import { fmtRelative } from "@/lib/format";
+import { useT } from "@/lib/i18n/provider";
 
 const INBOX_PER_PAGE = 20;
 import { cn } from "@/lib/utils";
@@ -54,6 +55,7 @@ interface NotificationsInboxViewProps {
 }
 
 export function NotificationsInboxView({ items: initial, initialUnreadCount }: NotificationsInboxViewProps) {
+  const t = useT();
   const router = useRouter();
   const [items, setItems] = React.useState(initial);
   const [unreadCount, setUnreadCount] = React.useState(initialUnreadCount);
@@ -88,7 +90,7 @@ export function NotificationsInboxView({ items: initial, initialUnreadCount }: N
     <div className="space-y-4">
       {/* Visually-hidden live region — announces unread-count changes to screen readers. */}
       <span className="sr-only" role="status" aria-live="polite" aria-atomic="true">
-        {unreadCount > 0 ? `${unreadCount} unread notifications` : "No unread notifications"}
+        {unreadCount > 0 ? t("inbox.unreadCount", { n: unreadCount }) : t("inbox.noUnread")}
       </span>
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex flex-wrap gap-1.5" role="group" aria-label="Filter notifications">
@@ -103,7 +105,7 @@ export function NotificationsInboxView({ items: initial, initialUnreadCount }: N
                 aria-pressed={active}
                 onClick={() => setFilter(f.id)}
               >
-                {f.label}
+                {t(`inbox.${f.id}` as Parameters<typeof t>[0])}
                 {f.id === "unread" && unreadCount > 0 && (
                   <Badge aria-hidden="true" variant="secondary" className="ml-1.5 text-[10px] font-mono">
                     {unreadCount}
@@ -114,7 +116,7 @@ export function NotificationsInboxView({ items: initial, initialUnreadCount }: N
           })}
         </div>
         <Button variant="outline" size="sm" onClick={handleMarkAllRead} disabled={unreadCount === 0}>
-          <CheckCheck aria-hidden="true" className="size-4 mr-1.5" /> Mark all read
+          <CheckCheck aria-hidden="true" className="size-4 mr-1.5" /> {t("inbox.markAllRead")}
         </Button>
       </div>
 
@@ -124,11 +126,11 @@ export function NotificationsInboxView({ items: initial, initialUnreadCount }: N
             <div className="size-14 rounded-full bg-muted flex items-center justify-center mb-4">
               <Sparkles className="size-6" />
             </div>
-            <p className="font-medium">No notifications here</p>
+            <p className="font-medium">{t("inbox.empty")}</p>
             <p className="text-sm mt-1">
               {filter === "unread"
-                ? "You're all caught up."
-                : "Anything sent to you will land here."}
+                ? t("inbox.caughtUp")
+                : t("inbox.willLandHere")}
             </p>
           </CardContent>
         </Card>

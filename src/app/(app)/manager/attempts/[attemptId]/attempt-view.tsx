@@ -5,6 +5,7 @@
 
 import Link from "next/link";
 import { ArrowLeft, CheckCircle2, XCircle, Target, Clock, Calendar } from "lucide-react";
+import { useT } from "@/lib/i18n/provider";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -31,6 +32,7 @@ interface Props {
 }
 
 export function ManagerAttemptView({ attempt, moduleTitle, moduleNumber, passThreshold, firstName, questions }: Props) {
+  const t = useT();
   const reviewed = buildReviewedQuestions(attempt, questions);
   const passed = attempt.status === "passed";
   const correctCount = reviewed.filter((a) => a.correct).length;
@@ -39,13 +41,13 @@ export function ManagerAttemptView({ attempt, moduleTitle, moduleNumber, passThr
   return (
     <>
       <Button asChild variant="ghost" size="sm" className="mb-4 -ml-2">
-        <Link href="/manager/progress"><ArrowLeft className="size-4 mr-1" /> My Progress</Link>
+        <Link href="/manager/progress"><ArrowLeft className="size-4 mr-1" /> {t("nav.progress")}</Link>
       </Button>
 
       <PageHeader
         eyebrow={`Attempt · ${fmtDate(attempt.startedAt, "MMM d, yyyy 'at' h:mm a")}`}
         title={`${moduleNumber ? `M${moduleNumber}: ` : ""}${moduleTitle}`}
-        description={attempt.pool === "retake" ? "Retake attempt." : "First attempt."}
+        description={attempt.pool === "retake" ? t("review.retakeAttempt") : t("review.firstAttemptDesc")}
         actions={<StatusBadge variant={attempt.status as "passed" | "failed"} />}
       />
 
@@ -60,32 +62,32 @@ export function ManagerAttemptView({ attempt, moduleTitle, moduleNumber, passThr
             <div className="flex-1 min-w-0">
               <div className="text-3xl font-bold tabular-nums">{fmtPct(attempt.scorePct)}</div>
               <div className="text-sm text-muted-foreground">
-                {passed ? "You passed" : `Needed ${Math.round(passThreshold * 100)}% to pass`}
+                {passed ? t("review.youPassed") : t("review.neededToPass", { n: Math.round(passThreshold * 100) })}
               </div>
             </div>
             <div className="flex items-center gap-5 text-sm">
-              <div className="flex items-center gap-2"><CheckCircle2 className="size-4 text-emerald-500" /> <span className="tabular-nums font-semibold">{correctCount}</span> correct</div>
-              <div className="flex items-center gap-2"><XCircle className="size-4 text-rose-500" /> <span className="tabular-nums font-semibold">{wrongCount}</span> wrong</div>
+              <div className="flex items-center gap-2"><CheckCircle2 className="size-4 text-emerald-500" /> {t("review.nCorrect", { n: correctCount })}</div>
+              <div className="flex items-center gap-2"><XCircle className="size-4 text-rose-500" /> {t("review.nWrong", { n: wrongCount })}</div>
               <div className="flex items-center gap-2 text-muted-foreground"><Clock className="size-4" /> {fmtDuration(attempt.durationSec)}</div>
-              <Badge variant="outline" className="text-[10px]"><Target className="size-3 mr-1" /> Pass at {Math.round(passThreshold * 100)}%</Badge>
+              <Badge variant="outline" className="text-[10px]"><Target className="size-3 mr-1" /> {t("review.passAtBadge", { n: Math.round(passThreshold * 100) })}</Badge>
             </div>
           </div>
           <div className="mt-4 pt-4 border-t flex items-center gap-2 text-xs text-muted-foreground">
             <Calendar className="size-3.5" />
-            Submitted {fmtDate(attempt.submittedAt ?? attempt.startedAt, "MMM d, yyyy 'at' h:mm a")}
+            {t("review.submittedAt", { when: fmtDate(attempt.submittedAt ?? attempt.startedAt, "MMM d, yyyy 'at' h:mm a") })}
           </div>
         </CardContent>
       </Card>
 
       <AttemptQuestionReview
         reviewed={reviewed}
-        answerBadge="Your answer"
+        answerBadge={t("review.yourAnswer")}
         hideCorrect={!passed}
         collapsible
         subtitle={
           passed
-            ? "Every question you saw — tap any one to see your answer and the correct answer."
-            : "Every question you saw — tap any one to see your answer. On the ones you missed, the correct answer is hidden so you can relearn it, then retake."
+            ? t("review.passedSubtitle")
+            : t("review.failedSubtitle")
         }
       />
     </>

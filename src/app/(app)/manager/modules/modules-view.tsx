@@ -14,6 +14,7 @@ import { MAX_STRIKES } from "@/lib/quiz-pool";
 import { Search } from "lucide-react";
 import { Stagger, StaggerItem, SearchLoadingBar, AnimatePresence, motion } from "@/components/shared/animations";
 import type { ModuleDef, Attempt } from "@/types";
+import { useT } from "@/lib/i18n/provider";
 
 type CardStatus =
   | { kind: "passed"; scorePct: number }
@@ -102,6 +103,8 @@ export function ManagerModulesView({ modules, myAttempts }: ManagerModulesViewPr
     .sort((a, b) => orderKey(a) - orderKey(b) || a.number - b.number);
   const nextModule = ordered.find((m) => !passedSlugs.has(m.slug));
 
+  const t = useT();
+
   const [query, setQuery] = React.useState("");
   const [searching, setSearching] = React.useState(false);
   const [filter, setFilter] = React.useState<FilterKey>("all");
@@ -141,9 +144,9 @@ export function ManagerModulesView({ modules, myAttempts }: ManagerModulesViewPr
   return (
     <>
       <PageHeader
-        eyebrow="Curriculum"
-        title="The 5-module program"
-        description="One module per month, June through October 2026. Pass each to unlock the next."
+        eyebrow={t("modules.eyebrow")}
+        title={t("modules.title")}
+        description={t("modules.desc")}
       />
 
       <div className="mb-6 flex flex-col sm:flex-row sm:items-center gap-3">
@@ -152,7 +155,7 @@ export function ManagerModulesView({ modules, myAttempts }: ManagerModulesViewPr
           <Input
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search modules…"
+            placeholder={t("modules.searchPlaceholder")}
             className="pl-9 h-10 transition-shadow focus-visible:shadow-[0_0_0_4px_color-mix(in_srgb,var(--primary)_15%,transparent)]"
           />
           <SearchLoadingBar active={searching} />
@@ -169,7 +172,7 @@ export function ManagerModulesView({ modules, myAttempts }: ManagerModulesViewPr
                   : "border-border text-muted-foreground hover:bg-accent",
               )}
             >
-              {f.label}
+              {t(`modules.filter.${f.key}` as Parameters<typeof t>[0])}
               <span className="ml-1.5 tabular-nums opacity-70">{filterCounts[f.key]}</span>
             </button>
           ))}
@@ -191,7 +194,7 @@ export function ManagerModulesView({ modules, myAttempts }: ManagerModulesViewPr
                 <CardContent className="p-0 h-full">
                   <div className="grid grid-cols-[auto_1fr] gap-0 h-full">
                     <div className="bg-primary/5 border-r flex flex-col items-center justify-center p-6 min-w-[100px]">
-                      <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Module</div>
+                      <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">{t("modules.colModule")}</div>
                       <div className="text-4xl font-bold tracking-tight text-primary mt-1 tabular-nums">{m.number}</div>
                       {passed && (
                         <motion.span initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ type: "spring", stiffness: 380, damping: 22, delay: 0.2 }}>
@@ -208,7 +211,13 @@ export function ManagerModulesView({ modules, myAttempts }: ManagerModulesViewPr
                       <div className="flex items-start justify-between gap-2">
                         <div className="font-semibold text-lg tracking-tight">{m.title}</div>
                         <Badge variant="outline" className={cn("shrink-0 gap-1 text-[11px]", badge.cls)}>
-                          <BadgeIcon className="size-3" /> {badge.label}
+                          <BadgeIcon className="size-3" /> {
+                            status.kind === "passed" ? t("modules.status.passed") :
+                            status.kind === "retake" ? t("modules.status.retake") :
+                            status.kind === "locked" ? t("modules.status.locked") :
+                            status.kind === "in-progress" ? t("modules.status.inProgress") :
+                            t("modules.status.available")
+                          }
                         </Badge>
                       </div>
                       <p className="text-sm text-muted-foreground mt-1.5 line-clamp-2">{m.description}</p>
@@ -220,37 +229,37 @@ export function ManagerModulesView({ modules, myAttempts }: ManagerModulesViewPr
                           </span>
                         )}
                         <span className="flex items-center gap-1.5">
-                          <Clock className="size-3.5" /> {totalMinutes(m)} min · {m.lessons.length} lessons
+                          <Clock className="size-3.5" /> {t("modules.minLessons", { min: totalMinutes(m), n: m.lessons.length })}
                         </span>
                         <span className="flex items-center gap-1.5">
-                          <PlayCircle className="size-3.5" /> {counts.videos} videos
+                          <PlayCircle className="size-3.5" /> {t("modules.videos", { n: counts.videos })}
                         </span>
                         <span className="flex items-center gap-1.5">
-                          <FileText className="size-3.5" /> {counts.documents} docs
+                          <FileText className="size-3.5" /> {t("modules.docs", { n: counts.documents })}
                         </span>
                       </div>
 
                       <div className="mt-auto pt-4 flex items-center justify-between gap-2">
                         <div className="text-xs font-medium">
                           {status.kind === "passed" && (
-                            <span className="text-emerald-600 dark:text-emerald-400">Passed at {status.scorePct}%</span>
+                            <span className="text-emerald-600 dark:text-emerald-400">{t("modules.passedAt", { score: status.scorePct })}</span>
                           )}
                           {status.kind === "retake" && (
                             <span className="text-amber-600 dark:text-amber-400">
-                              Scored {status.lastScore}% · {status.attemptsRemaining} of {MAX_STRIKES} attempts left
+                              {t("modules.attemptsLeftLong", { score: status.lastScore, n: status.attemptsRemaining, max: MAX_STRIKES })}
                             </span>
                           )}
                           {status.kind === "locked" && (
-                            <span className="text-rose-600 dark:text-rose-400">No attempts left — trainer notified</span>
+                            <span className="text-rose-600 dark:text-rose-400">{t("modules.noAttempts")}</span>
                           )}
                           {status.kind === "in-progress" && (
-                            <span className="text-sky-600 dark:text-sky-400">Quiz in progress</span>
+                            <span className="text-sky-600 dark:text-sky-400">{t("modules.quizInProgress")}</span>
                           )}
-                          {status.kind === "not-started" && <span className="text-primary">Available now</span>}
+                          {status.kind === "not-started" && <span className="text-primary">{t("modules.status.available")}</span>}
                         </div>
                         <Button asChild variant={status.kind === "passed" || status.kind === "locked" ? "outline" : "default"} size="sm">
                           <Link href={`/manager/modules/${m.slug}`}>
-                            {status.kind === "passed" ? "Review" : status.kind === "retake" ? "Retake" : status.kind === "locked" ? "View" : "Open"}
+                            {status.kind === "passed" ? t("modules.review") : status.kind === "retake" ? t("modules.retakeBtn") : status.kind === "locked" ? t("modules.view") : t("modules.open")}
                           </Link>
                         </Button>
                       </div>
@@ -272,7 +281,7 @@ export function ManagerModulesView({ modules, myAttempts }: ManagerModulesViewPr
             exit={{ opacity: 0 }}
             className="text-center py-16 text-muted-foreground"
           >
-            No modules match &ldquo;{query}&rdquo;.
+            {t("modules.noMatch", { q: query })}
           </motion.div>
         )}
       </AnimatePresence>
