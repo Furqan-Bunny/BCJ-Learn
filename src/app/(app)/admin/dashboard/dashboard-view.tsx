@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -83,6 +84,15 @@ export function AdminDashboardView({
   recentActivity,
   allUsers,
 }: AdminDashboardViewProps) {
+  const router = useRouter();
+
+  // Click a module's bar → drill into that module's attempts.
+  const onBarClick = (state: unknown) => {
+    const slug = (state as { activePayload?: { payload?: { slug?: string } }[] } | null)
+      ?.activePayload?.[0]?.payload?.slug;
+    if (slug) router.push(`/admin/results?module=${slug}`);
+  };
+
   return (
     <>
       <PageHeader
@@ -99,21 +109,22 @@ export function AdminDashboardView({
       />
 
       <Stagger className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-8">
-        <StaggerItem><KpiCard label="Total employees" value={stats.totalManagers} icon={Users} delta={{ value: 4 }} /></StaggerItem>
-        <StaggerItem><KpiCard label="Pass rate" value={`${stats.passRate}%`} icon={Trophy} accent="success" delta={{ value: 3 }} /></StaggerItem>
-        <StaggerItem><KpiCard label="Average score" value={`${stats.avgScore}%`} icon={Target} delta={{ value: -1 }} /></StaggerItem>
-        <StaggerItem><KpiCard label="At-risk" value={stats.atRisk} icon={AlertTriangle} accent="warning" delta={{ value: -2 }} /></StaggerItem>
+        <StaggerItem><KpiCard label="Total employees" value={stats.totalManagers} icon={Users} delta={{ value: 4 }} href="/admin/managers" /></StaggerItem>
+        <StaggerItem><KpiCard label="Pass rate" value={`${stats.passRate}%`} icon={Trophy} accent="success" delta={{ value: 3 }} href="/admin/results?status=passed" /></StaggerItem>
+        <StaggerItem><KpiCard label="Average score" value={`${stats.avgScore}%`} icon={Target} delta={{ value: -1 }} href="/admin/results" /></StaggerItem>
+        <StaggerItem><KpiCard label="At-risk" value={stats.atRisk} icon={AlertTriangle} accent="warning" delta={{ value: -2 }} href="/admin/at-risk" /></StaggerItem>
       </Stagger>
 
       <div className="grid lg:grid-cols-3 gap-4 mb-6">
         <Card className="lg:col-span-2">
           <CardHeader>
             <CardTitle className="text-base">Module-by-module performance</CardTitle>
+            <p className="text-xs text-muted-foreground">Click a module to see its attempts.</p>
           </CardHeader>
           <CardContent>
             <div className="h-72">
               <ResponsiveContainer>
-                <BarChart data={modules} margin={{ top: 10, right: 10, bottom: 5, left: -20 }}>
+                <BarChart data={modules} margin={{ top: 10, right: 10, bottom: 5, left: -20 }} onClick={onBarClick} className="cursor-pointer">
                   <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
                   <XAxis dataKey="number" stroke="var(--muted-foreground)" fontSize={11} tickFormatter={(n) => `M${n}`} />
                   <YAxis stroke="var(--muted-foreground)" fontSize={11} allowDecimals={false} />
