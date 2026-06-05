@@ -1,6 +1,7 @@
 // Modules — DB queries with shape matching src/data/modules.ts.
 
 import { dbClient } from "@/lib/supabase/db-client";
+import { pickLocale, type Locale } from "@/lib/i18n";
 import type { ModuleDef, Lesson, LessonContent, ContentType, ModuleStatus } from "@/types";
 
 interface ModuleRow {
@@ -8,6 +9,8 @@ interface ModuleRow {
   number: number;
   title: string;
   description: string;
+  title_es: string | null;
+  description_es: string | null;
   scheduled_month: string | null;
   scheduled_date: string | null;
   scheduled_time: string | null;
@@ -27,6 +30,8 @@ interface LessonRow {
   order: number;
   title: string;
   description: string;
+  title_es: string | null;
+  description_es: string | null;
   duration_minutes: number;
 }
 
@@ -35,6 +40,7 @@ interface LessonContentRow {
   lesson_id: string;
   type: ContentType;
   title: string;
+  title_es: string | null;
   duration_minutes: number | null;
   video_url: string | null;
   storage_path: string | null;
@@ -54,12 +60,13 @@ function rowToModuleDef(
   r: ModuleRow,
   ownerTeacherIds: string[],
   lessons: Lesson[],
+  locale: Locale,
 ): ModuleDef {
   return {
     slug: r.slug,
     number: r.number,
-    title: r.title,
-    description: r.description,
+    title: pickLocale(r.title, r.title_es, locale),
+    description: pickLocale(r.description, r.description_es, locale),
     scheduledMonth: r.scheduled_month ?? "",
     scheduledDate: r.scheduled_date ?? "",
     scheduledTime: r.scheduled_time ?? "",
@@ -76,24 +83,24 @@ function rowToModuleDef(
   };
 }
 
-function rowToLesson(r: LessonRow, contents: LessonContent[]): Lesson {
+function rowToLesson(r: LessonRow, contents: LessonContent[], locale: Locale): Lesson {
   return {
     id: r.id,
     moduleSlug: r.module_slug,
     order: r.order,
-    title: r.title,
-    description: r.description,
+    title: pickLocale(r.title, r.title_es, locale),
+    description: pickLocale(r.description, r.description_es, locale),
     durationMinutes: r.duration_minutes,
     contents,
   };
 }
 
-function rowToLessonContent(r: LessonContentRow): LessonContent {
+function rowToLessonContent(r: LessonContentRow, locale: Locale): LessonContent {
   const meta = r.metadata ?? {};
   return {
     id: r.id,
     type: r.type,
-    title: r.title,
+    title: pickLocale(r.title, r.title_es, locale),
     durationMinutes: r.duration_minutes ?? undefined,
     videoUrl: r.video_url ?? undefined,
     videoThumbnail: meta.videoThumbnail,
@@ -107,7 +114,7 @@ function rowToLessonContent(r: LessonContentRow): LessonContent {
   };
 }
 
-export async function listModules(): Promise<ModuleDef[]> {
+export async function listModules(locale: Locale = "en"): Promise<ModuleDef[]> {
   const sb = await dbClient();
   const [
     { data: modRows },
@@ -133,25 +140,25 @@ export async function listModules(): Promise<ModuleDef[]> {
   const contentsByLesson = new Map<string, LessonContent[]>();
   for (const c of (contentRows ?? []) as LessonContentRow[]) {
     const list = contentsByLesson.get(c.lesson_id) ?? [];
-    list.push(rowToLessonContent(c));
+    list.push(rowToLessonContent(c, locale));
     contentsByLesson.set(c.lesson_id, list);
   }
 
   const lessonsBySlug = new Map<string, Lesson[]>();
   for (const l of (lessonRows ?? []) as LessonRow[]) {
     const list = lessonsBySlug.get(l.module_slug) ?? [];
-    list.push(rowToLesson(l, contentsByLesson.get(l.id) ?? []));
+    list.push(rowToLesson(l, contentsByLesson.get(l.id) ?? [], locale));
     lessonsBySlug.set(l.module_slug, list);
   }
 
   return (modRows ?? []).map((row) => {
     const r = row as ModuleRow;
-    return rowToModuleDef(r, ownersBySlug.get(r.slug) ?? [], lessonsBySlug.get(r.slug) ?? []);
+    return rowToModuleDef(r, ownersBySlug.get(r.slug) ?? [], lessonsBySlug.get(r.slug) ?? [], locale);
   });
 }
 
-export async function getModule(slug: string): Promise<ModuleDef | null> {
-  const all = await listModules();
+export async function getModule(slug: string, locale: Locale = "en"): Promise<ModuleDef | null> {
+  const all = await listModules(locale);
   return all.find((m) => m.slug === slug) ?? null;
 }
 

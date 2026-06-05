@@ -3,6 +3,7 @@
 
 import { dbClient } from "@/lib/supabase/db-client";
 import { createClient } from "@/lib/supabase/server";
+import { pickLocale, type Locale } from "@/lib/i18n";
 import type { Role, Cohort } from "@/types";
 
 export interface Resource {
@@ -29,9 +30,11 @@ export interface Resource {
 interface ResourceRow {
   id: string;
   title: string;
+  title_es: string | null;
   category: string;
   department: string | null;
   description: string | null;
+  description_es: string | null;
   body: string | null;
   storage_path: string | null;
   external_url: string | null;
@@ -45,13 +48,13 @@ interface ResourceRow {
   updated_at: string;
 }
 
-function rowToResource(r: ResourceRow): Resource {
+function rowToResource(r: ResourceRow, locale: Locale = "en"): Resource {
   return {
     id: r.id,
-    title: r.title,
+    title: pickLocale(r.title, r.title_es, locale),
     category: r.category,
     department: r.department ?? "General",
-    description: r.description,
+    description: locale === "es" ? pickLocale(r.description, r.description_es, locale) || null : r.description,
     body: r.body,
     storagePath: r.storage_path,
     externalUrl: r.external_url,
@@ -89,9 +92,10 @@ export async function listResourcesForCurrentUser(): Promise<
   const { data: { user } } = await sb.auth.getUser();
   if (!user) return [];
 
-  const { data: profile } = await sb.from("profiles").select("role, cohort").eq("id", user.id).single();
-  const p = profile as { role?: Role; cohort?: Cohort | null } | null;
+  const { data: profile } = await sb.from("profiles").select("role, cohort, locale").eq("id", user.id).single();
+  const p = profile as { role?: Role; cohort?: Cohort | null; locale?: string } | null;
   if (!p?.role) return [];
+  const locale: Locale = p.locale === "es" ? "es" : "en";
 
   const dbc = await dbClient();
   const { data: resources } = await dbc
@@ -127,7 +131,7 @@ export async function listResourcesForCurrentUser(): Promise<
     if (lastAckVersion === undefined) status = "new";
     else if (lastAckVersion < r.version) status = "updated";
     else status = "acknowledged";
-    return { ...rowToResource(r), ackStatus: status };
+    return { ...rowToResource(r, locale), ackStatus: status };
   });
 }
 

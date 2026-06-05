@@ -12,7 +12,7 @@ export default async function ManagerDashboardPage() {
   if (!me) redirect("/login");
 
   const [modules, attempts, activity] = await Promise.all([
-    listModules(),
+    listModules(me.locale),
     listAttemptsForManager(me.id),
     listActivityForUser(me.id, 5),
   ]);

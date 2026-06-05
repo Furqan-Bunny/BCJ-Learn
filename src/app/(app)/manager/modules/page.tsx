@@ -9,7 +9,7 @@ export default async function ManagerModulesPage() {
   if (!me) redirect("/login");
 
   const [modules, myAttempts] = await Promise.all([
-    listModules(),
+    listModules(me.locale),
     listAttemptsForManager(me.id),
   ]);
 

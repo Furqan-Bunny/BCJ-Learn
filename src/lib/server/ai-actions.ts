@@ -25,6 +25,8 @@ import {
   summarizeUserPrompt,
   QUESTION_TRANSLATE_SYSTEM,
   questionTranslateUserPrompt,
+  CONTENT_TRANSLATE_SYSTEM,
+  contentTranslateUserPrompt,
 } from "@/lib/ai/prompts";
 import { revalidatePath } from "next/cache";
 import { listQuestionVersions, type QuestionVersion } from "@/lib/db/questions";
@@ -883,6 +885,126 @@ export async function backfillModuleSpanish(
   }
   revalidatePath(`/teacher/modules/${moduleSlug}/questions`);
   revalidatePath(`/admin/questions`);
+  return { ok: true, translated: done };
+}
+
+// ─── Spanish translation of admin-authored content (titles / descriptions) ──
+
+/**
+ * Translate a short title and/or description into Spanish in a single AI call.
+ * Returns nulls on any failure / DEMO_MODE so callers simply leave the English
+ * value (which is what employee reads fall back to). Exported so server actions
+ * across modules/lessons/resources can reuse it.
+ */
+export async function translateContentFields(fields: {
+  title?: string | null;
+  description?: string | null;
+}): Promise<{ title_es: string | null; description_es: string | null }> {
+  const empty = { title_es: null, description_es: null };
+  const title = fields.title?.trim() || undefined;
+  const description = fields.description?.trim() || undefined;
+  if (DEMO_MODE || (!title && !description)) return empty;
+
+  try {
+    const openai = openaiClient();
+    const res = await openai.chat.completions.create({
+      model: CHAT_MODEL,
+      response_format: { type: "json_object" },
+      messages: [
+        { role: "system", content: CONTENT_TRANSLATE_SYSTEM },
+        { role: "user", content: contentTranslateUserPrompt({ title, description }) },
+      ],
+    });
+    let cleaned = (res.choices[0]?.message?.content ?? "").trim();
+    const a = cleaned.indexOf("{");
+    const b = cleaned.lastIndexOf("}");
+    if (a !== -1 && b !== -1 && b > a) cleaned = cleaned.slice(a, b + 1);
+    const parsed = JSON.parse(cleaned) as { title_es?: string; description_es?: string };
+    return {
+      title_es: title ? parsed.title_es?.trim() || null : null,
+      description_es: description ? parsed.description_es?.trim() || null : null,
+    };
+  } catch {
+    return empty;
+  }
+}
+
+/**
+ * Backfill Spanish for every employee-visible title/description that has none
+ * yet — across modules, lessons, lesson contents and resources. Admin-only,
+ * re-runnable (only touches rows where the *_es column is still null). Returns
+ * how many rows it filled. Best-effort per row; a failure leaves English.
+ */
+export async function backfillContentSpanish(): Promise<{
+  ok: boolean;
+  error?: string;
+  translated?: number;
+}> {
+  const sb = await createClient();
+  const { data: { user } } = await sb.auth.getUser();
+  if (!user) return { ok: false, error: "Not signed in" };
+  const { data: prof } = await sb.from("profiles").select("role").eq("id", user.id).single();
+  if ((prof as { role?: Role } | null)?.role !== "admin") return { ok: false, error: "Admin role required" };
+  if (DEMO_MODE) return { ok: true, translated: 0 };
+
+  const admin = createAdminClient();
+  let done = 0;
+
+  // Modules — title + description.
+  const { data: mods } = await admin
+    .from("modules")
+    .select("slug, title, description")
+    .is("title_es", null);
+  for (const m of ((mods ?? []) as { slug: string; title: string; description: string | null }[])) {
+    const tr = await translateContentFields({ title: m.title, description: m.description });
+    if (tr.title_es || tr.description_es) {
+      await admin.from("modules").update({ title_es: tr.title_es, description_es: tr.description_es }).eq("slug", m.slug);
+      done++;
+    }
+  }
+
+  // Lessons — title + description.
+  const { data: lessons } = await admin
+    .from("lessons")
+    .select("id, title, description")
+    .is("title_es", null);
+  for (const l of ((lessons ?? []) as { id: string; title: string; description: string | null }[])) {
+    const tr = await translateContentFields({ title: l.title, description: l.description });
+    if (tr.title_es || tr.description_es) {
+      await admin.from("lessons").update({ title_es: tr.title_es, description_es: tr.description_es }).eq("id", l.id);
+      done++;
+    }
+  }
+
+  // Lesson contents — title only.
+  const { data: contents } = await admin
+    .from("lesson_contents")
+    .select("id, title")
+    .is("title_es", null);
+  for (const c of ((contents ?? []) as { id: string; title: string }[])) {
+    const tr = await translateContentFields({ title: c.title });
+    if (tr.title_es) {
+      await admin.from("lesson_contents").update({ title_es: tr.title_es }).eq("id", c.id);
+      done++;
+    }
+  }
+
+  // Resources — title + description.
+  const { data: resources } = await admin
+    .from("resources")
+    .select("id, title, description")
+    .is("title_es", null);
+  for (const r of ((resources ?? []) as { id: string; title: string; description: string | null }[])) {
+    const tr = await translateContentFields({ title: r.title, description: r.description });
+    if (tr.title_es || tr.description_es) {
+      await admin.from("resources").update({ title_es: tr.title_es, description_es: tr.description_es }).eq("id", r.id);
+      done++;
+    }
+  }
+
+  revalidatePath("/manager/dashboard");
+  revalidatePath("/manager/modules");
+  revalidatePath("/manager/resources");
   return { ok: true, translated: done };
 }
 

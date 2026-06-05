@@ -29,3 +29,17 @@ export function getT(locale: Locale): TFunc {
 export function normalizeLocale(raw: string | null | undefined): Locale {
   return raw === "es" ? "es" : "en";
 }
+
+/**
+ * Pick the localized variant of an admin-authored string (module/lesson/
+ * resource title or description). Falls back to English whenever the Spanish
+ * value is missing/blank, so reads never render empty for 'es' employees.
+ */
+export function pickLocale(
+  en: string | null | undefined,
+  es: string | null | undefined,
+  locale: Locale,
+): string {
+  if (locale === "es" && es && es.trim()) return es;
+  return en ?? "";
+}

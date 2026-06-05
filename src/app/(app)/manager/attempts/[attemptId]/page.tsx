@@ -21,7 +21,7 @@ export default async function ManagerAttemptPage(props: PageProps<"/manager/atte
   // text via the service-role client. We only need the questions they answered.
   const answeredIds = new Set(attempt.answers.map((a) => a.questionId));
   const [mod, allQuestions] = await Promise.all([
-    getModule(attempt.moduleSlug),
+    getModule(attempt.moduleSlug, me.locale),
     listQuestionsForModuleAsAdmin(attempt.moduleSlug),
   ]);
 

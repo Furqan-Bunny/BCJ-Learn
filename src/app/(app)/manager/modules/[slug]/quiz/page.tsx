@@ -10,7 +10,7 @@ export default async function ManagerQuizPage(props: PageProps<"/manager/modules
   const me = await getCurrentUserForRole("manager");
   if (!me) redirect("/login");
 
-  const mod = await getModule(slug);
+  const mod = await getModule(slug, me.locale);
   if (!mod) return notFound();
 
   // SOP gate — must hold here too, not just on the module page: the dashboard

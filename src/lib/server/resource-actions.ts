@@ -4,6 +4,7 @@ import { createClient, createAdminClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
 import { pushInAppNotification } from "@/lib/notifications/push";
 import { listAcknowledgementStatus, type AckStatusRow } from "@/lib/db/resources";
+import { translateContentFields } from "@/lib/server/ai-actions";
 import type { Role } from "@/types";
 
 async function requireAdmin(): Promise<
@@ -162,6 +163,12 @@ export async function createResource(
   await snapshotResourceVersion(admin, newId, "created", guard.userId);
   await logResourceActivity(admin, guard.userId, `${guard.userName} created resource "${input.title.trim()}"`);
 
+  // Cache a Spanish translation of the title/description (English is the fallback).
+  const tr = await translateContentFields({ title: input.title.trim(), description: input.description ?? null });
+  if (tr.title_es || tr.description_es) {
+    await admin.from("resources").update({ title_es: tr.title_es, description_es: tr.description_es }).eq("id", newId);
+  }
+
   revalidatePath("/admin/resources");
   revalidatePath("/manager/resources");
   return { ok: true, id: newId };
@@ -203,6 +210,10 @@ export async function editResource(
 
   const { error } = await admin.from("resources").update(update).eq("id", id);
   if (error) return { ok: false, error: error.message };
+
+  // Refresh the cached Spanish translation (title/description may have changed).
+  const tr = await translateContentFields({ title: input.title.trim(), description: input.description ?? null });
+  await admin.from("resources").update({ title_es: tr.title_es, description_es: tr.description_es }).eq("id", id);
 
   // On re-ack, notify everyone the resource is assigned to so they re-sign.
   if (input.requireReack) {

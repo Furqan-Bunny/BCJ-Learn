@@ -20,6 +20,7 @@ import { fmtRelative, fmtDate } from "@/lib/format";
 import { Stagger, StaggerItem } from "@/components/shared/animations";
 import { uploadResourceFile } from "@/lib/supabase/storage";
 import { createResource, editResource, deleteResource, getAcknowledgementStatus } from "@/lib/server/resource-actions";
+import { backfillContentSpanish } from "@/lib/server/ai-actions";
 import type { AckStatusRow } from "@/lib/db/resources";
 import { MARKETS } from "@/types/markets";
 import { cn } from "@/lib/utils";
@@ -40,6 +41,25 @@ interface EnrichedResource extends Resource {
 
 export function ResourcesAdminView({ initialResources }: { initialResources: EnrichedResource[] }) {
   const router = useRouter();
+
+  const [backfilling, setBackfilling] = React.useState(false);
+
+  async function handleTranslateAll() {
+    setBackfilling(true);
+    const toastId = "content-translate";
+    toast.loading("Translating module, lesson and resource titles to Spanish…", { id: toastId });
+    const res = await backfillContentSpanish();
+    setBackfilling(false);
+    if (!res.ok) {
+      toast.error(res.error ?? "Translation failed", { id: toastId });
+      return;
+    }
+    toast.success(
+      res.translated ? `Translated ${res.translated} item(s) to Spanish` : "Everything is already translated",
+      { id: toastId },
+    );
+    router.refresh();
+  }
 
   // Sheet is dual-mode: editingId === null → create, otherwise edit that id.
   const [sheetOpen, setSheetOpen] = React.useState(false);
@@ -208,9 +228,15 @@ export function ResourcesAdminView({ initialResources }: { initialResources: Enr
         <p className="text-sm text-muted-foreground">
           {initialResources.length} resource{initialResources.length === 1 ? "" : "s"} across {byDepartment.size} department{byDepartment.size === 1 ? "" : "s"}
         </p>
-        <Button onClick={openCreate}>
-          <Plus className="size-4 mr-1.5" /> Add resource
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" onClick={handleTranslateAll} disabled={backfilling}>
+            {backfilling ? <Loader2 className="size-4 mr-1.5 animate-spin" /> : <Sparkles className="size-4 mr-1.5 text-[var(--ai)]" />}
+            {backfilling ? "Translating…" : "Translate all to Spanish"}
+          </Button>
+          <Button onClick={openCreate}>
+            <Plus className="size-4 mr-1.5" /> Add resource
+          </Button>
+        </div>
       </div>
 
       <Sheet open={sheetOpen} onOpenChange={setSheetOpen}>

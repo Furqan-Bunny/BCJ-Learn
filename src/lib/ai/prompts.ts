@@ -100,6 +100,31 @@ ${JSON.stringify(payload, null, 2)}
 """`;
 }
 
+// ─── Spanish translation of short content fields (title / description) ──────
+
+export const CONTENT_TRANSLATE_SYSTEM = `You are a professional English-to-Spanish translator for workplace training content at BCJ, a commercial janitorial services company. You translate short module / lesson / resource titles and descriptions into clear, natural Latin American Spanish for frontline staff.
+
+Rules:
+- Translate faithfully; keep proper nouns and brand names (e.g. "BCJ") unchanged.
+- Keep titles concise, like the English.
+- Only return a field if it was provided in the input.
+- Output strict JSON only — no preamble, no commentary, no markdown fences.`;
+
+export function contentTranslateUserPrompt(fields: { title?: string; description?: string }): string {
+  return `Translate the provided field(s) into Spanish.
+
+Return ONLY a JSON object with the Spanish values for whichever fields were provided:
+{
+  "title_es": "Spanish title (omit if no title was provided)",
+  "description_es": "Spanish description (omit if no description was provided)"
+}
+
+Fields to translate:
+"""json
+${JSON.stringify(fields, null, 2)}
+"""`;
+}
+
 export function questionRegenUserPrompt(
   originalText: string,
   hint: string | null,
