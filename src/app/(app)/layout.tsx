@@ -9,6 +9,7 @@ import { listMyNotifications, getMyUnreadCount } from "@/lib/db/notifications";
 import { getBrandingSettings } from "@/lib/db/settings";
 import { resolveBrandingLogoUrl, buildBrandingCss } from "@/lib/branding";
 import { LocaleProvider } from "@/lib/i18n/provider";
+import { LanguageFab } from "@/components/shared/language-fab";
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const user = await getCurrentUser();
@@ -40,6 +41,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         </main>
       </div>
       <WelcomeModal />
+      {user?.role === "manager" && <LanguageFab />}
     </div>
     </LocaleProvider>
   );
