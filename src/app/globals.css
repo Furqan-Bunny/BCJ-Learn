@@ -468,6 +468,88 @@
   }
 }
 
+/* Help Center / guide typography. We render Markdown → HTML ourselves, so style
+   the output directly (no Tailwind typography plugin needed). Scoped to
+   .help-doc so it never leaks into the certificate or other .printable docs. */
+.help-doc {
+  color: var(--foreground);
+  font-size: 0.95rem;
+  line-height: 1.7;
+}
+.help-doc > :first-child { margin-top: 0; }
+.help-doc h1 {
+  font-size: 1.75rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 1.2;
+  margin: 0 0 0.5rem;
+}
+.help-doc h2 {
+  font-size: 1.3rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  line-height: 1.3;
+  margin: 2.25rem 0 0.85rem;
+  padding-bottom: 0.4rem;
+  border-bottom: 1px solid var(--border);
+}
+.help-doc h3 {
+  font-size: 1.08rem;
+  font-weight: 650;
+  margin: 1.6rem 0 0.6rem;
+}
+.help-doc h4 {
+  font-size: 1rem;
+  font-weight: 650;
+  margin: 1.2rem 0 0.4rem;
+}
+.help-doc p { margin: 0 0 1rem; }
+.help-doc strong { font-weight: 650; color: var(--foreground); }
+.help-doc em { font-style: italic; color: var(--muted-foreground); }
+.help-doc a { color: var(--primary); text-decoration: underline; text-underline-offset: 2px; }
+.help-doc ul,
+.help-doc ol { margin: 0 0 1rem; padding-left: 1.4rem; }
+.help-doc li { margin: 0.3rem 0; padding-left: 0.2rem; }
+.help-doc ul { list-style: disc; }
+.help-doc ol { list-style: decimal; }
+.help-doc hr { border: 0; border-top: 1px solid var(--border); margin: 2rem 0; }
+.help-doc blockquote {
+  margin: 0 0 1rem;
+  padding: 0.6rem 1rem;
+  border-left: 3px solid var(--primary);
+  background: color-mix(in oklab, var(--primary) 6%, transparent);
+  border-radius: 0 0.4rem 0.4rem 0;
+  color: var(--muted-foreground);
+}
+.help-doc code {
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: 0.85em;
+  background: var(--muted);
+  padding: 0.12rem 0.38rem;
+  border-radius: 0.3rem;
+}
+.help-doc pre {
+  background: var(--muted);
+  padding: 0.9rem 1.1rem;
+  border-radius: 0.5rem;
+  overflow-x: auto;
+  margin: 0 0 1rem;
+}
+.help-doc pre code { background: none; padding: 0; }
+.help-doc table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 0 0 1rem;
+  font-size: 0.9rem;
+}
+.help-doc th,
+.help-doc td { border: 1px solid var(--border); padding: 0.5rem 0.7rem; text-align: left; }
+.help-doc th { background: var(--muted); font-weight: 650; }
+
+/* FAQ "**Question?**↵answer" blocks: the question sits on its own line (marked
+   `breaks`), so give a touch of separation between each Q&A paragraph. */
+.help-doc p > strong:first-child { display: inline-block; margin-bottom: 0.1rem; }
+
 /* Print: show only the .printable element (certificate, help docs), hide app chrome. */
 @media print {
   body * { visibility: hidden !important; }

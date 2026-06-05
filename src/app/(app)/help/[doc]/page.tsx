@@ -21,7 +21,9 @@ export default async function HelpDocPage(props: { params: Promise<{ doc: string
   } catch {
     return notFound();
   }
-  const html = await marked.parse(markdown);
+  // `breaks` puts a single newline (e.g. the line under each bold FAQ question)
+  // onto its own line, so questions read clearly apart from their answers.
+  const html = await marked.parse(markdown, { gfm: true, breaks: true });
 
   return <HelpDocView title={meta.title} html={html} />;
 }

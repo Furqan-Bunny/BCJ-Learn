@@ -19,7 +19,7 @@ export function HelpDocView({ title, html }: { title: string; html: string }) {
 
       {/* The .printable container is the only thing that prints (see globals.css). */}
       <article
-        className="printable prose prose-sm md:prose-base dark:prose-invert max-w-3xl mx-auto"
+        className="printable help-doc max-w-3xl mx-auto"
         // Content comes from our own trusted Markdown files in /docs.
         dangerouslySetInnerHTML={{ __html: html }}
         aria-label={title}
