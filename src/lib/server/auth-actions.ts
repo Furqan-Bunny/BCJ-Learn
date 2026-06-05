@@ -7,8 +7,32 @@
 // the code is confirmed.
 
 import { createClient as createSupabaseJsClient } from "@supabase/supabase-js";
-import { createAdminClient } from "@/lib/supabase/server";
+import { createClient, createAdminClient } from "@/lib/supabase/server";
 import { sendEmail } from "@/lib/emails/send";
+
+/**
+ * Record a sign-in in the audit log. Called by the login page right after the
+ * browser establishes a session (cookies are set, so getUser resolves). Best
+ * effort — never blocks or fails the login.
+ */
+export async function logSignIn(): Promise<void> {
+  try {
+    const sb = await createClient();
+    const { data: { user } } = await sb.auth.getUser();
+    if (!user) return;
+    const admin = createAdminClient();
+    const { data: profile } = await admin.from("profiles").select("name").eq("id", user.id).maybeSingle();
+    const name = (profile as { name?: string } | null)?.name ?? user.email ?? "A user";
+    await admin.from("activity").insert({
+      kind: "user_login",
+      actor_id: user.id,
+      target_id: null,
+      message: `${name} signed in`,
+    });
+  } catch {
+    // Swallow — auditing must never break sign-in.
+  }
+}
 
 const CODE_TTL_MS = 10 * 60 * 1000;
 

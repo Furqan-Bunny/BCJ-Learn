@@ -19,6 +19,7 @@ import {
   UserCheck,
   Play,
   Square,
+  LogIn,
 } from "lucide-react";
 import { PageHeader } from "@/components/shared/page-header";
 import { KpiCard } from "@/components/shared/kpi-card";
@@ -55,6 +56,7 @@ const ACTIVITY_ICON = {
   manager_checked_in: { Icon: UserCheck, color: "text-sky-500" },
   session_started: { Icon: Play, color: "text-emerald-500" },
   session_ended: { Icon: Square, color: "text-slate-500" },
+  user_login: { Icon: LogIn, color: "text-slate-500" },
 } as const;
 
 interface AdminDashboardViewProps {

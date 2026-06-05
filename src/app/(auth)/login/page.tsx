@@ -15,7 +15,7 @@ import type { Role } from "@/types";
 import { cn } from "@/lib/utils";
 import { motion } from "framer-motion";
 import { createClient } from "@/lib/supabase/client";
-import { requestLoginOtp, verifyLoginOtp, requestPasswordReset } from "@/lib/server/auth-actions";
+import { requestLoginOtp, verifyLoginOtp, requestPasswordReset, logSignIn } from "@/lib/server/auth-actions";
 import { toast } from "sonner";
 import { MeshGradient } from "@/components/shared/mesh-gradient";
 import { MagneticButton, TiltCard, DrawCheck } from "@/components/shared/animations";
@@ -148,6 +148,7 @@ export default function LoginPage() {
     const userRole: Role = ((profile as { role?: Role } | null)?.role ?? "manager") as Role;
     setRole(userRole);
     setAuthedUserId(data.user.id);
+    void logSignIn(); // audit (best-effort, non-blocking)
     toast.success("Signed in");
     router.push(ROLE_ROUTE[userRole]);
     return true;

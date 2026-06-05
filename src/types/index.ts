@@ -182,7 +182,8 @@ export type ActivityKind =
   | "delivery_rescheduled"
   | "manager_checked_in"
   | "session_started"
-  | "session_ended";
+  | "session_ended"
+  | "user_login";
 
 export interface ActivityEvent {
   id: string;

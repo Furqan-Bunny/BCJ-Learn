@@ -5,7 +5,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
-import { CheckCircle2, X, Sparkles, Users, Bell, FileText, AlertTriangle, Search, RotateCcw, UserCheck, Play, Square } from "lucide-react";
+import { CheckCircle2, X, Sparkles, Users, Bell, FileText, AlertTriangle, Search, RotateCcw, UserCheck, Play, Square, LogIn } from "lucide-react";
 import { PageHeader } from "@/components/shared/page-header";
 import { fmtRelative, fmtDate, initials } from "@/lib/format";
 import { SearchLoadingBar, motion, AnimatePresence } from "@/components/shared/animations";
@@ -27,6 +27,7 @@ const ICONS = {
   manager_checked_in: { Icon: UserCheck, bg: "bg-sky-100 dark:bg-sky-950/40", text: "text-sky-600 dark:text-sky-400" },
   session_started: { Icon: Play, bg: "bg-emerald-100 dark:bg-emerald-950/40", text: "text-emerald-600 dark:text-emerald-400" },
   session_ended: { Icon: Square, bg: "bg-slate-200 dark:bg-slate-800", text: "text-slate-700 dark:text-slate-300" },
+  user_login: { Icon: LogIn, bg: "bg-slate-100 dark:bg-slate-800/60", text: "text-slate-600 dark:text-slate-300" },
 } as const;
 
 export interface AuditLogViewProps {
