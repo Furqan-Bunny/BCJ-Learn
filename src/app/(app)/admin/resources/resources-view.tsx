@@ -14,7 +14,8 @@ import {
 import {
   Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
 } from "@/components/ui/dialog";
-import { FileText, Plus, Users, CheckCircle2, AlertCircle, Sparkles, Upload, X as XIcon, Bold, Italic, List, Heading2, Pencil, Trash2, ChevronDown, Loader2, Circle } from "lucide-react";
+import Link from "next/link";
+import { FileText, Plus, Users, CheckCircle2, AlertCircle, Sparkles, Upload, X as XIcon, Bold, Italic, List, Heading2, Pencil, Trash2, ChevronDown, Loader2, Circle, ArrowRight } from "lucide-react";
 import { fmtRelative, fmtDate } from "@/lib/format";
 import { Stagger, StaggerItem } from "@/components/shared/animations";
 import { uploadResourceFile } from "@/lib/supabase/storage";
@@ -23,7 +24,7 @@ import type { AckStatusRow } from "@/lib/db/resources";
 import { MARKETS } from "@/types/markets";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import type { Resource } from "@/lib/db/resources";
 import type { Role } from "@/types";
 
@@ -98,6 +99,16 @@ export function ResourcesAdminView({ initialResources }: { initialResources: Enr
     setMarkets(r.assignedCohorts ?? []); setNotifyOnUpdate(r.notifyOnUpdate); setRequireReack(false);
     setSheetOpen(true);
   }
+
+  // Open the edit sheet when arriving from the detail page (?edit=<id>).
+  const searchParams = useSearchParams();
+  React.useEffect(() => {
+    const editId = searchParams.get("edit");
+    if (!editId) return;
+    const r = initialResources.find((x) => x.id === editId);
+    if (r) openEdit(r);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams, initialResources]);
 
   function toggleRole(role: Role) {
     setAssignedRoles((prev) => (prev.includes(role) ? prev.filter((r) => r !== role) : [...prev, role]));
@@ -349,49 +360,55 @@ export function ResourcesAdminView({ initialResources }: { initialResources: Enr
         <section key={dept} className="mb-8">
           <h3 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground mb-3">{dept}</h3>
           <Stagger className="grid lg:grid-cols-2 gap-3">
-            {list.map((r) => {
-              const ackPct = r.ackCount.total > 0 ? Math.round((r.ackCount.acked / r.ackCount.total) * 100) : 0;
-              return (
-                <StaggerItem key={r.id} className="h-full">
-                  <Card className="card-lift h-full">
-                    <CardContent className="p-4 h-full">
-                      <div className="flex items-start justify-between gap-3">
-                        <div className="flex items-start gap-3 flex-1 min-w-0">
-                          <div className="size-9 rounded-md bg-primary/10 text-primary flex items-center justify-center shrink-0">
-                            <FileText className="size-4" />
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <div className="font-semibold truncate">{r.title}</div>
-                            {r.description && <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">{r.description}</p>}
-                            <div className="flex items-center gap-3 mt-2 text-[11px] text-muted-foreground">
-                              <span>v{r.version}</span><span>·</span><span>Updated {fmtRelative(r.updatedAt)}</span>
-                            </div>
+            {list.map((r) => (
+              <StaggerItem key={r.id} className="h-full">
+                <Card className="card-lift h-full">
+                  <CardContent className="p-4 h-full">
+                    <div className="flex items-start justify-between gap-3">
+                      <Link href={`/admin/resources/${r.id}`} className="flex items-start gap-3 flex-1 min-w-0 group">
+                        <div className="size-9 rounded-md bg-primary/10 text-primary flex items-center justify-center shrink-0">
+                          <FileText className="size-4" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="font-semibold truncate group-hover:text-primary transition-colors">{r.title}</div>
+                          {r.description && <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">{r.description}</p>}
+                          <div className="flex items-center gap-3 mt-2 text-[11px] text-muted-foreground">
+                            <span>v{r.version}</span><span>·</span><span>Updated {fmtRelative(r.updatedAt)}</span>
                           </div>
                         </div>
-                        <div className="flex items-center gap-1 shrink-0">
-                          {r.requiresAck && (
-                            <Badge variant="outline" className="text-[10px] gap-1">
-                              <Sparkles className="size-2.5" /> Acknowledgement required
-                            </Badge>
-                          )}
-                          <button type="button" onClick={() => openEdit(r)} title="Edit"
-                            className="p-1.5 rounded-md text-muted-foreground hover:bg-accent hover:text-foreground">
-                            <Pencil className="size-3.5" />
-                          </button>
-                          <button type="button" onClick={() => setDeleteTarget(r)} title="Delete"
-                            className="p-1.5 rounded-md text-muted-foreground hover:bg-rose-500/10 hover:text-rose-600">
-                            <Trash2 className="size-3.5" />
-                          </button>
-                        </div>
+                      </Link>
+                      <div className="flex items-center gap-1 shrink-0">
+                        {r.requiresAck && (
+                          <Badge variant="outline" className="text-[10px] gap-1">
+                            <Sparkles className="size-2.5" /> Acknowledgement required
+                          </Badge>
+                        )}
+                        <button type="button" onClick={() => openEdit(r)} title="Edit"
+                          className="p-1.5 rounded-md text-muted-foreground hover:bg-accent hover:text-foreground">
+                          <Pencil className="size-3.5" />
+                        </button>
+                        <button type="button" onClick={() => setDeleteTarget(r)} title="Delete"
+                          className="p-1.5 rounded-md text-muted-foreground hover:bg-rose-500/10 hover:text-rose-600">
+                          <Trash2 className="size-3.5" />
+                        </button>
                       </div>
-                      {r.requiresAck && (
-                        <AckDrilldown resourceId={r.id} acked={r.ackCount.acked} total={r.ackCount.total} ackPct={ackPct} />
-                      )}
-                    </CardContent>
-                  </Card>
-                </StaggerItem>
-              );
-            })}
+                    </div>
+                    {r.requiresAck && (
+                      <Link
+                        href={`/admin/resources/${r.id}`}
+                        className="mt-3 pt-3 border-t flex items-center justify-between text-xs text-muted-foreground hover:text-foreground transition-colors"
+                      >
+                        <span className="flex items-center gap-1.5">
+                          <Users className="size-3" />
+                          <span><span className="font-semibold text-foreground">{r.ackCount.acked}</span> of {r.ackCount.total} acknowledged</span>
+                        </span>
+                        <span className="text-primary inline-flex items-center gap-1">View all details <ArrowRight className="size-3" /></span>
+                      </Link>
+                    )}
+                  </CardContent>
+                </Card>
+              </StaggerItem>
+            ))}
           </Stagger>
         </section>
       ))}
