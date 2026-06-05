@@ -14,6 +14,7 @@ import {
   ArrowLeft, Pencil, Trash2, FileText, History, Users, CheckCircle2, Circle, Clock, ShieldCheck,
 } from "lucide-react";
 import { PageHeader } from "@/components/shared/page-header";
+import { Pagination, pageSlice } from "@/components/ui/pagination";
 import { ResourceDocViewer } from "@/components/resources/resource-doc-viewer";
 import { fmtDate } from "@/lib/format";
 import { cn } from "@/lib/utils";
@@ -62,6 +63,9 @@ export function ResourceDetailView({
 
   const acked = ackStatus.filter((u) => u.acked);
   const pending = ackStatus.filter((u) => !u.acked);
+  const orderedAck = React.useMemo(() => [...acked, ...pending], [acked, pending]);
+  const ACK_PER_PAGE = 15;
+  const [ackPage, setAckPage] = React.useState(0);
 
   async function handleDelete() {
     setDeleting(true);
@@ -179,11 +183,11 @@ export function ResourceDetailView({
                   </p>
                 </CardHeader>
                 <CardContent>
-                  <div className="rounded-md border divide-y max-h-72 overflow-y-auto">
+                  <div className="rounded-md border divide-y">
                     {ackStatus.length === 0 ? (
                       <div className="p-4 text-center text-sm text-muted-foreground">No one is assigned this resource.</div>
                     ) : (
-                      [...acked, ...pending].map((u) => (
+                      pageSlice(orderedAck, ackPage, ACK_PER_PAGE).map((u) => (
                         <div key={u.userId} className="flex items-center gap-2 px-3 py-2 text-sm">
                           {u.acked
                             ? <CheckCircle2 className="size-4 text-emerald-500 shrink-0" />
@@ -198,6 +202,7 @@ export function ResourceDetailView({
                       ))
                     )}
                   </div>
+                  <Pagination page={ackPage} total={orderedAck.length} pageSize={ACK_PER_PAGE} onPageChange={setAckPage} className="mt-3" />
                 </CardContent>
               </Card>
 
@@ -212,30 +217,7 @@ export function ResourceDetailView({
                     <div className="py-8 text-center text-sm text-muted-foreground">No acknowledgements recorded yet.</div>
                   ) : (
                     <div className="space-y-5">
-                      {ackHistory.map((entry) => (
-                        <div key={entry.version} className="rounded-lg border">
-                          <div className="px-3 py-2 border-b bg-muted/30 flex items-center gap-2 flex-wrap">
-                            <Badge variant="outline" className="font-mono text-[10px]">Version {entry.version}</Badge>
-                            <span className="text-xs text-muted-foreground">
-                              {entry.requiredAt
-                                ? <>required after {entry.requiredByName ?? "an edit"} · {fmtDate(entry.requiredAt, "MMM d, yyyy")}</>
-                                : "initial version"}
-                            </span>
-                            <span className="ml-auto text-[11px] text-muted-foreground">{entry.acks.length} acknowledged</span>
-                          </div>
-                          <ul className="divide-y">
-                            {entry.acks.map((a, i) => (
-                              <li key={i} className="flex items-center gap-2 px-3 py-2 text-sm">
-                                <CheckCircle2 className="size-4 text-emerald-500 shrink-0" />
-                                <span className="flex-1 min-w-0 truncate font-medium">{a.name}</span>
-                                <span className="text-[11px] text-muted-foreground flex items-center gap-1.5 shrink-0">
-                                  <Clock className="size-3" /> {fmtDate(a.acknowledgedAt, "MMM d, yyyy · h:mm a")}
-                                </span>
-                              </li>
-                            ))}
-                          </ul>
-                        </div>
-                      ))}
+                      {ackHistory.map((entry) => <AckVersionNode key={entry.version} entry={entry} />)}
                     </div>
                   )}
                 </CardContent>
@@ -263,6 +245,40 @@ export function ResourceDetailView({
         </DialogContent>
       </Dialog>
     </>
+  );
+}
+
+function AckVersionNode({ entry }: { entry: AckHistoryEntry }) {
+  const PER = 10;
+  const [page, setPage] = React.useState(0);
+  return (
+    <div className="rounded-lg border">
+      <div className="px-3 py-2 border-b bg-muted/30 flex items-center gap-2 flex-wrap">
+        <Badge variant="outline" className="font-mono text-[10px]">Version {entry.version}</Badge>
+        <span className="text-xs text-muted-foreground">
+          {entry.requiredAt
+            ? <>required after {entry.requiredByName ?? "an edit"} · {fmtDate(entry.requiredAt, "MMM d, yyyy")}</>
+            : "initial version"}
+        </span>
+        <span className="ml-auto text-[11px] text-muted-foreground">{entry.acks.length} acknowledged</span>
+      </div>
+      <ul className="divide-y">
+        {pageSlice(entry.acks, page, PER).map((a, i) => (
+          <li key={i} className="flex items-center gap-2 px-3 py-2 text-sm">
+            <CheckCircle2 className="size-4 text-emerald-500 shrink-0" />
+            <span className="flex-1 min-w-0 truncate font-medium">{a.name}</span>
+            <span className="text-[11px] text-muted-foreground flex items-center gap-1.5 shrink-0">
+              <Clock className="size-3" /> {fmtDate(a.acknowledgedAt, "MMM d, yyyy · h:mm a")}
+            </span>
+          </li>
+        ))}
+      </ul>
+      {entry.acks.length > PER && (
+        <div className="px-3 py-2 border-t">
+          <Pagination page={page} total={entry.acks.length} pageSize={PER} onPageChange={setPage} hideSummary />
+        </div>
+      )}
+    </div>
   );
 }
 
