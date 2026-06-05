@@ -51,6 +51,10 @@ export async function startQuiz(moduleSlug: string): Promise<StartQuizResult> {
 
   if (attemptsError) return { ok: false, error: attemptsError.message };
 
+  // Serve the quiz in the employee's chosen language (English fallback).
+  const { data: prof } = await sb.from("profiles").select("locale").eq("id", user.id).maybeSingle();
+  const locale = (prof as { locale?: string } | null)?.locale === "es" ? "es" : "en";
+
   const rows = (priorAttempts ?? []) as { pool: QuestionPool; status: string; started_at: string }[];
 
   const decision = decideQuizPool(rows);
@@ -65,6 +69,7 @@ export async function startQuiz(moduleSlug: string): Promise<StartQuizResult> {
   const { data, error } = await sb.rpc("start_quiz_attempt", {
     p_module_slug: moduleSlug,
     p_pool: pool,
+    p_locale: locale,
   });
 
   if (error) return { ok: false, error: error.message };

@@ -23,6 +23,8 @@ import {
   questionRegenUserPrompt,
   SUMMARIZE_SYSTEM,
   summarizeUserPrompt,
+  QUESTION_TRANSLATE_SYSTEM,
+  questionTranslateUserPrompt,
 } from "@/lib/ai/prompts";
 import { revalidatePath } from "next/cache";
 import { listQuestionVersions, type QuestionVersion } from "@/lib/db/questions";
@@ -391,6 +393,9 @@ export async function commitQuestionDraft(
   revalidatePath(`/teacher/modules/${moduleSlug}/questions`);
   revalidatePath(`/admin/modules/${moduleSlug}`);
   revalidatePath(`/admin/questions`);
+
+  // Cache a Spanish translation in the background (English is the fallback).
+  void translateQuestionToSpanish(qId).catch(() => {});
   return { ok: true, id: qId };
 }
 
@@ -436,6 +441,9 @@ export async function approveQuestion(questionId: string): Promise<{ ok: boolean
 
   // Record the approved content as a version milestone.
   await snapshotQuestion(admin, questionId, "approved", user.id);
+
+  // Cache a Spanish translation in the background (English is the fallback).
+  void translateQuestionToSpanish(questionId).catch(() => {});
 
   // Refresh approved count on module row.
   const { count: approvedCount } = await admin
@@ -745,9 +753,137 @@ export async function editQuestion(input: EditQuestionInput): Promise<{ ok: bool
   }));
   await admin.from("question_options").insert(optionRows);
 
+  // The text changed — refresh the cached Spanish translation in the background.
+  void translateQuestionToSpanish(input.questionId).catch(() => {});
+
   revalidatePath(`/teacher/modules/${slug}/questions`);
   revalidatePath(`/admin/questions`);
   return { ok: true };
+}
+
+// ─── Spanish translation of quiz content ───────────────────────────────
+
+interface TranslatedQuestion {
+  text_es: string;
+  explanation_es: string;
+  options: { order: number; text_es: string }[];
+}
+
+function parseTranslation(raw: string): TranslatedQuestion {
+  let cleaned = raw.trim();
+  if (cleaned.startsWith("```")) {
+    cleaned = cleaned.replace(/^```(?:json)?\s*/i, "").replace(/```\s*$/i, "").trim();
+  }
+  const firstBrace = cleaned.indexOf("{");
+  const lastBrace = cleaned.lastIndexOf("}");
+  if (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace) {
+    cleaned = cleaned.slice(firstBrace, lastBrace + 1);
+  }
+  return JSON.parse(cleaned) as TranslatedQuestion;
+}
+
+/**
+ * Translate one question (stem + explanation + every option) into Spanish and
+ * cache it in the *_es columns. Best-effort: callers fire-and-forget this so a
+ * translation failure never blocks approving/editing. Skipped in DEMO_MODE.
+ * Also backs a manual "Translate to Spanish" button — so it's exported.
+ */
+export async function translateQuestionToSpanish(
+  questionId: string,
+): Promise<{ ok: boolean; error?: string }> {
+  if (DEMO_MODE) return { ok: true };
+
+  const admin = createAdminClient();
+  const { data: qRow } = await admin
+    .from("questions")
+    .select("text, explanation")
+    .eq("id", questionId)
+    .single();
+  if (!qRow) return { ok: false, error: "Question not found" };
+  const { text, explanation } = qRow as { text: string; explanation: string | null };
+
+  const { data: optRows } = await admin
+    .from("question_options")
+    .select("id, text, order")
+    .eq("question_id", questionId)
+    .order("order");
+  const options = (optRows ?? []) as { id: string; text: string; order: number }[];
+
+  let translated: TranslatedQuestion;
+  try {
+    const openai = openaiClient();
+    const res = await openai.chat.completions.create({
+      model: CHAT_MODEL,
+      response_format: { type: "json_object" },
+      messages: [
+        { role: "system", content: QUESTION_TRANSLATE_SYSTEM },
+        {
+          role: "user",
+          content: questionTranslateUserPrompt({
+            text,
+            explanation,
+            options: options.map((o) => ({ order: o.order, text: o.text })),
+          }),
+        },
+      ],
+    });
+    translated = parseTranslation(res.choices[0]?.message?.content ?? "");
+  } catch (err) {
+    return { ok: false, error: `AI error: ${(err as Error).message}` };
+  }
+
+  if (!translated.text_es) return { ok: false, error: "Empty translation" };
+
+  // Cache the question's Spanish stem + explanation.
+  await admin
+    .from("questions")
+    .update({
+      text_es: translated.text_es,
+      explanation_es: translated.explanation_es || null,
+    })
+    .eq("id", questionId);
+
+  // Cache each option's Spanish text, matched back by its "order".
+  const byOrder = new Map((translated.options ?? []).map((o) => [o.order, o.text_es]));
+  await Promise.all(
+    options.map((o) => {
+      const es = byOrder.get(o.order);
+      if (!es) return Promise.resolve();
+      return admin.from("question_options").update({ text_es: es }).eq("id", o.id);
+    }),
+  );
+
+  return { ok: true };
+}
+
+/**
+ * Backfill Spanish for every approved/edited question in a module that has no
+ * cached translation yet. Admin/owner-guarded; returns how many it filled.
+ */
+export async function backfillModuleSpanish(
+  moduleSlug: string,
+): Promise<{ ok: boolean; error?: string; translated?: number }> {
+  const guard = await requireAdminOrModuleOwner(moduleSlug);
+  if (!guard.ok) return { ok: false, error: guard.error };
+  if (DEMO_MODE) return { ok: true, translated: 0 };
+
+  const admin = createAdminClient();
+  const { data: rows } = await admin
+    .from("questions")
+    .select("id")
+    .eq("module_slug", moduleSlug)
+    .in("status", ["approved", "edited"])
+    .is("text_es", null);
+  const ids = ((rows ?? []) as { id: string }[]).map((r) => r.id);
+
+  let done = 0;
+  for (const id of ids) {
+    const r = await translateQuestionToSpanish(id);
+    if (r.ok) done++;
+  }
+  revalidatePath(`/teacher/modules/${moduleSlug}/questions`);
+  revalidatePath(`/admin/questions`);
+  return { ok: true, translated: done };
 }
 
 // ─── Who answered this question (admin/lead drill-down) ────────────────

@@ -33,6 +33,7 @@ import {
   setQuestionPool,
   duplicateQuestionToRetake,
   getQuestionResponders,
+  backfillModuleSpanish,
   type QuestionResponder,
 } from "@/lib/server/ai-actions";
 import { publishModule } from "@/lib/server/module-actions";
@@ -53,6 +54,7 @@ export function TeacherQuestionsView({ mod, initialQuestions }: TeacherQuestions
   const [search, setSearch] = React.useState("");
   const [selected, setSelected] = React.useState<string | null>(initialQuestions[0]?.id ?? null);
   const [generating, setGenerating] = React.useState(false);
+  const [translating, setTranslating] = React.useState(false);
   const [busyId, setBusyId] = React.useState<string | null>(null);
   const [editOpen, setEditOpen] = React.useState(false);
   const [historyOpen, setHistoryOpen] = React.useState(false);
@@ -162,6 +164,27 @@ export function TeacherQuestionsView({ mod, initialQuestions }: TeacherQuestions
     router.refresh();
   }
 
+  async function handleTranslate() {
+    if (DEMO_MODE) {
+      toast.success("Demo mode: skipping Spanish translation (no API call)");
+      return;
+    }
+    setTranslating(true);
+    const toastId = "translate-batch";
+    toast.loading("Translating approved questions to Spanish…", { id: toastId });
+    const res = await backfillModuleSpanish(mod.slug);
+    setTranslating(false);
+    if (!res.ok) {
+      toast.error(res.error ?? "Translation failed", { id: toastId });
+      return;
+    }
+    toast.success(
+      res.translated ? `Translated ${res.translated} question(s) to Spanish` : "All questions already translated",
+      { id: toastId },
+    );
+    router.refresh();
+  }
+
   const counts = {
     all: questions.length,
     pending: questions.filter((q) => q.status === "pending").length,
@@ -184,6 +207,10 @@ export function TeacherQuestionsView({ mod, initialQuestions }: TeacherQuestions
             <Button variant="outline" onClick={handleGenerate} disabled={generating} className="gap-2">
               {generating ? <Loader2 className="size-4 animate-spin" /> : <Sparkles className="size-4 text-[var(--ai)]" />}
               {generating ? "Drafting…" : "Generate questions with AI"}
+            </Button>
+            <Button variant="outline" onClick={handleTranslate} disabled={translating} className="gap-2">
+              {translating ? <Loader2 className="size-4 animate-spin" /> : <Sparkles className="size-4 text-[var(--ai)]" />}
+              {translating ? "Translating…" : "Translate to Spanish"}
             </Button>
             <Button
               onClick={async () => {

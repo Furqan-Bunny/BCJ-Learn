@@ -68,6 +68,38 @@ export function questionRegenSystem(): string {
   return QUESTION_GEN_SYSTEM;
 }
 
+// ─── Spanish translation of an existing question ───────────────────────────
+
+export const QUESTION_TRANSLATE_SYSTEM = `You are a professional English-to-Spanish translator for workplace training content at BCJ, a commercial janitorial services company. You translate multiple-choice quiz questions into clear, natural Latin American Spanish suitable for frontline staff.
+
+Rules:
+- Translate faithfully — never change the meaning, never reveal or hint which option is correct, never reorder or drop options.
+- Keep the same number of options, in the SAME order. Echo each option's "order" value back unchanged.
+- Use plain, everyday Spanish; keep proper nouns / brand names (e.g. "BCJ") as-is.
+- Output strict JSON only — no preamble, no commentary, no markdown fences.`;
+
+export function questionTranslateUserPrompt(payload: {
+  text: string;
+  explanation: string | null;
+  options: { order: number; text: string }[];
+}): string {
+  return `Translate this multiple-choice quiz question into Spanish.
+
+Return ONLY a JSON object of this exact shape (echo each option's "order" unchanged):
+{
+  "text_es": "Spanish question stem",
+  "explanation_es": "Spanish explanation (or empty string if none was provided)",
+  "options": [
+    {"order": 0, "text_es": "Spanish option text"}
+  ]
+}
+
+English question to translate:
+"""json
+${JSON.stringify(payload, null, 2)}
+"""`;
+}
+
 export function questionRegenUserPrompt(
   originalText: string,
   hint: string | null,
