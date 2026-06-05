@@ -41,7 +41,7 @@ import { PageHeader } from "@/components/shared/page-header";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { KpiCard } from "@/components/shared/kpi-card";
 import type { AttemptStatus, QuestionPool, ModuleDef } from "@/types";
-import { fmtPct, fmtDuration, fmtRelative, initials } from "@/lib/format";
+import { fmtPct, fmtDuration, fmtDate, initials } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { exportResultsCsv } from "@/lib/server/export-actions";
@@ -65,6 +65,7 @@ export interface AttemptRow {
   durationSec?: number;
   correctCount: number;
   totalCount: number;
+  attended: boolean;
 }
 
 export function AdminResultsView({ rows, modules }: { rows: AttemptRow[]; modules: ModuleDef[] }) {
@@ -165,14 +166,23 @@ export function AdminResultsView({ rows, modules }: { rows: AttemptRow[]; module
           (value as AttemptStatus[]).length === 0 || (value as AttemptStatus[]).includes(row.original.status),
       },
       {
+        accessorKey: "attended",
+        header: "Attended",
+        cell: ({ row }) => row.original.attended ? (
+          <Badge className="bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-emerald-500/20 text-[10px]">Attended</Badge>
+        ) : (
+          <Badge variant="outline" className="text-[10px] text-muted-foreground">Not checked in</Badge>
+        ),
+      },
+      {
         accessorKey: "durationSec",
-        header: "Time",
+        header: "Time taken",
         cell: ({ row }) => <span className="text-sm text-muted-foreground tabular-nums">{fmtDuration(row.original.durationSec)}</span>,
       },
       {
         accessorKey: "startedAt",
         header: "Date",
-        cell: ({ row }) => <span className="text-sm text-muted-foreground">{fmtRelative(row.original.startedAt)}</span>,
+        cell: ({ row }) => <span className="text-sm text-muted-foreground whitespace-nowrap">{fmtDate(row.original.startedAt, "MMM d · h:mm a")}</span>,
       },
       {
         id: "actions",

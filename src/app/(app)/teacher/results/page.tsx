@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import { getCurrentUserForRole } from "@/lib/supabase/current-user";
-import { listAttemptsForModule } from "@/lib/db/attempts";
+import { listAttemptsForModule, listAttendanceKeys } from "@/lib/db/attempts";
 import { listManagers } from "@/lib/db/profiles";
 import { listModules } from "@/lib/db/modules";
 import { dbClient } from "@/lib/supabase/db-client";
@@ -26,6 +26,7 @@ export default async function TeacherResultsPage() {
 
   const allAttempts = attemptsLists.flat();
   const myModules = allModules.filter((m) => ownedSlugs.includes(m.slug));
+  const attendanceKeys = await listAttendanceKeys();
 
   const managerById = new Map(managers.map((m) => [m.id, m]));
   const moduleBySlug = new Map(myModules.map((m) => [m.slug, m]));
@@ -55,6 +56,7 @@ export default async function TeacherResultsPage() {
         durationSec: a.durationSec,
         correctCount: a.correctCount,
         totalCount: a.totalCount,
+        attended: !!a.deliveryId && attendanceKeys.has(`${a.managerId}:${a.deliveryId}`),
       };
     })
     .filter((x): x is AttemptRow => !!x)

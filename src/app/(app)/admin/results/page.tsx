@@ -1,13 +1,14 @@
-import { listAttempts } from "@/lib/db/attempts";
+import { listAttempts, listAttendanceKeys } from "@/lib/db/attempts";
 import { listManagers } from "@/lib/db/profiles";
 import { listModules } from "@/lib/db/modules";
 import { AdminResultsView, type AttemptRow } from "./results-view";
 
 export default async function AdminResultsPage() {
-  const [attempts, managers, modules] = await Promise.all([
+  const [attempts, managers, modules, attendanceKeys] = await Promise.all([
     listAttempts(),
     listManagers(),
     listModules(),
+    listAttendanceKeys(),
   ]);
 
   const managerById = new Map(managers.map((m) => [m.id, m]));
@@ -39,6 +40,7 @@ export default async function AdminResultsPage() {
         durationSec: a.durationSec,
         correctCount: a.correctCount,
         totalCount: a.totalCount,
+        attended: !!a.deliveryId && attendanceKeys.has(`${a.managerId}:${a.deliveryId}`),
       };
     })
     .filter((x): x is AttemptRow => !!x)

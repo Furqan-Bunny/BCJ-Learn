@@ -15,6 +15,7 @@ interface AttemptRow {
   correct_count: number;
   total_count: number;
   duration_sec: number | null;
+  delivery_id: string | null;
 }
 
 function rowToAttempt(r: AttemptRow): Attempt {
@@ -30,8 +31,20 @@ function rowToAttempt(r: AttemptRow): Attempt {
     correctCount: r.correct_count,
     totalCount: r.total_count,
     durationSec: r.duration_sec ?? undefined,
+    deliveryId: r.delivery_id ?? null,
     answers: [], // loaded separately if needed
   };
+}
+
+/** Set of "<managerId>:<deliveryId>" for everyone who checked in (any delivery). */
+export async function listAttendanceKeys(): Promise<Set<string>> {
+  const sb = await dbClient();
+  const { data } = await sb.from("attendance").select("manager_id, delivery_id");
+  const keys = new Set<string>();
+  for (const r of (data ?? []) as { manager_id: string; delivery_id: string }[]) {
+    keys.add(`${r.manager_id}:${r.delivery_id}`);
+  }
+  return keys;
 }
 
 export async function listAttempts(): Promise<Attempt[]> {

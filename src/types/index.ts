@@ -164,6 +164,8 @@ export interface Attempt {
   correctCount: number;
   totalCount: number;
   durationSec?: number;
+  /** The delivery (seminar run) this attempt belongs to, if any. */
+  deliveryId?: string | null;
   answers: { questionId: string; selectedOptionId: string; correct: boolean }[];
 }
 
