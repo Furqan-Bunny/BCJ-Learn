@@ -7,6 +7,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { CheckCircle2, X, Sparkles, Users, Bell, FileText, AlertTriangle, Search, RotateCcw, UserCheck, Play, Square, LogIn } from "lucide-react";
 import { PageHeader } from "@/components/shared/page-header";
+import { Pagination, pageSlice } from "@/components/ui/pagination";
 import { fmtRelative, fmtDate, initials } from "@/lib/format";
 import { SearchLoadingBar, motion, AnimatePresence } from "@/components/shared/animations";
 import type { ActivityEvent } from "@/types";
@@ -35,12 +36,18 @@ export interface AuditLogViewProps {
   actorsById: Record<string, { id: string; name: string; avatarColor: string; avatarUrl?: string | null }>;
 }
 
+const PER_PAGE = 25;
+
 export function AuditLogView({ events, actorsById }: AuditLogViewProps) {
   const [search, setSearch] = React.useState("");
+  const [page, setPage] = React.useState(0);
   const filtered = events.filter((e) => {
     if (!search) return true;
     return e.message.toLowerCase().includes(search.toLowerCase());
   });
+  // Reset to the first page whenever the search narrows the set.
+  React.useEffect(() => { setPage(0); }, [search]);
+  const shown = pageSlice(filtered, page, PER_PAGE);
 
   return (
     <>
@@ -65,7 +72,7 @@ export function AuditLogView({ events, actorsById }: AuditLogViewProps) {
         <CardContent className="p-0">
           <ul className="divide-y">
             <AnimatePresence initial mode="popLayout">
-              {filtered.slice(0, 30).map((e, idx) => {
+              {shown.map((e, idx) => {
                 const meta = ICONS[e.kind] ?? ICONS.quiz_passed;
                 const actor = actorsById[e.actorId];
                 return (
@@ -109,9 +116,7 @@ export function AuditLogView({ events, actorsById }: AuditLogViewProps) {
         </CardContent>
       </Card>
 
-      <div className="mt-4 text-xs text-muted-foreground text-center">
-        Showing {Math.min(filtered.length, 30)} of {filtered.length} matching events ({events.length} total)
-      </div>
+      <Pagination page={page} total={filtered.length} pageSize={PER_PAGE} onPageChange={setPage} className="mt-4" />
     </>
   );
 }

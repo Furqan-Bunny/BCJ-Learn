@@ -14,7 +14,10 @@ import {
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Pagination, pageSlice } from "@/components/ui/pagination";
 import { fmtRelative } from "@/lib/format";
+
+const INBOX_PER_PAGE = 20;
 import { cn } from "@/lib/utils";
 import {
   markNotificationRead,
@@ -55,6 +58,8 @@ export function NotificationsInboxView({ items: initial, initialUnreadCount }: N
   const [items, setItems] = React.useState(initial);
   const [unreadCount, setUnreadCount] = React.useState(initialUnreadCount);
   const [filter, setFilter] = React.useState<(typeof FILTERS)[number]["id"]>("all");
+  const [page, setPage] = React.useState(0);
+  React.useEffect(() => { setPage(0); }, [filter]);
 
   const filtered = items.filter((i) => {
     if (filter === "all") return true;
@@ -129,7 +134,7 @@ export function NotificationsInboxView({ items: initial, initialUnreadCount }: N
         </Card>
       ) : (
         <ul className="space-y-2">
-          {filtered.map((item) => {
+          {pageSlice(filtered, page, INBOX_PER_PAGE).map((item) => {
             const Icon = KIND_ICON[item.kind];
             return (
               <li key={item.id}>
@@ -184,6 +189,8 @@ export function NotificationsInboxView({ items: initial, initialUnreadCount }: N
           })}
         </ul>
       )}
+
+      <Pagination page={page} total={filtered.length} pageSize={INBOX_PER_PAGE} onPageChange={setPage} className="mt-4" />
     </div>
   );
 }

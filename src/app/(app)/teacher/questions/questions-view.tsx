@@ -11,6 +11,7 @@ import {
   Search, Sparkles, ArrowRight, Filter, X as XIcon, ListChecks, BookOpen, CheckCircle2,
 } from "lucide-react";
 import { PageHeader } from "@/components/shared/page-header";
+import { Pagination, pageSlice } from "@/components/ui/pagination";
 import { StatusBadge } from "@/components/shared/status-badge";
 import type { Question, ModuleDef, QuestionStatus, QuestionPool } from "@/types";
 
@@ -51,6 +52,11 @@ export function TeacherQuestionLibraryView({ myModules, myQuestions }: TeacherQu
       return true;
     });
   }, [myQuestions, moduleSlug, status, pool, search]);
+
+  const PER_PAGE = 20;
+  const [page, setPage] = React.useState(0);
+  React.useEffect(() => { setPage(0); }, [moduleSlug, status, pool, search]);
+  const shown = pageSlice(filtered, page, PER_PAGE);
 
   const activeModule = myModules.find((m) => m.slug === moduleSlug);
   const filtersActive = moduleSlug !== ALL || status !== "all" || pool !== "all" || search !== "";
@@ -181,13 +187,14 @@ export function TeacherQuestionLibraryView({ myModules, myQuestions }: TeacherQu
         </Card>
       ) : (
         <div className="space-y-2">
-          {filtered.slice(0, 50).map((q, i) => {
+          {shown.map((q, i) => {
             const mod = myModules.find((m) => m.slug === q.moduleSlug);
+            const rowNum = page * PER_PAGE + i + 1;
             return (
               <Card key={q.id} className="hover:shadow-sm transition-shadow">
                 <CardContent className="p-4 flex items-start gap-4">
                   <div className="text-[10px] font-mono text-muted-foreground tabular-nums shrink-0 mt-1 w-8 text-right">
-                    {String(i + 1).padStart(3, "0")}
+                    {String(rowNum).padStart(3, "0")}
                   </div>
                   <Sparkles className="size-4 text-[var(--ai)] mt-1 shrink-0" />
                   <div className="flex-1 min-w-0">
@@ -212,11 +219,7 @@ export function TeacherQuestionLibraryView({ myModules, myQuestions }: TeacherQu
               </Card>
             );
           })}
-          {filtered.length > 50 && (
-            <div className="mt-4 text-xs text-muted-foreground text-center py-3 border rounded-lg bg-muted/30">
-              Showing first 50 of {filtered.length} matching questions. Refine your filters to narrow down.
-            </div>
-          )}
+          <Pagination page={page} total={filtered.length} pageSize={PER_PAGE} onPageChange={setPage} className="mt-4" />
         </div>
       )}
     </>

@@ -1,6 +1,8 @@
 "use client";
 
+import * as React from "react";
 import Link from "next/link";
+import { Pagination, pageSlice } from "@/components/ui/pagination";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Calendar, CheckCircle2, XCircle, ArrowUpRight, Clock, History, Target } from "lucide-react";
@@ -40,6 +42,8 @@ export function ManagerProgressView({ me, modules, myAttempts }: ManagerProgress
   const history = [...myAttempts].sort(
     (a, b) => +new Date(b.submittedAt ?? b.startedAt) - +new Date(a.submittedAt ?? a.startedAt),
   );
+  const HISTORY_PER_PAGE = 10;
+  const [historyPage, setHistoryPage] = React.useState(0);
 
   return (
     <>
@@ -87,7 +91,7 @@ export function ManagerProgressView({ me, modules, myAttempts }: ManagerProgress
             </div>
           ) : (
             <ul className="divide-y">
-              {history.map((a) => {
+              {pageSlice(history, historyPage, HISTORY_PER_PAGE).map((a) => {
                 const m = moduleBySlug.get(a.moduleSlug);
                 const passed = a.status === "passed";
                 const when = a.submittedAt ?? a.startedAt;
@@ -124,6 +128,7 @@ export function ManagerProgressView({ me, modules, myAttempts }: ManagerProgress
               })}
             </ul>
           )}
+          <Pagination page={historyPage} total={history.length} pageSize={HISTORY_PER_PAGE} onPageChange={setHistoryPage} />
         </CardContent>
       </Card>
 

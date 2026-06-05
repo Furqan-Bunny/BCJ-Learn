@@ -14,7 +14,10 @@ import { toast } from "sonner";
 import { Stagger, StaggerItem } from "@/components/shared/animations";
 import { sendReminder, sendBulkReminders } from "@/lib/server/reminder-actions";
 import { EmailPreviewDialog } from "@/components/admin/email-preview-dialog";
+import { Pagination, pageSlice } from "@/components/ui/pagination";
 import type { Manager } from "@/types";
+
+const AT_RISK_PER_PAGE = 12;
 
 const FLAG_RULES = [
   { icon: X, title: "Failed twice on a module", description: "Couldn't pass the first attempt or the retake — needs a coaching session." },
@@ -38,6 +41,7 @@ export function AtRiskView({
   const router = useRouter();
   const [showRules, setShowRules] = React.useState(false);
   const [busy, setBusy] = React.useState<string | null>(null);
+  const [page, setPage] = React.useState(0);
   // The admin previews the exact email before it goes out.
   const [pending, setPending] = React.useState<ReminderTarget | null>(null);
 
@@ -115,7 +119,7 @@ export function AtRiskView({
       )}
 
       <Stagger className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4 items-stretch">
-        {list.map((m) => (
+        {pageSlice(list, page, AT_RISK_PER_PAGE).map((m) => (
           <StaggerItem key={m.id} className="h-full">
             <Card className="border-amber-500/30 card-lift h-full flex flex-col">
               <CardContent className="p-5 flex flex-col flex-1">
@@ -180,6 +184,8 @@ export function AtRiskView({
           No employees are currently at risk. Nice work!
         </div>
       )}
+
+      <Pagination page={page} total={list.length} pageSize={AT_RISK_PER_PAGE} onPageChange={setPage} className="mt-6" />
 
       {/* Preview the exact reminder email, then confirm send. */}
       <EmailPreviewDialog
