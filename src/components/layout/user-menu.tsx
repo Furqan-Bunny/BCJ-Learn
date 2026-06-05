@@ -21,10 +21,14 @@ import {
   Sparkles,
   HelpCircle,
   Camera,
+  Languages,
+  Check,
 } from "lucide-react";
 import { useRoleStore } from "@/store/role-store";
 import { useCurrentUser } from "@/lib/supabase/use-user";
 import { createClient } from "@/lib/supabase/client";
+import { setLocale } from "@/lib/server/locale-actions";
+import { useLocale, useT } from "@/lib/i18n/provider";
 import { toast } from "sonner";
 import type { Role } from "@/types";
 
@@ -46,8 +50,18 @@ export function UserMenu() {
   const router = useRouter();
   const logout = useRoleStore((s) => s.logout);
   const { user } = useCurrentUser();
+  const locale = useLocale();
+  const t = useT();
   const fileInputRef = React.useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = React.useState(false);
+
+  async function chooseLocale(next: "en" | "es") {
+    if (next === locale) return;
+    const res = await setLocale(next);
+    if (!res.ok) { toast.error(res.error ?? "Could not change language"); return; }
+    toast.success(t("lang.saved"));
+    router.refresh();
+  }
 
   if (!user) return null;
 
@@ -170,12 +184,30 @@ export function UserMenu() {
           </DropdownMenuItem>
           <DropdownMenuItem onClick={() => router.push("/settings/profile")}>
             <Settings className="mr-2 size-4" />
-            Settings
+            {user.role === "manager" ? t("nav.settings") : "Settings"}
           </DropdownMenuItem>
-          <DropdownMenuItem onClick={() => toast.info("Help center (mocked)")}>
+          <DropdownMenuItem onClick={() => router.push("/help")}>
             <HelpCircle className="mr-2 size-4" />
-            Help &amp; support
+            {user.role === "manager" ? t("nav.help") : "Help & support"}
           </DropdownMenuItem>
+
+          {/* Language switch — employees only (staff screens stay English). */}
+          {user.role === "manager" && (
+            <>
+              <DropdownMenuSeparator />
+              <DropdownMenuLabel className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">
+                <span className="inline-flex items-center gap-1.5"><Languages className="size-3" /> {t("lang.label")}</span>
+              </DropdownMenuLabel>
+              <DropdownMenuItem onClick={() => chooseLocale("en")}>
+                <Check className={`mr-2 size-4 ${locale === "en" ? "opacity-100" : "opacity-0"}`} />
+                {t("lang.english")}
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => chooseLocale("es")}>
+                <Check className={`mr-2 size-4 ${locale === "es" ? "opacity-100" : "opacity-0"}`} />
+                {t("lang.spanish")}
+              </DropdownMenuItem>
+            </>
+          )}
 
           {DEMO_MODE && (
             <>
