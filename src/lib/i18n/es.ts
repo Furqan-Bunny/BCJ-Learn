@@ -356,6 +356,8 @@ export const es: Record<string, string> = {
   "content.prevSlide": "← Diapositiva anterior",
   "content.nextSlide": "Diapositiva siguiente →",
   "content.slideOf": "Diapositiva {i} de {n}",
+  "content.openTab": "Abrir en pestaña nueva",
+  "content.renderingExternally": "Mostrado con el visor en línea de Microsoft.",
 
   // ── resource document viewer (extra) ──
   "doc.loadError": "No se pudo cargar este documento. {error}",

@@ -7,14 +7,13 @@ import {
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
-  PlayCircle, FileText, Layers, Link2, Clock, Download, X, Loader2,
+  PlayCircle, FileText, Layers, Link2, Clock, Download, X, Loader2, ExternalLink,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { LessonContent, ContentType } from "@/types";
 import { signedUrlForContent } from "@/lib/supabase/storage";
 import { saveVideoProgress, getVideoProgress } from "@/lib/server/progress-actions";
 import { useT } from "@/lib/i18n/provider";
-import { DocxPreview } from "@/components/shared/docx-preview";
 
 const TYPE_META: Record<ContentType, { icon: React.ComponentType<{ className?: string }>; label: string; tint: string }> = {
   video:    { icon: PlayCircle, label: "Video",    tint: "text-rose-600 bg-rose-100 dark:text-rose-300 dark:bg-rose-950/40" },
@@ -22,6 +21,14 @@ const TYPE_META: Record<ContentType, { icon: React.ComponentType<{ className?: s
   slides:   { icon: Layers,     label: "Slides",   tint: "text-amber-600 bg-amber-100 dark:text-amber-300 dark:bg-amber-950/40" },
   link:     { icon: Link2,      label: "Link",     tint: "text-violet-600 bg-violet-100 dark:text-violet-300 dark:bg-violet-950/40" },
 };
+
+const VIDEO_EXTS = ["mp4", "webm", "mov", "m4v", "ogg"];
+const IMAGE_EXTS = ["png", "jpg", "jpeg", "gif", "webp", "svg", "bmp", "avif"];
+const OFFICE_EXTS = ["doc", "docx", "ppt", "pptx", "xls", "xlsx", "csv"];
+
+function extOf(content: LessonContent): string {
+  return (content.fileName ?? content.storagePath ?? "").toLowerCase().split(".").pop() ?? "";
+}
 
 interface ContentViewerProps {
   content: LessonContent | null;
@@ -32,7 +39,10 @@ interface ContentViewerProps {
 /** Read-only viewer used by managers for OPTIONAL pre-study (per scope §5.1.3). */
 export function ContentViewer({ content, onClose, moduleSlug }: ContentViewerProps) {
   const t = useT();
-  // External links open in a new tab — no need for a modal
+  const [url, setUrl] = React.useState<string | null>(null);
+  const [error, setError] = React.useState<string | null>(null);
+
+  // External links open in a new tab — no need for a modal.
   React.useEffect(() => {
     if (content && content.type === "link" && content.externalUrl) {
       window.open(content.externalUrl, "_blank", "noopener,noreferrer");
@@ -40,28 +50,62 @@ export function ContentViewer({ content, onClose, moduleSlug }: ContentViewerPro
     }
   }, [content, onClose]);
 
+  // Generate a short-lived signed URL for any stored file.
+  React.useEffect(() => {
+    let cancelled = false;
+    setUrl(null);
+    setError(null);
+    const path = content?.storagePath;
+    if (!path) return;
+    signedUrlForContent(path)
+      .then((u) => { if (!cancelled) setUrl(u); })
+      .catch((e: Error) => { if (!cancelled) setError(e.message); });
+    return () => { cancelled = true; };
+  }, [content?.storagePath]);
+
   if (!content || content.type === "link") return null;
 
   const meta = TYPE_META[content.type];
   const Icon = meta.icon;
+  const ext = extOf(content);
+  const isOffice = OFFICE_EXTS.includes(ext);
+  const fileName = content.fileName ?? content.storagePath?.split("/").pop() ?? undefined;
 
   return (
     <Dialog open={true} onOpenChange={(o) => !o && onClose()}>
-      <DialogContent showCloseButton={false} className="max-w-4xl max-h-[90vh] p-0 overflow-hidden flex flex-col">
+      <DialogContent
+        showCloseButton={false}
+        className="max-w-6xl w-[96vw] h-[92vh] p-0 gap-0 overflow-hidden flex flex-col"
+      >
         {/* Header */}
-        <div className="px-6 py-4 border-b flex items-center gap-3">
-          <span className={cn("size-9 rounded-md flex items-center justify-center shrink-0", meta.tint)}>
+        <div className="px-5 py-3 border-b flex items-center gap-3 bg-card">
+          <span className={cn("size-9 rounded-lg flex items-center justify-center shrink-0", meta.tint)}>
             <Icon className="size-4" />
           </span>
           <div className="flex-1 min-w-0">
-            <Badge variant="outline" className="text-[10px] uppercase tracking-wider mb-1">
+            <Badge variant="outline" className="text-[10px] uppercase tracking-wider mb-0.5">
               {t(("type." + content.type) as Parameters<typeof t>[0])} · {t("content.optionalPreStudy")}
             </Badge>
-            <DialogTitle className="text-lg truncate">{content.title}</DialogTitle>
+            <DialogTitle className="text-base md:text-lg truncate leading-tight">{content.title}</DialogTitle>
           </div>
           {content.durationMinutes && (
             <div className="text-xs text-muted-foreground flex items-center gap-1.5 shrink-0">
               <Clock className="size-3.5" /> {content.durationMinutes} {t("common.minutes")}
+            </div>
+          )}
+          {/* Stored-file actions */}
+          {url && (
+            <div className="hidden sm:flex items-center gap-1.5 shrink-0">
+              <Button asChild variant="outline" size="sm" className="h-8 gap-1.5">
+                <a href={url} download={fileName} target="_blank" rel="noreferrer">
+                  <Download className="size-3.5" /> {t("common.download")}
+                </a>
+              </Button>
+              <Button asChild variant="ghost" size="sm" className="h-8 gap-1.5">
+                <a href={url} target="_blank" rel="noreferrer">
+                  <ExternalLink className="size-3.5" /> {t("content.openTab")}
+                </a>
+              </Button>
             </div>
           )}
           <Button variant="ghost" size="icon" onClick={onClose} className="size-8 shrink-0">
@@ -69,14 +113,24 @@ export function ContentViewer({ content, onClose, moduleSlug }: ContentViewerPro
           </Button>
         </div>
 
-        {/* Body */}
-        <div className="overflow-y-auto flex-1">
-          {/* Uploaded file (any type) — generate a signed URL and render
-             appropriately. Falls back to legacy fields if no storage path. */}
+        {/* Body — fills the modal; each preview type stretches to full height. */}
+        <div className="flex-1 min-h-0 bg-neutral-100 dark:bg-neutral-900/50">
           {content.storagePath ? (
-            <StoredFileViewer content={content} moduleSlug={moduleSlug} />
+            error ? (
+              <Centered>
+                <div className="text-sm text-muted-foreground">{t("content.loadError", { error })}</div>
+              </Centered>
+            ) : !url ? (
+              <Centered>
+                <div className="text-sm text-muted-foreground flex items-center gap-2">
+                  <Loader2 className="size-4 animate-spin" /> {t("content.preparing")}
+                </div>
+              </Centered>
+            ) : (
+              <StoredFilePreview content={content} url={url} ext={ext} moduleSlug={moduleSlug} fileName={fileName} />
+            )
           ) : (
-            <>
+            <div className="h-full overflow-y-auto">
               {content.type === "video" && content.videoUrl && (
                 <div className="aspect-video bg-black">
                   <iframe
@@ -89,91 +143,81 @@ export function ContentViewer({ content, onClose, moduleSlug }: ContentViewerPro
                   />
                 </div>
               )}
-
-              {content.type === "document" && (
-                <DocumentReader pages={content.documentPages ?? []} />
-              )}
-
-              {content.type === "slides" && (
-                <SlideViewer slides={content.slides ?? []} />
-              )}
-            </>
+              {content.type === "document" && <DocumentReader pages={content.documentPages ?? []} />}
+              {content.type === "slides" && <SlideViewer slides={content.slides ?? []} />}
+            </div>
           )}
         </div>
 
         {/* Footer hint */}
-        <div className="px-6 py-3 border-t text-xs text-muted-foreground bg-muted/40">
-          {t("content.optionalDisclaimer")}
+        <div className="px-5 py-2.5 border-t text-xs text-muted-foreground bg-card flex items-center gap-2">
+          <span className="truncate">{t("content.optionalDisclaimer")}</span>
+          {isOffice && url && (
+            <span className="ml-auto shrink-0 hidden md:inline opacity-70">{t("content.renderingExternally")}</span>
+          )}
         </div>
       </DialogContent>
     </Dialog>
   );
 }
 
+function Centered({ children }: { children: React.ReactNode }) {
+  return <div className="h-full flex items-center justify-center p-12 text-center">{children}</div>;
+}
+
 /**
- * Renders a content item that lives in Supabase Storage. Generates a
- * short-lived signed URL on open. PDFs/MP4s embed inline; binary formats
- * (Word, PowerPoint) fall back to a download button.
+ * Universal preview for a file in Supabase Storage. Native inline for
+ * PDF / video / images; Office formats (Word, PowerPoint, Excel) render through
+ * Microsoft's online viewer; anything else offers a download.
  */
-function StoredFileViewer({ content, moduleSlug }: { content: LessonContent; moduleSlug?: string }) {
+function StoredFilePreview({
+  content,
+  url,
+  ext,
+  moduleSlug,
+  fileName,
+}: {
+  content: LessonContent;
+  url: string;
+  ext: string;
+  moduleSlug?: string;
+  fileName?: string;
+}) {
   const t = useT();
-  const [url, setUrl] = React.useState<string | null>(null);
-  const [error, setError] = React.useState<string | null>(null);
 
-  React.useEffect(() => {
-    let cancelled = false;
-    if (!content.storagePath) return;
-    signedUrlForContent(content.storagePath)
-      .then((u) => { if (!cancelled) setUrl(u); })
-      .catch((e: Error) => { if (!cancelled) setError(e.message); });
-    return () => { cancelled = true; };
-  }, [content.storagePath]);
-
-  if (error) {
-    return (
-      <div className="p-12 text-center text-sm text-muted-foreground">
-        {t("content.loadError", { error })}
-      </div>
-    );
-  }
-  if (!url) {
-    return (
-      <div className="p-12 text-center text-sm text-muted-foreground flex items-center justify-center gap-2">
-        <Loader2 className="size-4 animate-spin" /> {t("content.preparing")}
-      </div>
-    );
-  }
-
-  const ext = (content.fileName ?? "").toLowerCase().split(".").pop() ?? "";
-  const isPdf = ext === "pdf";
-  const isMp4 = ext === "mp4" || ext === "webm" || ext === "mov";
-  const isDocx = ext === "docx";
-
-  if (content.type === "video" && isMp4) {
+  if (VIDEO_EXTS.includes(ext)) {
     return <VideoPlayer url={url} contentId={content.id} moduleSlug={moduleSlug} />;
   }
-  if (isPdf) {
+  if (ext === "pdf") {
+    return <iframe src={url} loading="lazy" className="w-full h-full border-0 bg-white" title={content.title} />;
+  }
+  if (IMAGE_EXTS.includes(ext)) {
     return (
-      <iframe src={url} loading="lazy" className="w-full h-[70vh] bg-white" title={content.title} />
+      <div className="h-full overflow-auto flex items-center justify-center p-4">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src={url} alt={content.title} className="max-w-full max-h-full object-contain rounded-md shadow-sm" />
+      </div>
     );
   }
-  // Word .docx — render inline (converted to HTML), no download needed.
-  if (isDocx) {
-    return <DocxPreview url={url} fileName={content.fileName} />;
+  if (OFFICE_EXTS.includes(ext)) {
+    const office = `https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(url)}`;
+    return <iframe src={office} loading="lazy" className="w-full h-full border-0 bg-white" title={content.title} />;
   }
-  // Older .doc / PowerPoint / other — no inline preview; give a download link.
+  // Unknown binary — offer a download.
   return (
-    <div className="p-12 text-center">
-      <FileText className="size-12 mx-auto opacity-40 mb-3" />
-      <div className="text-sm text-muted-foreground mb-4">
-        {t("content.previewUnavailable", { name: content.fileName ?? t("content.uploadedFile") })}
+    <Centered>
+      <div>
+        <FileText className="size-12 mx-auto opacity-40 mb-3" />
+        <div className="text-sm text-muted-foreground mb-4">
+          {t("content.previewUnavailable", { name: fileName ?? t("content.uploadedFile") })}
+        </div>
+        <Button asChild>
+          <a href={url} download={fileName} target="_blank" rel="noreferrer">
+            <Download className="size-4 mr-1.5" /> {t("common.download")}
+          </a>
+        </Button>
       </div>
-      <Button asChild>
-        <a href={url} download={content.fileName ?? undefined} target="_blank" rel="noreferrer">
-          <Download className="size-4 mr-1.5" /> {t("common.download")}
-        </a>
-      </Button>
-    </div>
+    </Centered>
   );
 }
 
@@ -219,12 +263,12 @@ function VideoPlayer({ url, contentId, moduleSlug }: { url: string; contentId: s
   }
 
   return (
-    <div className="aspect-video bg-black">
+    <div className="h-full bg-black flex items-center justify-center">
       <video
         ref={ref}
         src={url}
         controls
-        className="w-full h-full"
+        className="max-w-full max-h-full"
         onLoadedMetadata={() => { metaReady.current = true; trySeek(); }}
         onTimeUpdate={() => { if (Date.now() - lastSaved.current > 10000) persist(); }}
         onPause={persist}
@@ -241,7 +285,7 @@ function DocumentReader({ pages }: { pages: string[] }) {
   const lines = text.split("\n").filter(Boolean);
   return (
     <div>
-      <div className="px-8 py-8 prose prose-sm max-w-none dark:prose-invert min-h-[400px]">
+      <div className="px-8 py-8 help-doc max-w-none min-h-[400px] bg-card mx-auto max-w-3xl my-6 rounded-lg border shadow-sm">
         {lines.map((line, i) => {
           if (line.startsWith("## ")) return <h3 key={i} className="text-xl font-bold mt-6 mb-3">{line.slice(3)}</h3>;
           if (line.startsWith("# ")) return <h2 key={i} className="text-2xl font-bold mb-4">{line.slice(2)}</h2>;
@@ -249,7 +293,7 @@ function DocumentReader({ pages }: { pages: string[] }) {
         })}
       </div>
       {pages.length > 1 && (
-        <div className="flex items-center justify-between px-6 py-3 border-t bg-muted/30">
+        <div className="flex items-center justify-between px-6 py-3 border-t bg-card">
           <Button variant="ghost" size="sm" disabled={pageIdx === 0} onClick={() => setPageIdx((i) => Math.max(0, i - 1))}>
             {t("content.prevPage")}
           </Button>
@@ -269,8 +313,8 @@ function SlideViewer({ slides }: { slides: { title: string; bullets: string[] }[
   const slide = slides[idx];
   if (!slide) return null;
   return (
-    <div>
-      <div className="aspect-[16/9] bg-gradient-to-br from-primary via-primary/85 to-primary/70 text-primary-foreground p-12 flex flex-col overflow-hidden">
+    <div className="p-6">
+      <div className="aspect-[16/9] bg-gradient-to-br from-primary via-primary/85 to-primary/70 text-primary-foreground p-12 flex flex-col overflow-hidden rounded-xl shadow-lg max-w-4xl mx-auto">
         <div className="text-2xl md:text-3xl font-bold tracking-tight mb-6 shrink-0">{slide.title}</div>
         <ul className="space-y-3 text-lg overflow-y-auto pr-2">
           {slide.bullets.map((b, i) => (
@@ -281,7 +325,7 @@ function SlideViewer({ slides }: { slides: { title: string; bullets: string[] }[
           ))}
         </ul>
       </div>
-      <div className="flex items-center justify-between px-6 py-3 border-t bg-muted/30">
+      <div className="flex items-center justify-between px-6 py-4 max-w-4xl mx-auto">
         <Button variant="ghost" size="sm" disabled={idx === 0} onClick={() => setIdx((i) => Math.max(0, i - 1))}>
           {t("content.prevSlide")}
         </Button>

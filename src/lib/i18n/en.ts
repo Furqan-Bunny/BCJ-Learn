@@ -356,6 +356,8 @@ export const en: Record<string, string> = {
   "content.prevSlide": "← Previous slide",
   "content.nextSlide": "Next slide →",
   "content.slideOf": "Slide {i} of {n}",
+  "content.openTab": "Open in new tab",
+  "content.renderingExternally": "Rendered with Microsoft's online viewer.",
 
   // ── resource document viewer (extra) ──
   "doc.loadError": "Could not load this document. {error}",

@@ -9,7 +9,10 @@ import { Button } from "@/components/ui/button";
 import { FileText, Loader2, Download, ExternalLink } from "lucide-react";
 import { signedUrlForContent } from "@/lib/supabase/storage";
 import { useT } from "@/lib/i18n/provider";
-import { DocxPreview } from "@/components/shared/docx-preview";
+
+const VIDEO_EXTS = ["mp4", "webm", "mov", "m4v", "ogg"];
+const IMAGE_EXTS = ["png", "jpg", "jpeg", "gif", "webp", "svg", "bmp", "avif"];
+const OFFICE_EXTS = ["doc", "docx", "ppt", "pptx", "xls", "xlsx", "csv"];
 
 export interface ResourceDocViewerResource {
   title: string;
@@ -34,12 +37,14 @@ export function ResourceDocViewer({ resource }: { resource: ResourceDocViewerRes
     return () => { cancelled = true; };
   }, [resource.storagePath]);
 
-  // 1) Stored file (PDF / video / other) takes priority.
+  // 1) Stored file (PDF / video / image / Office / other) takes priority.
   if (resource.storagePath) {
+    const fileName = resource.storagePath.split("/").pop();
     const ext = resource.storagePath.toLowerCase().split(".").pop() ?? "";
     const isPdf = ext === "pdf";
-    const isVideo = ext === "mp4" || ext === "webm" || ext === "mov";
-    const isDocx = ext === "docx";
+    const isVideo = VIDEO_EXTS.includes(ext);
+    const isImage = IMAGE_EXTS.includes(ext);
+    const isOffice = OFFICE_EXTS.includes(ext);
 
     if (error) {
       return (
@@ -55,25 +60,55 @@ export function ResourceDocViewer({ resource }: { resource: ResourceDocViewerRes
         </div>
       );
     }
+
+    // A small toolbar (Download + Open) shared above every inline preview.
+    const toolbar = (
+      <div className="flex justify-end gap-1.5 mb-2">
+        <Button asChild variant="outline" size="sm" className="h-7 gap-1 text-xs">
+          <a href={url} download={fileName} target="_blank" rel="noreferrer">
+            <Download className="size-3.5" /> {t("common.download")}
+          </a>
+        </Button>
+        <Button asChild variant="ghost" size="sm" className="h-7 gap-1 text-xs">
+          <a href={url} target="_blank" rel="noreferrer">
+            <ExternalLink className="size-3.5" /> {t("content.openTab")}
+          </a>
+        </Button>
+      </div>
+    );
+
     if (isPdf) {
-      return <iframe src={url} loading="lazy" className="w-full h-[60vh] rounded-lg border bg-white" title={resource.title} />;
+      return <div>{toolbar}<iframe src={url} loading="lazy" className="w-full h-[65vh] rounded-lg border bg-white" title={resource.title} /></div>;
     }
     if (isVideo) {
-      return <video src={url} controls className="w-full rounded-lg border bg-black" />;
+      return <div>{toolbar}<video src={url} controls className="w-full rounded-lg border bg-black" /></div>;
     }
-    if (isDocx) {
+    if (isImage) {
       return (
-        <div className="rounded-lg border max-h-[60vh] overflow-y-auto">
-          <DocxPreview url={url} fileName={resource.storagePath.split("/").pop()} />
+        <div>{toolbar}
+          <div className="rounded-lg border bg-muted/20 p-4 flex items-center justify-center max-h-[65vh] overflow-auto">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={url} alt={resource.title} className="max-w-full max-h-[60vh] object-contain rounded-md" />
+          </div>
         </div>
       );
     }
+    if (isOffice) {
+      const office = `https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(url)}`;
+      return (
+        <div>{toolbar}
+          <iframe src={office} loading="lazy" className="w-full h-[65vh] rounded-lg border bg-white" title={resource.title} />
+          <div className="text-[11px] text-muted-foreground mt-1.5 text-right">{t("content.renderingExternally")}</div>
+        </div>
+      );
+    }
+    // Unknown binary — offer a download.
     return (
       <div className="rounded-lg border bg-muted/30 p-8 text-center">
         <FileText className="size-10 mx-auto opacity-40 mb-3" />
         <div className="text-sm text-muted-foreground mb-4">{t("doc.noPreview")}</div>
         <Button asChild>
-          <a href={url} download target="_blank" rel="noreferrer">
+          <a href={url} download={fileName} target="_blank" rel="noreferrer">
             <Download className="size-4 mr-1.5" /> {t("common.download")}
           </a>
         </Button>
