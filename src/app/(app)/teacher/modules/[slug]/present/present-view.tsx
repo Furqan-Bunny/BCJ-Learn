@@ -7,14 +7,22 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
   ArrowLeft, ArrowRight, Play, Pause, FileText, PlayCircle, Layers, Link2, Clock,
-  Maximize2, Minimize2, GraduationCap,
+  Maximize2, Minimize2, GraduationCap, Download, Loader2,
 } from "lucide-react";
 import type { ContentType, LessonContent, ModuleDef } from "@/types";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { startSession as startSessionAction, endSession as endSessionAction } from "@/lib/server/module-actions";
 import { recordContentView } from "@/lib/server/content-views";
+import { signedUrlForContent } from "@/lib/supabase/storage";
 import { CheckinLobby } from "./checkin-lobby";
+
+// Presentation shows the lead's ACTUAL uploaded file (no AI extraction) whenever
+// one exists. Native inline for video/PDF/images; Office formats via Microsoft's
+// online viewer; anything else offers a download.
+const RAW_VIDEO_EXTS = ["mp4", "webm", "mov", "m4v", "ogg"];
+const RAW_IMAGE_EXTS = ["png", "jpg", "jpeg", "gif", "webp", "svg", "bmp", "avif"];
+const RAW_OFFICE_EXTS = ["doc", "docx", "ppt", "pptx", "xls", "xlsx", "csv"];
 
 const TYPE_META: Record<ContentType, { icon: React.ComponentType<{ className?: string }>; label: string; tint: string }> = {
   video:    { icon: PlayCircle, label: "Video",    tint: "text-rose-400 bg-rose-500/15" },
@@ -419,6 +427,11 @@ function ContentStage({
       )}
 
       <div className="rounded-xl border border-white/10 bg-slate-900/50 overflow-hidden">
+        {/* The lead's actual uploaded file takes priority — shown exactly as-is. */}
+        {content.storagePath ? (
+          <StoredFilePresenter content={content} autoplay={autoplay} onVideoEnd={onVideoEnd} />
+        ) : (
+          <>
         {content.type === "video" && content.videoUrl && (
           /youtube\.com|youtu\.be|vimeo\.com/i.test(content.videoUrl) ? (
             <YouTubePresenter
@@ -468,6 +481,8 @@ function ContentStage({
             </div>
           </div>
         )}
+          </>
+        )}
       </div>
 
       {content.fileName && (
@@ -481,6 +496,88 @@ function ContentStage({
           )}
         </div>
       )}
+    </div>
+  );
+}
+
+/**
+ * Presents the lead's ACTUAL uploaded file — exactly as uploaded, no AI
+ * extraction. Native inline for video/PDF/images; Office formats (Word /
+ * PowerPoint / Excel) through Microsoft's online viewer; else a download.
+ */
+function StoredFilePresenter({
+  content,
+  autoplay,
+  onVideoEnd,
+}: {
+  content: LessonContent;
+  autoplay: boolean;
+  onVideoEnd: () => void;
+}) {
+  const [url, setUrl] = React.useState<string | null>(null);
+  const [error, setError] = React.useState<string | null>(null);
+
+  React.useEffect(() => {
+    let cancelled = false;
+    setUrl(null);
+    setError(null);
+    const path = content.storagePath;
+    if (!path) return;
+    signedUrlForContent(path)
+      .then((u) => { if (!cancelled) setUrl(u); })
+      .catch((e: Error) => { if (!cancelled) setError(e.message); });
+    return () => { cancelled = true; };
+  }, [content.storagePath]);
+
+  if (error) {
+    return <div className="p-12 text-center text-sm text-slate-400">Couldn&apos;t load this file. {error}</div>;
+  }
+  if (!url) {
+    return (
+      <div className="p-12 text-center text-sm text-slate-400 flex items-center justify-center gap-2">
+        <Loader2 className="size-4 animate-spin" /> Preparing…
+      </div>
+    );
+  }
+
+  const ext = (content.fileName ?? content.storagePath ?? "").toLowerCase().split(".").pop() ?? "";
+
+  if (RAW_VIDEO_EXTS.includes(ext)) {
+    return (
+      <video
+        key={url}
+        src={url}
+        controls
+        autoPlay={autoplay}
+        onEnded={onVideoEnd}
+        className="w-full aspect-video bg-black"
+      />
+    );
+  }
+  if (ext === "pdf") {
+    return <iframe src={url} loading="lazy" className="w-full h-[72vh] border-0 bg-white" title={content.title} />;
+  }
+  if (RAW_IMAGE_EXTS.includes(ext)) {
+    return (
+      <div className="bg-slate-950 flex items-center justify-center p-4 max-h-[72vh] overflow-auto">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src={url} alt={content.title} className="max-w-full max-h-[68vh] object-contain" />
+      </div>
+    );
+  }
+  if (RAW_OFFICE_EXTS.includes(ext)) {
+    const office = `https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(url)}`;
+    return <iframe src={office} loading="lazy" className="w-full h-[72vh] border-0 bg-white" title={content.title} />;
+  }
+  return (
+    <div className="p-12 text-center">
+      <FileText className="size-12 mx-auto text-slate-500 mb-3" />
+      <div className="text-sm text-slate-300 mb-4">{content.fileName ?? "Uploaded file"}</div>
+      <Button asChild>
+        <a href={url} download={content.fileName ?? undefined} target="_blank" rel="noreferrer">
+          <Download className="size-4 mr-1.5" /> Download
+        </a>
+      </Button>
     </div>
   );
 }
