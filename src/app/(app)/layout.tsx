@@ -4,12 +4,16 @@ import { RouteTransition } from "@/components/layout/route-transition";
 import { RouteProgress } from "@/components/layout/route-progress";
 import { NavLoaderOverlay } from "@/components/layout/nav-loader-overlay";
 import { WelcomeModal } from "@/components/onboarding/welcome-modal";
+import { SignupGate } from "@/components/onboarding/signup-gate";
 import { getCurrentUser } from "@/lib/supabase/current-user";
 import { listMyNotifications, getMyUnreadCount } from "@/lib/db/notifications";
+import { listOutstandingSignupAcks } from "@/lib/db/resources";
 import { getBrandingSettings } from "@/lib/db/settings";
 import { resolveBrandingLogoUrl, buildBrandingCss } from "@/lib/branding";
 import { LocaleProvider } from "@/lib/i18n/provider";
 import { LanguageFab } from "@/components/shared/language-fab";
+
+const DEMO_MODE = process.env.NEXT_PUBLIC_DEMO_MODE === "true";
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const user = await getCurrentUser();
@@ -22,6 +26,18 @@ export default async function AppLayout({ children }: { children: React.ReactNod
 
   // Only employees switch to Spanish; staff (admin/teacher) stay in English.
   const locale = user?.role === "manager" && user.locale === "es" ? "es" : "en";
+
+  // Onboarding gate: block the app shell until any sign-up resources are signed.
+  // Skipped in demo mode (acknowledgements aren't persisted there).
+  const signupResources = user && !DEMO_MODE ? await listOutstandingSignupAcks() : [];
+  if (signupResources.length > 0 && user) {
+    return (
+      <LocaleProvider locale={locale}>
+        {brandingCss && <style dangerouslySetInnerHTML={{ __html: brandingCss }} />}
+        <SignupGate resources={signupResources} userName={user.name} logoUrl={logoUrl} />
+      </LocaleProvider>
+    );
+  }
 
   return (
     <LocaleProvider locale={locale}>

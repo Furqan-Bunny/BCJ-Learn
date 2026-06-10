@@ -5,6 +5,9 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   Users,
@@ -21,6 +24,8 @@ import {
   Play,
   Square,
   LogIn,
+  Calendar,
+  ChevronDown,
 } from "lucide-react";
 import { PageHeader } from "@/components/shared/page-header";
 import { KpiCard } from "@/components/shared/kpi-card";
@@ -37,7 +42,8 @@ import {
   PieChart,
   Pie,
 } from "recharts";
-import { fmtRelative, initials } from "@/lib/format";
+import { fmtRelative, fmtDate, initials } from "@/lib/format";
+import { cn } from "@/lib/utils";
 import { Stagger, StaggerItem, motion } from "@/components/shared/animations";
 import type { Manager, Teacher, Admin, ActivityEvent } from "@/types";
 
@@ -75,6 +81,9 @@ interface AdminDashboardViewProps {
   atRisk: Manager[];
   recentActivity: ActivityEvent[];
   allUsers: (Manager | Teacher | Admin)[];
+  /** Active date-range filter (YYYY-MM-DD). Empty string = all time. */
+  from: string;
+  to: string;
 }
 
 export function AdminDashboardView({
@@ -84,15 +93,67 @@ export function AdminDashboardView({
   atRisk,
   recentActivity,
   allUsers,
+  from,
+  to,
 }: AdminDashboardViewProps) {
   const router = useRouter();
 
-  // Click a module's bar → drill into that module's attempts.
-  const onBarClick = (state: unknown) => {
-    const slug = (state as { activePayload?: { payload?: { slug?: string } }[] } | null)
-      ?.activePayload?.[0]?.payload?.slug;
+  // Click a module's bar → drill into that module's attempts. Handles both a
+  // Bar-level datum (payload/slug) and the chart-level state (activePayload) so
+  // the click registers reliably when the bar itself is clicked.
+  const onBarClick = (data: unknown) => {
+    const d = data as {
+      slug?: string;
+      payload?: { slug?: string };
+      activePayload?: { payload?: { slug?: string } }[];
+    };
+    const slug = d?.slug ?? d?.payload?.slug ?? d?.activePayload?.[0]?.payload?.slug;
     if (slug) router.push(`/admin/results?module=${slug}`);
   };
+
+  // Click a pie slice → drill into the people with that status.
+  const onPieClick = (d: unknown) => {
+    const e = d as { status?: string; payload?: { status?: string } };
+    const status = e?.status ?? e?.payload?.status;
+    if (!status) return;
+    router.push(status === "at-risk" ? "/admin/at-risk" : `/admin/managers?status=${status}`);
+  };
+
+  // ─── Date-range dropdown ───────────────────────────────────────────────
+  // A single compact dropdown in the header holds the presets + a custom range.
+  const [rangeOpen, setRangeOpen] = React.useState(false);
+  const [customFrom, setCustomFrom] = React.useState(from);
+  const [customTo, setCustomTo] = React.useState(to);
+  React.useEffect(() => { setCustomFrom(from); setCustomTo(to); }, [from, to]);
+
+  const isoDate = (d: Date) => d.toISOString().slice(0, 10);
+  function applyRange(nextFrom: string, nextTo: string) {
+    const params = new URLSearchParams();
+    if (nextFrom) params.set("from", nextFrom);
+    if (nextTo) params.set("to", nextTo);
+    const qs = params.toString();
+    setRangeOpen(false);
+    router.push(qs ? `/admin/dashboard?${qs}` : "/admin/dashboard");
+  }
+  function applyPreset(kind: "all" | "year" | "d90" | "d30") {
+    if (kind === "all") return applyRange("", "");
+    const now = new Date();
+    if (kind === "year") return applyRange(`${now.getFullYear()}-01-01`, `${now.getFullYear()}-12-31`);
+    const days = kind === "d90" ? 90 : 30;
+    return applyRange(isoDate(new Date(now.getTime() - days * 24 * 3600 * 1000)), isoDate(now));
+  }
+  const PRESETS: { key: "all" | "year" | "d90" | "d30"; label: string }[] = [
+    { key: "all", label: "All time" },
+    { key: "year", label: "This year" },
+    { key: "d90", label: "Last 90 days" },
+    { key: "d30", label: "Last 30 days" },
+  ];
+  const fmtRange = (s: string) => fmtDate(s, "MMM d, yyyy");
+  const rangeLabel = !from && !to
+    ? "All time"
+    : from && to ? `${fmtRange(from)} – ${fmtRange(to)}`
+    : from ? `From ${fmtRange(from)}`
+    : `Until ${fmtRange(to)}`;
 
   return (
     <>
@@ -101,11 +162,64 @@ export function AdminDashboardView({
         title="Program health"
         description="Live overview of every Employee, every module, and every score across the BCJ training program."
         actions={
-          <Button asChild variant="outline">
-            <Link href="/admin/reports">
-              <FileText className="mr-2 size-4" /> Export report
-            </Link>
-          </Button>
+          <div className="flex items-center gap-2">
+            <Popover open={rangeOpen} onOpenChange={setRangeOpen}>
+              <PopoverTrigger asChild>
+                <Button variant="outline">
+                  <Calendar className="mr-2 size-4" />
+                  <span className="max-w-[180px] truncate">{rangeLabel}</span>
+                  <ChevronDown className="ml-2 size-4 opacity-60" />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent align="end" className="w-72 p-0 gap-0 overflow-hidden">
+                <div className="p-2">
+                  <div className="px-2 pb-1.5 text-[11px] font-medium uppercase tracking-wider text-muted-foreground">Quick ranges</div>
+                  <div className="grid grid-cols-2 gap-1">
+                    {PRESETS.map((p) => {
+                      const active = p.key === "all" && !from && !to;
+                      return (
+                        <button
+                          key={p.key}
+                          type="button"
+                          onClick={() => applyPreset(p.key)}
+                          className={cn(
+                            "rounded-md px-2.5 py-1.5 text-sm text-left transition-colors",
+                            active ? "bg-primary text-primary-foreground" : "hover:bg-accent",
+                          )}
+                        >
+                          {p.label}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+                <div className="border-t p-3 space-y-2">
+                  <div className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">Custom range</div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div className="space-y-1">
+                      <Label className="text-[11px] text-muted-foreground">From</Label>
+                      <Input type="date" value={customFrom} max={customTo || undefined} onChange={(e) => setCustomFrom(e.target.value)} className="h-9" />
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-[11px] text-muted-foreground">To</Label>
+                      <Input type="date" value={customTo} min={customFrom || undefined} onChange={(e) => setCustomTo(e.target.value)} className="h-9" />
+                    </div>
+                  </div>
+                  <Button size="sm" className="w-full" disabled={!customFrom && !customTo} onClick={() => applyRange(customFrom, customTo)}>
+                    Apply range
+                  </Button>
+                  <p className="text-[11px] text-muted-foreground leading-snug">
+                    Applies to pass rate, average score &amp; module performance. Employee status and cohorts always show the current snapshot.
+                  </p>
+                </div>
+              </PopoverContent>
+            </Popover>
+            <Button asChild variant="outline">
+              <Link href="/admin/reports">
+                <FileText className="mr-2 size-4" /> Export report
+              </Link>
+            </Button>
+          </div>
         }
       />
 
@@ -131,8 +245,8 @@ export function AdminDashboardView({
                   <YAxis stroke="var(--muted-foreground)" fontSize={11} allowDecimals={false} />
                   <Tooltip contentStyle={{ background: "var(--card)", border: "1px solid var(--border)", borderRadius: 8 }} labelFormatter={(v) => `Module ${v}`} />
                   <Legend wrapperStyle={{ fontSize: 12 }} />
-                  <Bar dataKey="passed" stackId="r" fill="var(--success)" name="Passed" radius={[0, 0, 0, 0]} />
-                  <Bar dataKey="failed" stackId="r" fill="var(--warning)" name="Failed" radius={[6, 6, 0, 0]} />
+                  <Bar dataKey="passed" stackId="r" fill="var(--success)" name="Passed" radius={[0, 0, 0, 0]} onClick={onBarClick} className="cursor-pointer" />
+                  <Bar dataKey="failed" stackId="r" fill="var(--warning)" name="Failed" radius={[6, 6, 0, 0]} onClick={onBarClick} className="cursor-pointer" />
                 </BarChart>
               </ResponsiveContainer>
             </div>
@@ -149,15 +263,17 @@ export function AdminDashboardView({
                 <PieChart>
                   <Pie
                     data={[
-                      { name: "Active", value: stats.activeManagers, fill: "var(--chart-1)" },
-                      { name: "Completed", value: stats.completed, fill: "var(--success)" },
-                      { name: "At-risk", value: stats.atRisk, fill: "var(--warning)" },
-                      { name: "Inactive", value: stats.totalManagers - stats.activeManagers - stats.completed - stats.atRisk, fill: "var(--muted-foreground)" },
+                      { name: "Active", value: stats.activeManagers, fill: "var(--chart-1)", status: "active" },
+                      { name: "Completed", value: stats.completed, fill: "var(--success)", status: "completed" },
+                      { name: "At-risk", value: stats.atRisk, fill: "var(--warning)", status: "at-risk" },
+                      { name: "Inactive", value: stats.totalManagers - stats.activeManagers - stats.completed - stats.atRisk, fill: "var(--muted-foreground)", status: "inactive" },
                     ]}
                     dataKey="value"
                     innerRadius={45}
                     outerRadius={70}
                     paddingAngle={2}
+                    onClick={onPieClick}
+                    className="cursor-pointer outline-none"
                   />
                   <Tooltip contentStyle={{ background: "var(--card)", border: "1px solid var(--border)", borderRadius: 8 }} />
                 </PieChart>
@@ -181,20 +297,25 @@ export function AdminDashboardView({
             <ul className="space-y-3">
               {cohorts.map((c) => (
                 <li key={c.cohort}>
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="font-medium">{c.cohort}</span>
-                    <span className="text-muted-foreground">{c.total} employees</span>
-                  </div>
-                  <div className="mt-1.5 h-2 rounded-full bg-muted overflow-hidden flex">
-                    <motion.div className="bg-emerald-500" initial={{ width: 0 }} animate={{ width: c.total ? `${(c.completed / c.total) * 100}%` : "0%" }} transition={{ duration: 0.9, delay: 0.1 }} />
-                    <motion.div className="bg-amber-500" initial={{ width: 0 }} animate={{ width: c.total ? `${(c.atRisk / c.total) * 100}%` : "0%" }} transition={{ duration: 0.9, delay: 0.25 }} />
-                    <motion.div className="bg-primary" initial={{ width: 0 }} animate={{ width: c.total ? `${(c.active / c.total) * 100}%` : "0%" }} transition={{ duration: 0.9, delay: 0.4 }} />
-                  </div>
-                  <div className="mt-1 flex items-center gap-3 text-xs text-muted-foreground">
-                    <span>{c.completed} done</span>
-                    <span>{c.atRisk} at-risk</span>
-                    <span>{c.active} active</span>
-                  </div>
+                  <Link
+                    href={`/admin/managers?cohort=${encodeURIComponent(c.cohort)}`}
+                    className="block rounded-md p-1.5 -m-1.5 hover:bg-accent/40 transition-colors"
+                  >
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="font-medium">{c.cohort}</span>
+                      <span className="text-muted-foreground">{c.total} employees</span>
+                    </div>
+                    <div className="mt-1.5 h-2 rounded-full bg-muted overflow-hidden flex">
+                      <motion.div className="bg-emerald-500" initial={{ width: 0 }} animate={{ width: c.total ? `${(c.completed / c.total) * 100}%` : "0%" }} transition={{ duration: 0.9, delay: 0.1 }} />
+                      <motion.div className="bg-amber-500" initial={{ width: 0 }} animate={{ width: c.total ? `${(c.atRisk / c.total) * 100}%` : "0%" }} transition={{ duration: 0.9, delay: 0.25 }} />
+                      <motion.div className="bg-primary" initial={{ width: 0 }} animate={{ width: c.total ? `${(c.active / c.total) * 100}%` : "0%" }} transition={{ duration: 0.9, delay: 0.4 }} />
+                    </div>
+                    <div className="mt-1 flex items-center gap-3 text-xs text-muted-foreground">
+                      <span>{c.completed} done</span>
+                      <span>{c.atRisk} at-risk</span>
+                      <span>{c.active} active</span>
+                    </div>
+                  </Link>
                 </li>
               ))}
             </ul>

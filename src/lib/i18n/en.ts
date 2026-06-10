@@ -161,7 +161,7 @@ export const en: Record<string, string> = {
 
   // ── resources ──
   "resources.eyebrow": "Resources",
-  "resources.title": "Resources & policies",
+  "resources.title": "Resources & Policies",
   "resources.desc": "Documents your leadership team has shared. Items marked as new or updated need a quick acknowledgement.",
   "resources.needAttention": "{n} resource(s) need your attention.",
   "resources.reviewEach": "Review each and click “I have read and understood.”",
@@ -171,7 +171,7 @@ export const en: Record<string, string> = {
   "resources.updated": "Updated",
   "resources.updatedAt": "Updated {when}",
   "resources.empty": "No resources assigned yet",
-  "resources.emptyDesc": "Check back later — your team will share resources and policies here.",
+  "resources.emptyDesc": "Check back later — your team will share Resources and Policies here.",
   "resources.readUnderstood": "I have read and understood",
   "resources.alreadyAcked": "You already acknowledged this version.",
   "resources.reConfirm": "This was updated since you last acknowledged. Please re-confirm.",

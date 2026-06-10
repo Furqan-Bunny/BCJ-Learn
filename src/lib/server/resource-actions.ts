@@ -33,7 +33,7 @@ async function snapshotResourceVersion(
   try {
     const { data: r } = await admin
       .from("resources")
-      .select("title, category, department, description, body, storage_path, external_url, requires_ack, assigned_roles, assigned_cohorts, version")
+      .select("title, category, department, description, body, storage_path, external_url, requires_ack, signup_ack, assigned_roles, assigned_cohorts, version")
       .eq("id", resourceId)
       .maybeSingle();
     if (!r) return;
@@ -61,6 +61,7 @@ async function snapshotResourceVersion(
         storagePath: row.storage_path,
         externalUrl: row.external_url,
         requiresAck: row.requires_ack,
+        signupAck: row.signup_ack,
         assignedRoles: row.assigned_roles,
         assignedCohorts: row.assigned_cohorts,
       },
@@ -109,6 +110,8 @@ export async function acknowledgeResource(
     return { ok: false, error: error.message };
   }
   revalidatePath("/manager/resources");
+  // The app-shell onboarding gate re-evaluates outstanding sign-up acks.
+  revalidatePath("/", "layout");
   return { ok: true };
 }
 
@@ -123,6 +126,8 @@ export interface ResourceInput {
   storagePath?: string | null;
   externalUrl?: string | null;
   requiresAck: boolean;
+  /** Require read & acknowledge at sign-up (onboarding gate). Implies requiresAck. */
+  signupAck: boolean;
   assignedRoles: Role[];
   assignedCohorts?: string[] | null;
   notifyOnUpdate: boolean;
@@ -150,6 +155,7 @@ export async function createResource(
       storage_path: input.storagePath ?? null,
       external_url: input.externalUrl ?? null,
       requires_ack: input.requiresAck,
+      signup_ack: input.signupAck,
       assigned_roles: input.assignedRoles,
       assigned_cohorts: input.assignedCohorts?.length ? input.assignedCohorts : null,
       notify_on_update: input.notifyOnUpdate,
@@ -202,6 +208,7 @@ export async function editResource(
     storage_path: input.storagePath ?? null,
     external_url: input.externalUrl ?? null,
     requires_ack: input.requiresAck,
+    signup_ack: input.signupAck,
     assigned_roles: input.assignedRoles,
     assigned_cohorts: input.assignedCohorts?.length ? input.assignedCohorts : null,
     notify_on_update: input.notifyOnUpdate,

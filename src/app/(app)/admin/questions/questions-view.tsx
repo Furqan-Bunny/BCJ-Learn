@@ -70,7 +70,7 @@ export function AdminQuestionLibraryView({ questions, modules, teacherNamesById 
     <>
       <PageHeader
         eyebrow="Library"
-        title="Question library"
+        title="Question Library"
         description={`All ${questions.length} questions across ${modules.length} modules. Pick a module below to drill in.`}
       />
 

@@ -29,8 +29,26 @@ export async function filterManagers(filter: ManagerFilter): Promise<Manager[]> 
   });
 }
 
-export async function programStats() {
+export interface DateRange {
+  from?: string;
+  to?: string;
+}
+
+// `to` is treated as inclusive of the whole calendar day (avoids dropping the
+// last day when comparing against a timestamptz column).
+function endOfDay(to: string): string {
+  return `${to}T23:59:59.999Z`;
+}
+
+// Date range applies ONLY to attempt-derived metrics (pass rate, avg score,
+// passed/failed). Manager/module counts are current-state snapshots.
+export async function programStats(range?: DateRange) {
   const sb = await dbClient();
+
+  let attemptsQ = sb.from("attempts").select("status, score_pct");
+  if (range?.from) attemptsQ = attemptsQ.gte("started_at", range.from);
+  if (range?.to) attemptsQ = attemptsQ.lte("started_at", endOfDay(range.to));
+
   const [
     { count: totalManagers },
     { count: activeManagers },
@@ -44,7 +62,7 @@ export async function programStats() {
     sb.from("profiles").select("*", { count: "exact", head: true }).eq("role", "manager").eq("status", "active"),
     sb.from("profiles").select("*", { count: "exact", head: true }).eq("role", "manager").eq("status", "at-risk"),
     sb.from("profiles").select("*", { count: "exact", head: true }).eq("role", "manager").eq("status", "completed"),
-    sb.from("attempts").select("status, score_pct"),
+    attemptsQ,
     sb.from("modules").select("*", { count: "exact", head: true }).eq("status", "published"),
     sb.from("modules").select("*", { count: "exact", head: true }),
   ]);
@@ -90,8 +108,16 @@ export async function cohortBreakdown() {
   });
 }
 
-export async function moduleProgressBreakdown() {
-  const [modules, attempts] = await Promise.all([listModules(), listAttempts()]);
+export async function moduleProgressBreakdown(range?: DateRange) {
+  const [modules, attemptsAll] = await Promise.all([listModules(), listAttempts()]);
+  const fromMs = range?.from ? new Date(range.from).getTime() : null;
+  const toMs = range?.to ? new Date(endOfDay(range.to)).getTime() : null;
+  const attempts = attemptsAll.filter((a) => {
+    const t = new Date(a.startedAt).getTime();
+    if (fromMs !== null && t < fromMs) return false;
+    if (toMs !== null && t > toMs) return false;
+    return true;
+  });
   return modules.map((mod) => {
     const modAttempts = attempts.filter((a) => a.moduleSlug === mod.slug);
     const passed = modAttempts.filter((a) => a.status === "passed").length;

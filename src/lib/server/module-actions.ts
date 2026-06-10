@@ -976,60 +976,12 @@ export async function updateModuleOwners(
   return { ok: true };
 }
 
-// ─── archive / unarchive (admin) ───────────────────────────────────────
-// Archiving is the safe "delete": the module + its history stay in the DB
-// but managers no longer see it (manager RLS only exposes 'published').
-
-export async function archiveModule(slug: string): Promise<{ ok: boolean; error?: string }> {
-  const guard = await requireAdmin();
-  if (!guard.ok) return { ok: false, error: guard.error };
-  if (DEMO_MODE) return { ok: true };
-
-  const admin = createAdminClient();
-  const { error } = await admin.from("modules").update({ status: "archived" }).eq("slug", slug);
-  if (error) return { ok: false, error: error.message };
-
-  await admin.from("activity").insert({
-    kind: "module_published",
-    actor_id: guard.userId,
-    target_id: null,
-    message: `${guard.userName} archived module ${slug}`,
-  });
-
-  revalidatePath("/admin/modules");
-  revalidatePath(`/admin/modules/${slug}`);
-  revalidatePath("/teacher/modules");
-  return { ok: true };
-}
-
-export async function unarchiveModule(slug: string): Promise<{ ok: boolean; error?: string }> {
-  const guard = await requireAdmin();
-  if (!guard.ok) return { ok: false, error: guard.error };
-  if (DEMO_MODE) return { ok: true };
-
-  const admin = createAdminClient();
-  // Unarchive back to draft — admin re-publishes when ready.
-  const { error } = await admin.from("modules").update({ status: "draft" }).eq("slug", slug);
-  if (error) return { ok: false, error: error.message };
-
-  await admin.from("activity").insert({
-    kind: "module_published",
-    actor_id: guard.userId,
-    target_id: null,
-    message: `${guard.userName} restored module ${slug} from archive`,
-  });
-
-  revalidatePath("/admin/modules");
-  revalidatePath(`/admin/modules/${slug}`);
-  revalidatePath("/teacher/modules");
-  return { ok: true };
-}
-
 // ─── deleteModule (admin) ──────────────────────────────────────────────
 // Hard delete. Only allowed when the module has NO attempts (otherwise it
-// would destroy results history — archive instead). Requires the caller to
-// echo the module title to guard against accidents. Cascades to lessons,
-// questions, deliveries, invitees, attendance, etc. via FK ON DELETE CASCADE.
+// would destroy results history — unpublish/draft instead). Requires the
+// caller to echo the module title to guard against accidents. Cascades to
+// lessons, questions, deliveries, invitees, attendance, etc. via FK ON DELETE
+// CASCADE.
 
 export async function deleteModule(
   slug: string,
@@ -1052,7 +1004,7 @@ export async function deleteModule(
     .select("*", { count: "exact", head: true })
     .eq("module_slug", slug);
   if ((attemptCount ?? 0) > 0) {
-    return { ok: false, error: "This module has quiz attempts — archive it instead of deleting (keeps history)." };
+    return { ok: false, error: "This module has quiz attempts — unpublish it (set to draft) instead of deleting; history is kept." };
   }
 
   if (DEMO_MODE) return { ok: true };

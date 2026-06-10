@@ -62,7 +62,7 @@ import type { Manager, Cohort, ManagerStatus } from "@/types";
 import { fmtRelative, initials } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { SearchLoadingBar, motion } from "@/components/shared/animations";
 import { sendReminder, sendBulkReminders } from "@/lib/server/reminder-actions";
 import { deactivateUser, resendInvite, deleteUser } from "@/lib/server/admin-actions";
@@ -77,6 +77,20 @@ export function AdminManagersView({ managers }: { managers: Manager[] }) {
   const [sorting, setSorting] = React.useState<SortingState>([]);
   const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>([]);
   const [rowSelection, setRowSelection] = React.useState({});
+
+  // Pre-seed the faceted filters from drill-through links (e.g. the admin
+  // dashboard pie slices → ?status=, cohort rows → ?cohort=). Reuses the
+  // existing status / markets column filterFns.
+  const searchParams = useSearchParams();
+  React.useEffect(() => {
+    const status = searchParams.get("status");
+    const cohort = searchParams.get("cohort");
+    const seed: ColumnFiltersState = [];
+    if (status) seed.push({ id: "status", value: [status] });
+    if (cohort) seed.push({ id: "markets", value: [cohort] });
+    if (seed.length) setColumnFilters(seed);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams]);
 
   const columns = React.useMemo<ColumnDef<Manager>[]>(
     () => [

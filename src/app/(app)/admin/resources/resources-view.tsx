@@ -74,6 +74,7 @@ export function ResourcesAdminView({ initialResources }: { initialResources: Enr
   const [externalUrl, setExternalUrl] = React.useState("");
   const [dragOver, setDragOver] = React.useState(false);
   const [requiresAck, setRequiresAck] = React.useState(true);
+  const [signupAck, setSignupAck] = React.useState(false);
   const [assignedRoles, setAssignedRoles] = React.useState<Role[]>(["manager"]);
   const [markets, setMarkets] = React.useState<string[]>([]); // [] = all markets
   const [notifyOnUpdate, setNotifyOnUpdate] = React.useState(true);
@@ -107,7 +108,7 @@ export function ResourcesAdminView({ initialResources }: { initialResources: Enr
     setEditingId(null);
     setTitle(""); setCategory("General"); setDepartment("General"); setDescription(""); setBody("");
     setFile(null); setExistingPath(null); setExternalUrl("");
-    setRequiresAck(true); setAssignedRoles(["manager"]); setMarkets([]);
+    setRequiresAck(true); setSignupAck(false); setAssignedRoles(["manager"]); setMarkets([]);
     setNotifyOnUpdate(true); setRequireReack(false);
     setSheetOpen(true);
   }
@@ -115,7 +116,7 @@ export function ResourcesAdminView({ initialResources }: { initialResources: Enr
     setEditingId(r.id);
     setTitle(r.title); setCategory(r.category); setDepartment(r.department ?? "General"); setDescription(r.description ?? ""); setBody(r.body ?? "");
     setFile(null); setExistingPath(r.storagePath ?? null); setExternalUrl(r.externalUrl ?? "");
-    setRequiresAck(r.requiresAck); setAssignedRoles(r.assignedRoles?.length ? r.assignedRoles : ["manager"]);
+    setRequiresAck(r.requiresAck); setSignupAck(r.signupAck); setAssignedRoles(r.assignedRoles?.length ? r.assignedRoles : ["manager"]);
     setMarkets(r.assignedCohorts ?? []); setNotifyOnUpdate(r.notifyOnUpdate); setRequireReack(false);
     setSheetOpen(true);
   }
@@ -195,6 +196,7 @@ export function ResourcesAdminView({ initialResources }: { initialResources: Enr
       storagePath,
       externalUrl: externalUrl.trim() || null,
       requiresAck,
+      signupAck,
       assignedRoles,
       assignedCohorts: markets.length ? markets : null,
       notifyOnUpdate,
@@ -363,9 +365,23 @@ export function ResourcesAdminView({ initialResources }: { initialResources: Enr
             <div className="flex items-center justify-between rounded-md border p-3">
               <div className="flex-1">
                 <Label htmlFor="r-ack" className="text-sm font-medium">Require acknowledgement</Label>
-                <p className="text-[11px] text-muted-foreground mt-0.5">Employees must confirm they&rsquo;ve read it.</p>
+                <p className="text-[11px] text-muted-foreground mt-0.5">
+                  {signupAck ? "Required automatically by the sign-up gate below." : "Employees must confirm they’ve read it."}
+                </p>
               </div>
-              <Switch id="r-ack" checked={requiresAck} onCheckedChange={setRequiresAck} />
+              <Switch id="r-ack" checked={requiresAck} onCheckedChange={setRequiresAck} disabled={signupAck} />
+            </div>
+
+            <div className="flex items-center justify-between rounded-md border border-primary/30 bg-primary/[0.03] p-3">
+              <div className="flex-1">
+                <Label htmlFor="r-signup" className="text-sm font-medium">Require at sign-up (onboarding)</Label>
+                <p className="text-[11px] text-muted-foreground mt-0.5">New users must read &amp; acknowledge this before they can use the app.</p>
+              </div>
+              <Switch
+                id="r-signup"
+                checked={signupAck}
+                onCheckedChange={(v) => { setSignupAck(v); if (v) setRequiresAck(true); }}
+              />
             </div>
 
             {editingId && (

@@ -65,7 +65,7 @@ export function TeacherQuestionLibraryView({ myModules, myQuestions }: TeacherQu
     <>
       <PageHeader
         eyebrow="Library"
-        title="Your question library"
+        title="Your Question Library"
         description={`AI-drafted + approved questions across ${myModules.length === 1 ? "the module you own" : "your modules"}. Pick a module to drill in, or open a module to review pending questions.`}
       />
 

@@ -12,15 +12,15 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Pencil, Archive, ArchiveRestore, Trash2, Star } from "lucide-react";
+import { Pencil, Trash2, Star, Rocket, Undo2 } from "lucide-react";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
 import {
   updateModuleMetadata,
   updateModuleOwners,
-  archiveModule,
-  unarchiveModule,
+  publishModule,
+  unpublishModule,
   deleteModule,
 } from "@/lib/server/module-actions";
 import type { ModuleDef } from "@/types";
@@ -90,12 +90,12 @@ export function EditModuleSheet({ mod, allTeachers }: Props) {
     router.refresh();
   }
 
-  async function handleArchiveToggle() {
+  async function handlePublishToggle() {
     setBusy(true);
-    const res = mod.status === "archived" ? await unarchiveModule(mod.slug) : await archiveModule(mod.slug);
+    const res = mod.status === "published" ? await unpublishModule(mod.slug) : await publishModule(mod.slug);
     setBusy(false);
     if (!res.ok) { toast.error(res.error ?? "Could not update"); return; }
-    toast.success(mod.status === "archived" ? "Module restored (draft)" : "Module archived");
+    toast.success(mod.status === "published" ? "Module unpublished (set to draft)" : "Module published");
     setOpen(false);
     router.refresh();
   }
@@ -197,27 +197,37 @@ export function EditModuleSheet({ mod, allTeachers }: Props) {
             </div>
           </div>
 
+          {/* Visibility — publish / unpublish */}
+          <div className="rounded-md border p-3">
+            <div className="flex items-center justify-between gap-3">
+              <div className="min-w-0">
+                <div className="text-sm font-medium">Visibility</div>
+                <span className="text-xs text-muted-foreground">
+                  {mod.status === "published"
+                    ? "Live — employees can take this module."
+                    : "Draft — hidden from employees until you publish."}
+                </span>
+              </div>
+              <Button type="button" variant="outline" size="sm" onClick={handlePublishToggle} disabled={busy}>
+                {mod.status === "published"
+                  ? <><Undo2 className="mr-1.5 size-3.5" /> Unpublish</>
+                  : <><Rocket className="mr-1.5 size-3.5" /> Publish</>}
+              </Button>
+            </div>
+          </div>
+
           {/* Danger zone */}
           <div className="rounded-md border border-rose-500/30 bg-rose-50/30 dark:bg-rose-950/15 p-3 space-y-3">
             <div className="text-xs font-semibold uppercase tracking-wider text-rose-600 dark:text-rose-400">Danger zone</div>
 
-            <div className="flex items-center justify-between gap-2">
-              <span className="text-sm text-muted-foreground">
-                {mod.status === "archived" ? "Restore this module to draft." : "Hide from employees (keeps all history)."}
-              </span>
-              <Button type="button" variant="outline" size="sm" onClick={handleArchiveToggle} disabled={busy}>
-                {mod.status === "archived" ? <><ArchiveRestore className="mr-1.5 size-3.5" /> Unarchive</> : <><Archive className="mr-1.5 size-3.5" /> Archive</>}
-              </Button>
-            </div>
-
-            <div className="space-y-1.5 pt-1 border-t border-rose-500/20">
+            <div className="space-y-1.5">
               <Label htmlFor="m-confirm" className="text-xs">Delete permanently — type the title to confirm</Label>
               <Input id="m-confirm" value={confirmTitle} onChange={(e) => setConfirmTitle(e.target.value)} placeholder={mod.title} className="h-9" />
               <Button type="button" variant="destructive" size="sm" className="w-full"
                 onClick={handleDelete} disabled={busy || confirmTitle.trim() !== mod.title.trim()}>
                 <Trash2 className="mr-1.5 size-3.5" /> Delete module
               </Button>
-              <p className="text-[11px] text-muted-foreground">Only works if the module has no quiz attempts — otherwise archive it.</p>
+              <p className="text-[11px] text-muted-foreground">Only works if the module has no quiz attempts — otherwise unpublish it (set to draft) to hide it; history is kept.</p>
             </div>
           </div>
         </div>

@@ -161,7 +161,7 @@ export const es: Record<string, string> = {
 
   // ── resources ──
   "resources.eyebrow": "Recursos",
-  "resources.title": "Recursos y políticas",
+  "resources.title": "Recursos y Políticas",
   "resources.desc": "Documentos que tu equipo de liderazgo ha compartido. Los marcados como nuevos o actualizados requieren una confirmación rápida.",
   "resources.needAttention": "{n} recurso(s) requieren tu atención.",
   "resources.reviewEach": "Revisa cada uno y haz clic en “He leído y entendido”.",

@@ -289,25 +289,23 @@
     opacity: 0.55;
     will-change: transform;
   }
+  /* Static teal glow (no drift) — per client request: keep it teal, don't move. */
   .mesh-blob-1 {
     top: -10%;
     left: -10%;
     background: radial-gradient(circle at 50% 50%, var(--gold) 0%, transparent 60%);
-    animation: mesh-drift-1 18s ease-in-out infinite alternate;
   }
   .mesh-blob-2 {
     bottom: -15%;
     right: -10%;
-    background: radial-gradient(circle at 50% 50%, var(--ai) 0%, transparent 60%);
+    background: radial-gradient(circle at 50% 50%, var(--gold) 0%, transparent 60%);
     opacity: 0.4;
-    animation: mesh-drift-2 22s ease-in-out infinite alternate;
   }
   .mesh-blob-3 {
     top: 30%;
     right: 20%;
-    background: radial-gradient(circle at 50% 50%, color-mix(in srgb, var(--primary) 70%, white 30%) 0%, transparent 60%);
+    background: radial-gradient(circle at 50% 50%, var(--gold) 0%, transparent 60%);
     opacity: 0.35;
-    animation: mesh-drift-3 26s ease-in-out infinite alternate;
   }
   @keyframes mesh-drift-1 {
     0%   { transform: translate3d(0, 0, 0) scale(1); }

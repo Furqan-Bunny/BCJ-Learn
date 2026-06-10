@@ -71,7 +71,7 @@ export const NAV_BY_ROLE: Record<Role, NavNode[]> = {
       icon: TrendingUp,
       children: [
         { kind: "link", label: "Test results", href: "/teacher/results", icon: Trophy },
-        { kind: "link", label: "Question library", href: "/teacher/questions", icon: ListChecks },
+        { kind: "link", label: "Question Library", href: "/teacher/questions", icon: ListChecks },
       ],
     },
     { kind: "link", label: "My team", href: "/teacher/managers", icon: Users },
@@ -98,7 +98,7 @@ export const NAV_BY_ROLE: Record<Role, NavNode[]> = {
       children: [
         { kind: "link", label: "Modules", href: "/admin/modules", icon: BookOpen },
         { kind: "link", label: "Resources", href: "/admin/resources", icon: FileText },
-        { kind: "link", label: "Question library", href: "/admin/questions", icon: ListChecks },
+        { kind: "link", label: "Question Library", href: "/admin/questions", icon: ListChecks },
       ],
     },
     {

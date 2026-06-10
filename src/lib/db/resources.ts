@@ -19,6 +19,8 @@ export interface Resource {
   externalUrl: string | null;
   version: number;
   requiresAck: boolean;
+  /** Must be read & acknowledged at sign-up (onboarding gate) before app use. */
+  signupAck: boolean;
   assignedRoles: Role[];
   assignedCohorts: Cohort[] | null;
   notifyOnUpdate: boolean;
@@ -40,6 +42,7 @@ interface ResourceRow {
   external_url: string | null;
   version: number;
   requires_ack: boolean;
+  signup_ack: boolean;
   assigned_roles: Role[];
   assigned_cohorts: Cohort[] | null;
   notify_on_update: boolean;
@@ -60,6 +63,7 @@ function rowToResource(r: ResourceRow, locale: Locale = "en"): Resource {
     externalUrl: r.external_url,
     version: r.version,
     requiresAck: r.requires_ack,
+    signupAck: r.signup_ack ?? false,
     assignedRoles: r.assigned_roles,
     assignedCohorts: r.assigned_cohorts,
     notifyOnUpdate: r.notify_on_update,
@@ -133,6 +137,58 @@ export async function listResourcesForCurrentUser(): Promise<
     else status = "acknowledged";
     return { ...rowToResource(r, locale), ackStatus: status };
   });
+}
+
+/**
+ * Sign-up / onboarding resources the current user STILL must acknowledge before
+ * they can use the app. Same audience logic as listResourcesForCurrentUser, but
+ * limited to resources flagged signup_ack (+ requires_ack) that the user hasn't
+ * acknowledged at the current version yet. Returns full Resource objects so the
+ * onboarding gate can render each one's content.
+ */
+export async function listOutstandingSignupAcks(): Promise<Resource[]> {
+  const sb = await createClient();
+  const { data: { user } } = await sb.auth.getUser();
+  if (!user) return [];
+
+  const { data: profile } = await sb.from("profiles").select("role, cohort, locale").eq("id", user.id).single();
+  const p = profile as { role?: Role; cohort?: Cohort | null; locale?: string } | null;
+  if (!p?.role) return [];
+  const locale: Locale = p.locale === "es" ? "es" : "en";
+
+  const dbc = await dbClient();
+  const { data: resources } = await dbc
+    .from("resources")
+    .select("*")
+    .eq("signup_ack", true)
+    .eq("requires_ack", true)
+    .contains("assigned_roles", [p.role]);
+
+  // Cohort filter (assigned_cohorts null/empty = all cohorts).
+  const filtered = ((resources ?? []) as ResourceRow[]).filter((r) => {
+    if (!r.assigned_cohorts || r.assigned_cohorts.length === 0) return true;
+    return p.cohort ? r.assigned_cohorts.includes(p.cohort) : false;
+  });
+  if (filtered.length === 0) return [];
+
+  // Latest ack version per resource for this user.
+  const { data: acks } = await dbc
+    .from("acknowledgements")
+    .select("content_ref, content_version")
+    .eq("user_id", user.id)
+    .eq("content_type", "resource")
+    .in("content_ref", filtered.map((r) => r.id));
+
+  const ackVersions = new Map<string, number>();
+  for (const a of (acks ?? []) as { content_ref: string; content_version: number }[]) {
+    const existing = ackVersions.get(a.content_ref) ?? 0;
+    if (a.content_version > existing) ackVersions.set(a.content_ref, a.content_version);
+  }
+
+  // Outstanding = never acked, or acked an older version (re-ack required).
+  return filtered
+    .filter((r) => (ackVersions.get(r.id) ?? 0) < r.version)
+    .map((r) => rowToResource(r, locale));
 }
 
 /**
