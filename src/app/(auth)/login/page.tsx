@@ -190,7 +190,7 @@ export default function LoginPage() {
       {/* Left — brand panel */}
       <div className="relative hidden lg:flex flex-col justify-between p-12 bg-primary text-primary-foreground overflow-hidden">
         <MeshGradient />
-        <div className="absolute inset-y-0 left-0 w-[6px] bg-[var(--gold)] z-10" />
+        <div className="absolute inset-y-0 left-0 w-[6px] bg-[#49FFAA] z-10" />
         <div className="relative z-10">
           <div className="flex items-center gap-2 mb-12">
             {logoOk ? (
@@ -210,7 +210,7 @@ export default function LoginPage() {
               </>
             )}
           </div>
-          <h1 className="text-4xl font-bold leading-tight tracking-tight max-w-md">
+          <h1 className="text-4xl font-bold leading-tight tracking-tight max-w-md text-[#49FFAA]">
             Train every team member. Build confidence at every level.
           </h1>
           <p className="mt-4 text-primary-foreground/80 max-w-md">
@@ -225,14 +225,10 @@ export default function LoginPage() {
             "Live admin & department-level reporting for QBRs, HR, and compliance",
           ].map((line) => (
             <div key={line} className="flex items-center gap-3">
-              <CheckCircle2 className="size-4 text-[var(--gold)]" />
+              <CheckCircle2 className="size-4 text-[#49FFAA]" />
               <span className="text-sm text-primary-foreground/85">{line}</span>
             </div>
           ))}
-        </div>
-
-        <div className="text-xs text-primary-foreground/60 relative z-10">
-          Prepared by Ten80ten · contact@alexnicholson.com
         </div>
       </div>
 
@@ -367,12 +363,6 @@ export default function LoginPage() {
                 {submitting ? "Signing in…" : <>Sign in <ArrowRight className="size-4 ml-1" /></>}
               </Button>
             </MagneticButton>
-
-            {!DEMO_MODE && (
-              <p className="text-xs text-muted-foreground text-center mt-2">
-                Seed users use password <span className="font-mono">BcjLearnDemo2026!</span>
-              </p>
-            )}
 
             <p className="text-xs text-muted-foreground text-center mt-4">
               By signing in, you agree to BCJ&rsquo;s acceptable-use policy.

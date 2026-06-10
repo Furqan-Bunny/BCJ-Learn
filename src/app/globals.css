@@ -293,18 +293,18 @@
   .mesh-blob-1 {
     top: -10%;
     left: -10%;
-    background: radial-gradient(circle at 50% 50%, var(--gold) 0%, transparent 60%);
+    background: radial-gradient(circle at 50% 50%, #49FFAA 0%, transparent 60%);
   }
   .mesh-blob-2 {
     bottom: -15%;
     right: -10%;
-    background: radial-gradient(circle at 50% 50%, var(--gold) 0%, transparent 60%);
+    background: radial-gradient(circle at 50% 50%, #49FFAA 0%, transparent 60%);
     opacity: 0.4;
   }
   .mesh-blob-3 {
     top: 30%;
     right: 20%;
-    background: radial-gradient(circle at 50% 50%, var(--gold) 0%, transparent 60%);
+    background: radial-gradient(circle at 50% 50%, #49FFAA 0%, transparent 60%);
     opacity: 0.35;
   }
   @keyframes mesh-drift-1 {
