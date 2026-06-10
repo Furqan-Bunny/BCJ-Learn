@@ -246,6 +246,102 @@ export async function updateUserAsAdmin(input: UpdateUserInput) {
   return { ok: true as const };
 }
 
+// ─── B.3b editUserAndReinvite ─────────────────────────────
+// Edit a user's name / email / title. If they're still 'pending' (haven't
+// accepted their invite), re-mint the token, refresh the 7-day window, and
+// re-send the invite to the (possibly new) email. Active users are just updated
+// (no re-invite — they already have a password).
+
+export interface EditUserInput {
+  userId: string;
+  name: string;
+  email: string;
+  title?: string | null;
+}
+
+export async function editUserAndReinvite(
+  input: EditUserInput,
+): Promise<{ ok: boolean; error?: string; resent?: boolean }> {
+  const guard = await requireAdmin();
+  if (!guard.ok) return { ok: false, error: guard.error };
+
+  const name = input.name.trim();
+  const email = input.email.trim().toLowerCase();
+  if (!name) return { ok: false, error: "Name is required" };
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return { ok: false, error: "Enter a valid email address" };
+
+  const admin = createAdminClient();
+  const { data: cur } = await admin
+    .from("profiles")
+    .select("name, email, status")
+    .eq("id", input.userId)
+    .single();
+  const before = cur as { name: string; email: string | null; status: ManagerStatus | null } | null;
+  if (!before) return { ok: false, error: "User not found" };
+
+  const emailChanged = email !== (before.email ?? "").toLowerCase();
+
+  // Update the auth email first so login + the invite both use the new address.
+  if (emailChanged) {
+    const { error: authErr } = await admin.auth.admin.updateUserById(input.userId, {
+      email,
+      email_confirm: true,
+    });
+    if (authErr) {
+      const dup = /registered|already|exists|duplicate/i.test(authErr.message);
+      return { ok: false, error: dup ? "That email is already in use by another account." : authErr.message };
+    }
+  }
+
+  const profileUpdate: Record<string, unknown> = { name };
+  if (emailChanged) profileUpdate.email = email;
+  if (input.title !== undefined) profileUpdate.title = input.title?.trim() ? input.title.trim() : null;
+
+  const isPending = before.status === "pending";
+  let resent = false;
+
+  if (isPending) {
+    const token = randomBytes(32).toString("hex");
+    const invitedAt = new Date();
+    profileUpdate.invite_token = token;
+    profileUpdate.invite_sent_at = invitedAt.toISOString();
+    profileUpdate.invite_expires_at = new Date(invitedAt.getTime() + INVITE_TTL_MS).toISOString();
+  }
+
+  const { error: upErr } = await admin.from("profiles").update(profileUpdate).eq("id", input.userId);
+  if (upErr) return { ok: false, error: upErr.message };
+
+  if (isPending) {
+    const token = profileUpdate.invite_token as string;
+    const inviteLink = `${process.env.NEXT_PUBLIC_APP_URL ?? ""}/auth/accept-invite?token=${token}`;
+    const sent = await sendEmail({
+      to: email,
+      templateKey: "invite",
+      recipientUserId: input.userId,
+      href: "/auth/accept-invite",
+      variables: { name, invite_link: inviteLink },
+    });
+    resent = sent.ok;
+    if (!sent.ok) {
+      return { ok: false, error: sent.error ?? "Saved, but the invite email failed to send." };
+    }
+  }
+
+  await logActivity(
+    "user_added",
+    guard.userId,
+    `${guard.userName} edited ${name}${emailChanged ? ` (email → ${email})` : ""}${resent ? " and re-sent the invite" : ""}`,
+    input.userId,
+  );
+
+  revalidatePath("/admin/managers");
+  revalidatePath("/admin/teachers");
+  revalidatePath("/admin/admins");
+  revalidatePath(`/admin/managers/${input.userId}`);
+
+  return { ok: true, resent };
+}
+
 // ─── B.4 deactivate / reactivate ──────────────────────────
 
 const BAN_FAR_FUTURE = "99999h"; // effectively forever; Supabase parses as duration

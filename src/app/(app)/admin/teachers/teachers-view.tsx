@@ -12,12 +12,13 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSepara
 import { PageHeader } from "@/components/shared/page-header";
 import { initials, fmtRelative, fmtDate } from "@/lib/format";
 import {
-  Search, Plus, MoreHorizontal, Mail, Edit3, Trash2, BookOpen, ListChecks, ArrowRight, Phone,
+  Search, Plus, MoreHorizontal, Mail, Edit3, Trash2, BookOpen, ListChecks, ArrowRight, Phone, UserX,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useRouter, useSearchParams } from "next/navigation";
-import { deactivateUser } from "@/lib/server/admin-actions";
+import { deactivateUser, deleteUser } from "@/lib/server/admin-actions";
 import { AddStaffSheet } from "@/components/admin/add-staff-sheet";
+import { EditUserSheet } from "@/components/admin/edit-user-sheet";
 import type { Teacher, ModuleDef } from "@/types";
 
 export interface AdminTeachersViewProps {
@@ -33,6 +34,7 @@ export function AdminTeachersView({ teachers, modules, approvedByModule, totalBy
   // Pre-fill the search box from `?q=` so deep links from "module owners" land
   // with the relevant teacher already filtered in.
   const [query, setQuery] = React.useState(() => searchParams?.get("q") ?? "");
+  const [editTarget, setEditTarget] = React.useState<Teacher | null>(null);
 
   const enriched = teachers.map((t) => {
     const ownedMods = modules.filter((m) => t.ownedModuleSlugs.includes(m.slug));
@@ -138,7 +140,7 @@ export function AdminTeachersView({ teachers, modules, approvedByModule, totalBy
                       <DropdownMenuItem onClick={() => toast.info(`Email ${t.name}`)}>
                         <Mail className="mr-2 size-4" /> Send email
                       </DropdownMenuItem>
-                      <DropdownMenuItem onClick={() => toast.info("Edit drawer (mocked)")}>
+                      <DropdownMenuItem onClick={() => setEditTarget(t)}>
                         <Edit3 className="mr-2 size-4" /> Edit profile
                       </DropdownMenuItem>
                       <DropdownMenuItem onClick={() => toast.info("Reassign module modal (mocked)")}>
@@ -156,6 +158,18 @@ export function AdminTeachersView({ teachers, modules, approvedByModule, totalBy
                         }}
                       >
                         <Trash2 className="mr-2 size-4" /> Deactivate
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
+                        className="text-rose-600"
+                        onClick={async () => {
+                          if (!confirm(`Permanently delete ${t.name}? This removes their login and ALL of their data, and unassigns their modules. This cannot be undone.`)) return;
+                          const res = await deleteUser(t.id);
+                          if (!res.ok) { toast.error(res.error ?? "Could not delete"); return; }
+                          toast.success(`${t.name} permanently deleted`);
+                          router.refresh();
+                        }}
+                      >
+                        <UserX className="mr-2 size-4" /> Delete
                       </DropdownMenuItem>
                     </DropdownMenuContent>
                   </DropdownMenu>
@@ -229,6 +243,12 @@ export function AdminTeachersView({ teachers, modules, approvedByModule, totalBy
           </Card>
         ))}
       </div>
+
+      <EditUserSheet
+        user={editTarget ? { id: editTarget.id, name: editTarget.name, email: editTarget.email } : null}
+        open={!!editTarget}
+        onOpenChange={(o) => { if (!o) setEditTarget(null); }}
+      />
     </>
   );
 }

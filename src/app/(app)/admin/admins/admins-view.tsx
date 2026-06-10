@@ -8,13 +8,14 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { Search, Plus, MoreHorizontal, Mail, Edit3, Trash2, ShieldCheck, Sparkles } from "lucide-react";
+import { Search, Plus, MoreHorizontal, Mail, Edit3, Trash2, ShieldCheck, Sparkles, UserX } from "lucide-react";
 import { PageHeader } from "@/components/shared/page-header";
 import { initials, fmtRelative, fmtDate } from "@/lib/format";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
-import { updateUserAsAdmin } from "@/lib/server/admin-actions";
+import { updateUserAsAdmin, deleteUser } from "@/lib/server/admin-actions";
 import { AddStaffSheet } from "@/components/admin/add-staff-sheet";
+import { EditUserSheet } from "@/components/admin/edit-user-sheet";
 import type { Admin, ActivityEvent } from "@/types";
 
 const PERMISSIONS = [
@@ -34,6 +35,7 @@ export interface AdminAdminsViewProps {
 export function AdminAdminsView({ admins, activityByActor }: AdminAdminsViewProps) {
   const router = useRouter();
   const [query, setQuery] = React.useState("");
+  const [editTarget, setEditTarget] = React.useState<Admin | null>(null);
 
   const filtered = admins.filter((a) => {
     if (!query) return true;
@@ -119,7 +121,7 @@ export function AdminAdminsView({ admins, activityByActor }: AdminAdminsViewProp
                       <DropdownMenuItem onClick={() => toast.info(`Email ${a.name}`)}>
                         <Mail className="mr-2 size-4" /> Send email
                       </DropdownMenuItem>
-                      <DropdownMenuItem onClick={() => toast.info("Edit drawer (mocked)")}>
+                      <DropdownMenuItem onClick={() => setEditTarget(a)}>
                         <Edit3 className="mr-2 size-4" /> Edit profile
                       </DropdownMenuItem>
                       <DropdownMenuItem onClick={() => toast.info("Permissions panel (mocked)")}>
@@ -137,6 +139,18 @@ export function AdminAdminsView({ admins, activityByActor }: AdminAdminsViewProp
                         }}
                       >
                         <Trash2 className="mr-2 size-4" /> Revoke admin role
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
+                        className="text-rose-600"
+                        onClick={async () => {
+                          if (!confirm(`Permanently delete ${a.name}? This removes their login and ALL of their data from the system. This cannot be undone.`)) return;
+                          const res = await deleteUser(a.id);
+                          if (!res.ok) { toast.error(res.error ?? "Could not delete"); return; }
+                          toast.success(`${a.name} permanently deleted`);
+                          router.refresh();
+                        }}
+                      >
+                        <UserX className="mr-2 size-4" /> Delete admin
                       </DropdownMenuItem>
                     </DropdownMenuContent>
                   </DropdownMenu>
@@ -198,6 +212,13 @@ export function AdminAdminsView({ admins, activityByActor }: AdminAdminsViewProp
           );
         })}
       </div>
+
+      <EditUserSheet
+        user={editTarget ? { id: editTarget.id, name: editTarget.name, email: editTarget.email, title: editTarget.title } : null}
+        open={!!editTarget}
+        onOpenChange={(o) => { if (!o) setEditTarget(null); }}
+        showTitle
+      />
     </>
   );
 }
