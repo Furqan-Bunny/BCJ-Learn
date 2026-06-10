@@ -2,6 +2,10 @@
 
 *Quick answers to common questions. Grouped by who's asking.*
 
+> Every role has a **Help** link in the sidebar that opens this guide library inside the app.
+
+![The in-app Help Center](/docs-img/emp-help.png)
+
 ---
 
 ## For Employees
@@ -95,6 +99,8 @@ No. With demo mode on you'll see "(demo)" toasts and no emails are sent.
 ---
 
 ## Spanish & language
+
+![Switch the app between English and Español from the account menu](/docs-img/emp-language-menu.png)
 
 **What's translated to Spanish?**
 The whole **employee** experience (menus, dashboard, modules, the quiz, resources, progress, certificate) plus **quiz questions** (AI-assisted). Admin and Department-Lead screens stay in English.

@@ -521,6 +521,16 @@
   border-radius: 0 0.4rem 0.4rem 0;
   color: var(--muted-foreground);
 }
+/* Embedded screenshots (served from /docs-img) — bordered card, centered. */
+.help-doc img {
+  display: block;
+  margin: 1rem auto 1.25rem;
+  max-width: 100%;
+  height: auto;
+  border: 1px solid var(--border);
+  border-radius: 0.6rem;
+  box-shadow: 0 3px 14px rgba(4, 29, 57, 0.1);
+}
 .help-doc code {
   font-family: var(--font-mono, ui-monospace, monospace);
   font-size: 0.85em;

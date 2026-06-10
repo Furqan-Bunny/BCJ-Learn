@@ -6,6 +6,8 @@
 
 ## 1. Signing in
 
+![The BCJ Learn sign-in screen](/docs-img/login.png)
+
 1. Go to your BCJ Learn link and enter your **work email** and **password**.
    - Use the eye icon to show/hide your password.
    - If your account has **two-step verification** on, after your password you'll get a **6-digit code by email** — enter it to finish signing in. You can tap **Resend code** if it expires (codes last 10 minutes).
@@ -15,6 +17,8 @@
 ---
 
 ## 2. Your dashboard
+
+![Your training dashboard](/docs-img/emp-dashboard.png)
 
 Your home screen shows:
 
@@ -29,6 +33,8 @@ Your home screen shows:
 
 ## 3. Modules
 
+![The 5-module program list](/docs-img/emp-modules.png)
+
 Open **Modules** to see the whole 5-module program. You can:
 
 - **Search** modules by name.
@@ -42,7 +48,11 @@ Open **Modules** to see the whole 5-module program. You can:
 
 ### Inside a module
 
-- **Pre-study (before the seminar):** scroll to **"Seminar outline."** Every lesson lists its content (videos, documents, slides, links). The **"Available to preview now"** badge means you can open and study any of it **before** the seminar — tap a item to view it. This is optional but helps you prepare.
+![Inside a module — details and the seminar outline](/docs-img/emp-module-detail.png)
+
+- **Pre-study (before the seminar):** scroll to **"Seminar outline."** Every lesson lists its content (videos, documents, slides, links). The **"Available to preview now"** badge means you can open and study any of it **before** the seminar — tap an item to view it. It opens **right inside the app** — Word, PowerPoint, Excel, PDFs, images and video all preview in place, no download needed. This is optional but helps you prepare.
+
+![Any file — here a Word document — previews right inside the app](/docs-img/emp-file-preview.png)
 - **Required resources:** if you see a yellow **"Sign these required resources before the quiz"** banner, open each listed resource, read it, and tap **"I have read and understood."** The quiz stays locked until all are signed.
 - **How this works** card explains that the module is delivered as a live in-person seminar, then you take the quiz right after.
 
@@ -61,6 +71,8 @@ On training day, once your trainer starts the session, a **Check-in card** appea
 ---
 
 ## 5. Taking the quiz
+
+![The quiz intro screen](/docs-img/emp-quiz.png)
 
 When the seminar ends, your **Quiz status** card flips to **"Quiz is open."** Tap **Start [Module] Quiz**.
 
@@ -83,6 +95,8 @@ You get **3 tries** total per module (1 first attempt + 2 retakes). Retakes cove
 
 ## 6. Reviewing your answers
 
+![A question-by-question attempt review](/docs-img/emp-attempt-review.png)
+
 From a finished attempt (or **My Progress → a quiz**), open the attempt to see a **question-by-question breakdown**:
 
 - Every question is listed, **collapsed**, with a **Correct / Incorrect** marker.
@@ -100,6 +114,8 @@ After you pass, open **View certificate** (from the result screen or the module'
 
 ## 8. Resources
 
+![The Resources hub, grouped into department folders](/docs-img/emp-resources.png)
+
 Open **Resources** for documents your team has shared (policies, guides, SOPs):
 
 - Resources are grouped into **department folders** — tap a folder to open it. Folders that have items you still need to acknowledge open automatically and show a **"X to review"** badge.
@@ -111,6 +127,8 @@ Open **Resources** for documents your team has shared (policies, guides, SOPs):
 
 ## 9. My Progress
 
+![My Progress — your full training history](/docs-img/emp-progress.png)
+
 **My Progress** is your full training history:
 
 - Top: **modules passed**, **average score**, **total attempts**.
@@ -121,6 +139,8 @@ Open **Resources** for documents your team has shared (policies, guides, SOPs):
 
 ## 10. Notifications
 
+![The Notifications inbox](/docs-img/emp-notifications.png)
+
 The **Notifications** inbox collects your invites, reminders, results, and alerts:
 
 - Filter by **All / Unread / Results / Reminders / Alerts / Invitations.**
@@ -130,10 +150,14 @@ The **Notifications** inbox collects your invites, reminders, results, and alert
 
 ## 11. My Profile & language
 
+![My Profile](/docs-img/emp-profile.png)
+
 Open **My Profile** to see your details (name, email, phone, market, title) and your progress stats. Use **Edit profile** to update your info.
 
 ### Switch to Spanish / English
-In your profile settings there's a **language** toggle — choose **English** or **Español**. The whole employee app (menus, your dashboard, modules, the quiz, resources, progress, your certificate) switches to the chosen language. Quiz questions appear in Spanish when a translation is available; if not, they fall back to English so the quiz always works.
+You can switch the app between **English** and **Español** in three places: the **language toggle on My Profile**, the **account menu** (your avatar, top-right), or the small **floating language button** at the bottom-right of any screen. The whole employee app (menus, your dashboard, modules, the quiz, resources, progress, your certificate) switches to the chosen language. Quiz questions appear in Spanish when a translation is available; if not, they fall back to English so the quiz always works.
+
+![Switch language from the account menu](/docs-img/emp-language-menu.png)
 
 ---
 
@@ -144,6 +168,6 @@ In your profile settings there's a **language** toggle — choose **English** or
 - **Content is open before the seminar**; the **quiz** opens after the seminar (check in + trainer ends session).
 - **Sign required resources** before the quiz unlocks.
 - **Certificate** on pass; **annual refresher** recommended.
-- Switch language any time in **My Profile**.
+- Switch language any time — from **My Profile**, the **account menu**, or the **floating button**.
 
 *See the FAQ for quick answers to common questions.*

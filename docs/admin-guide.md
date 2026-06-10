@@ -6,6 +6,8 @@
 
 ## 1. Dashboard
 
+![The admin Program health dashboard](/docs-img/admin-dashboard.png)
+
 `Dashboard` is your live program overview. **Everything is clickable** to drill in:
 
 - **KPI cards** (click to drill down): **Total employees** → People, **Pass rate** → Test results (passed), **Average score** → Test results, **At-risk** → At-risk list. Each shows a trend delta.
@@ -20,6 +22,9 @@
 ## 2. Modules
 
 ### Modules list
+
+![All modules](/docs-img/admin-modules.png)
+
 `Modules` shows all modules (List or Card view, toggle persists). **Search** by number/title/description/month/owner. Click a module to open it. **Add module** opens the wizard.
 
 ### Add module (4-step wizard)
@@ -58,6 +63,8 @@ Only **published** modules appear to employees. **Draft** modules are visible to
 
 ## 4. Question library
 
+![The question library across all modules](/docs-img/admin-questions.png)
+
 `Question library` spans all modules (a Department Lead sees only their own). Filter by **module**, **pool** (First attempt / Retake), **status** (Approved / Pending), and **search**. Paginated.
 
 Per question you can **Approve**, **Edit**, **Regenerate with AI**, set **pool**, **Duplicate → retake**, view **Who answered** (who got it right/wrong, with date/time — searchable + paginated), view **History** (and restore), or **Reject**. Each shows **Attempts** and **Pass rate** (shows "—" with 0 attempts) and **Approved by**. **Generate with AI** drafts a fresh bank from the module's content.
@@ -66,12 +73,17 @@ Per question you can **Approve**, **Edit**, **Regenerate with AI**, set **pool**
 
 ## 5. Resources
 
+![The Resources admin, organised into department folders](/docs-img/admin-resources.png)
+
 `Resources` holds policies, SOPs, guides — anything non-quiz. Resources are organised into **department folders** (collapsible).
 
 ### Create / edit a resource
 Fields: **Title**, **Department** (folder), **Category** (tag), **Description**, content as a **markdown body** OR an **uploaded file** OR an **external link**, **Audience** (Employees / Department Leads / Admins), **Markets** (empty = all), **Requires acknowledgement** toggle, and **Require re-acknowledgement on next update** (bumps the version so everyone must sign again and gets notified), and **Notify on update**.
 
 ### Resource detail page
+
+![A resource's detail page — preview, change history, acknowledgements](/docs-img/admin-resource-detail.png)
+
 Click a resource (or **View all details**) to open its page:
 - **Preview** — renders the document/markdown/link.
 - **Change history** — every edit: version, **who edited**, date/time, and **what changed** (a field-level diff). This is the audit trail.
@@ -85,6 +97,9 @@ Click a resource (or **View all details**) to open its page:
 ## 6. People
 
 ### Employees (`People → Employees`)
+
+![The Employees directory](/docs-img/admin-people.png)
+
 A table of all employees: name, **markets**, **status** (Pending / Active / At-risk / Completed / Inactive), joined, last active. **Search** by name/email; **filter** by market and status. **Select rows** for bulk actions (**Send reminder** with a preview, **Remove**, **Resend invite**). Per person: open their detail, send a reminder, deactivate/reactivate, force password reset, delete.
 - **Add employee** — name, email, market(s); sends an invite email.
 - **Bulk import** — upload a CSV (`name,email,markets`; markets separated by `;`). Rows are validated; import the valid ones; invites send in batches.
@@ -105,6 +120,8 @@ A table of admins (name, title, joined, last active). **Invite admin** (name, em
 
 ## 7. Reports & test results
 
+![Test results — the master attempts table](/docs-img/admin-reports.png)
+
 `Test results` is the master attempts table:
 - KPIs: total attempts, pass rate, average score, failed.
 - Columns: employee, module, pool, **score**, status, **Attended** (checked-in vs not), date **with time**. Sort, filter (by module/pool/status), search by employee. Paginated. **Download CSV** exports the current view.
@@ -116,11 +133,15 @@ Per-module **Reports** (from the module page) add a score-distribution chart, mo
 
 ## 8. Audit log
 
+![The audit log — filterable, sortable event history](/docs-img/admin-audit-log.png)
+
 `Audit log` records every event (sign-ins, quiz pass/fail, module published, reminders, resource changes, sessions, etc.). **Search** the message, **filter by event type**, **filter by person**, and **sort** newest/oldest. **Clear** resets filters. Paginated. The log is append-only.
 
 ---
 
 ## 9. Notifications & email templates
+
+![Email templates & reminder rules](/docs-img/admin-notifications.png)
 
 `Notifications`:
 - **Email templates** — edit the subject + markdown body of each automated email (invitation, password reset, welcome, quiz passed, quiz failed/retake, overdue reminder, at-risk alert, sign-in code, seminar scheduled/rescheduled). Insert **{{variables}}** like `{{name}}`, `{{module}}`, `{{score}}`, `{{date}}`, `{{link}}`. **Preview** the rendered email and **Send test** to yourself.
@@ -133,12 +154,18 @@ Anywhere you send a reminder (At-risk, People, a person's page), you first see a
 ## 10. Settings
 
 ### Branding (`Settings → Branding`)
+
+![Branding settings](/docs-img/admin-settings-branding.png)
+
 - **Platform name** (shown by the sidebar logo).
 - **Brand colours** — primary (navy) + accent (teal), with a live preview.
 - **Logo** — upload SVG/PNG/JPG/WebP.
 - **Email sender** — the From address for all automated emails (must be on your verified sending domain).
 
 ### Certificate (`Settings → Certificate`)
+
+![The certificate editor with live preview](/docs-img/admin-certificate-editor.png)
+
 Fully customise the completion certificate with a **live preview**:
 - **Heading**, **intro line**, **completion line**, **footer**.
 - **Organisation name**, optional **signatory name** + **title**.

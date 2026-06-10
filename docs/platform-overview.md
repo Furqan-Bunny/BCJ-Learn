@@ -8,6 +8,8 @@
 
 BCJ Learn is BCJ Building Services' internal training platform. It turns the company's standards into structured **modules** that employees learn in a **live seminar**, then prove they understood by passing an **on-site quiz**. Leadership gets live reporting on who has trained, who passed, and who needs help.
 
+![Leadership's live program overview](/docs-img/admin-dashboard.png)
+
 One module is delivered per month (June–October 2026), starting with **Operations & Leadership**.
 
 The platform handles the whole training lifecycle in one place:
@@ -82,6 +84,8 @@ Quiz unlocks ─▶ employee takes quiz ─▶  PASS (85%+) ─▶ certificate, 
 ---
 
 ## Language
+
+![Employees switch between English and Español in one tap](/docs-img/emp-language-menu.png)
 
 Employees can switch the whole employee experience between **English** and **Español** from their profile. Quiz questions are translated to Spanish (AI-assisted, reviewed) and shown in the chosen language; if a translation isn't ready, the English version is shown so the quiz always works. Admin and Department-Lead screens are in English.
 

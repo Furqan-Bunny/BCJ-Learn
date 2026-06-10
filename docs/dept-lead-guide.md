@@ -8,6 +8,8 @@
 
 ## 1. Your dashboard
 
+![The Department Lead dashboard](/docs-img/lead-dashboard.png)
+
 `Dashboard` shows your training at a glance:
 
 - KPIs: **My modules**, **Questions approved**, **Pending review**, **Quiz attempts**.
@@ -17,6 +19,8 @@
 
 ## 2. My Modules
 
+![The modules you own](/docs-img/lead-modules.png)
+
 `My Modules` lists the modules you own. From here you can open any of them, or **Add module** (you'll be the owner). Each card has the same quick actions as the dashboard.
 
 ### Module detail
@@ -25,6 +29,8 @@ Opening a module shows: question bank progress, attempts, pass rate, the **semin
 ---
 
 ## 3. Building the content
+
+![The lessons & content builder](/docs-img/lead-content-builder.png)
 
 Open **Content** (the lessons builder):
 
@@ -40,6 +46,8 @@ Open **Content** (the lessons builder):
 ---
 
 ## 4. Generating & reviewing questions
+
+![Reviewing the AI-drafted question bank](/docs-img/lead-questions-detail.png)
 
 Open **Questions**:
 
@@ -62,10 +70,12 @@ Open **Questions**:
 
 ## 5. Presenting the seminar
 
+![The check-in lobby — employees enter the 4-digit code](/docs-img/lead-present-lobby.png)
+
 On training day, open **Present in seminar** (full-screen presenter):
 
 1. **Check-in lobby** — you see the roster. **Open check-in**: a **4-digit code** appears for employees to enter on their devices. **Start the session** when you're ready.
-2. **Presentation mode** — your content plays as a playlist:
+2. **Presentation mode** — your content plays as a playlist. Each item shows **exactly the file you uploaded** — PDFs, PowerPoint, Word and video render as-is on the big screen (Office files open through Microsoft's online viewer, so the room needs internet for those).
    - The top bar shows the current lesson, an elapsed timer vs. planned minutes, and a progress bar.
    - Navigate with the on-screen **Previous/Next**, or keyboard: **→ / Page Down** next, **← / Page Up** previous, **Space** play/pause, **F** fullscreen, **Esc** to close the outline.
    - Open the **Outline** to jump to any lesson/content item; viewed items get a check.
@@ -82,6 +92,8 @@ On training day, open **Present in seminar** (full-screen presenter):
 
 ## 7. Results
 
+![Module results — pass rate, distribution, roster](/docs-img/lead-results.png)
+
 Open **See results** for a module:
 
 - KPIs: **Attempts**, **Pass rate**, **Avg score**, **Failed**.
@@ -92,6 +104,8 @@ Open **See results** for a module:
 ---
 
 ## 8. My team
+
+![My team — employees trained on your modules](/docs-img/lead-team.png)
 
 `My team` lists the employees trained on your modules (read-only for you):
 
