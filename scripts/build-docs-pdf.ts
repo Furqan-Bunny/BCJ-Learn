@@ -12,7 +12,6 @@
 
 import { promises as fs } from "fs";
 import path from "path";
-import { pathToFileURL } from "url";
 import { marked } from "marked";
 import puppeteer from "puppeteer";
 
@@ -32,6 +31,18 @@ const DOCS = [
 
 const IMG_DIR = path.join(process.cwd(), "public", "docs-img");
 
+// Screenshots inlined as base64 data URIs — headless Chrome won't load file://
+// images from a setContent page (no file origin), so we embed them directly.
+const imgDataUri = new Map<string, string>();
+async function loadImages() {
+  const files = await fs.readdir(IMG_DIR).catch(() => [] as string[]);
+  for (const f of files) {
+    if (!f.toLowerCase().endsWith(".png")) continue;
+    const buf = await fs.readFile(path.join(IMG_DIR, f));
+    imgDataUri.set(f, `data:image/png;base64,${buf.toString("base64")}`);
+  }
+}
+
 /** "June 2026" — fine to use a live date inside a one-shot script. */
 function monthYear(): string {
   return new Date().toLocaleDateString("en-US", { month: "long", year: "numeric" });
@@ -50,9 +61,10 @@ function rewriteImages(html: string): string {
   return html.replace(
     /<p>\s*<img[^>]*\bsrc="\/docs-img\/([^"]+)"[^>]*\balt="([^"]*)"[^>]*>\s*<\/p>/g,
     (_full, file: string, alt: string) => {
-      const href = pathToFileURL(path.join(IMG_DIR, file)).href;
+      const src = imgDataUri.get(file);
+      if (!src) { console.warn(`  ! missing image: ${file}`); return _full; }
       const caption = alt ? `<figcaption>${alt}</figcaption>` : "";
-      return `<figure class="shot"><img src="${href}" alt="${alt}"/>${caption}</figure>`;
+      return `<figure class="shot"><img src="${src}" alt="${alt}"/>${caption}</figure>`;
     },
   );
 }
@@ -170,6 +182,9 @@ async function main() {
   const docsDir = path.join(process.cwd(), "docs");
   const outDir = path.join(docsDir, "pdf");
   await fs.mkdir(outDir, { recursive: true });
+
+  await loadImages();
+  console.log(`Loaded ${imgDataUri.size} screenshots`);
 
   const browser = await puppeteer.launch({ headless: true, args: ["--no-sandbox"] });
   try {
