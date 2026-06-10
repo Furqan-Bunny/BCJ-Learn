@@ -91,7 +91,7 @@ function tocHtml(items: string[]): string {
   return `<section class="toc"><h2 class="toc-title">Contents</h2><ol class="toc-list">${lis}</ol></section>`;
 }
 
-function pageHtml(title: string, coverAndToc: string, body: string): string {
+function pageHtml(title: string, coverAndToc: string, body: string, bodyClass = ""): string {
   return `<!doctype html><html><head><meta charset="utf-8"><style>
     * { box-sizing: border-box; }
     html, body { margin: 0; padding: 0; }
@@ -165,7 +165,19 @@ function pageHtml(title: string, coverAndToc: string, body: string): string {
       border: 1px solid ${BORDER}; border-radius: 9px; box-shadow: 0 3px 12px rgba(4,29,57,.12);
     }
     figure.shot figcaption { color: ${MUTED}; font-size: 10px; font-style: italic; margin-top: 7px; }
-  </style></head><body>${coverAndToc}<article class="doc">${body}</article></body></html>`;
+
+    /* ── FAQ: separate each audience group clearly ───────── */
+    /* Each "For Employees / Department Leads / Admins / …" group starts on a
+       fresh page with a filled navy band, so it's obvious who it's for. */
+    .doc.faq h2 {
+      break-before: page; margin: 0 0 16px; padding: 11px 16px;
+      background: ${NAVY}; color: #fff; border: none; border-radius: 9px;
+      font-size: 18px; letter-spacing: .2px;
+    }
+    .doc.faq h2:first-of-type { break-before: avoid; }
+    .doc.faq p > strong:first-child { color: ${NAVY}; }
+    .doc.faq > p, .doc.faq > blockquote { break-inside: avoid; }
+  </style></head><body>${coverAndToc}<article class="doc ${bodyClass}">${body}</article></body></html>`;
 }
 
 function headerFooter(title: string) {
@@ -195,7 +207,7 @@ async function main() {
       const parsed = await marked.parse(md, { gfm: true, breaks: true });
       const body = rewriteImages(parsed);
       const coverAndToc = coverHtml(d.title) + tocHtml(tocItems(raw));
-      const html = pageHtml(d.title, coverAndToc, body);
+      const html = pageHtml(d.title, coverAndToc, body, d.slug === "faq" ? "faq" : "");
 
       const page = await browser.newPage();
       // `load` (not networkidle) so local file:// images are awaited.
