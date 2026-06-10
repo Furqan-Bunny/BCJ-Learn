@@ -224,10 +224,10 @@ export function AdminDashboardView({
       />
 
       <Stagger className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-8">
-        <StaggerItem><KpiCard label="Total employees" value={stats.totalManagers} icon={Users} delta={{ value: 4 }} href="/admin/managers" /></StaggerItem>
-        <StaggerItem><KpiCard label="Pass rate" value={`${stats.passRate}%`} icon={Trophy} accent="success" delta={{ value: 3 }} href="/admin/results?status=passed" /></StaggerItem>
-        <StaggerItem><KpiCard label="Average score" value={`${stats.avgScore}%`} icon={Target} delta={{ value: -1 }} href="/admin/results" /></StaggerItem>
-        <StaggerItem><KpiCard label="At-risk" value={stats.atRisk} icon={AlertTriangle} accent="warning" delta={{ value: -2 }} href="/admin/at-risk" /></StaggerItem>
+        <StaggerItem><KpiCard label="Total employees" value={stats.totalManagers} icon={Users} href="/admin/managers" /></StaggerItem>
+        <StaggerItem><KpiCard label="Pass rate" value={`${stats.passRate}%`} icon={Trophy} accent="success" href="/admin/results?status=passed" /></StaggerItem>
+        <StaggerItem><KpiCard label="Average score" value={`${stats.avgScore}%`} icon={Target} href="/admin/results" /></StaggerItem>
+        <StaggerItem><KpiCard label="At-risk" value={stats.atRisk} icon={AlertTriangle} accent="warning" href="/admin/at-risk" /></StaggerItem>
       </Stagger>
 
       <div className="grid lg:grid-cols-3 gap-4 mb-6">

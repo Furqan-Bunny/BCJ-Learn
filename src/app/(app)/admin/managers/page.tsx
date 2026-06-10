@@ -1,10 +1,11 @@
 import { listManagers } from "@/lib/db/profiles";
 import { listAttempts } from "@/lib/db/attempts";
+import { listModules } from "@/lib/db/modules";
 import { AdminManagersView } from "./managers-view";
 import type { Manager } from "@/types";
 
 export default async function AdminManagersPage() {
-  const [managers, attempts] = await Promise.all([listManagers(), listAttempts()]);
+  const [managers, attempts, modules] = await Promise.all([listManagers(), listAttempts(), listModules()]);
 
   // Enrich each manager with derived stats from attempts.
   const enriched: Manager[] = managers.map((m) => {
@@ -22,5 +23,5 @@ export default async function AdminManagersPage() {
     };
   });
 
-  return <AdminManagersView managers={enriched} />;
+  return <AdminManagersView managers={enriched} totalModules={modules.length} />;
 }

@@ -137,14 +137,11 @@ export function AdminTeachersView({ teachers, modules, approvedByModule, totalBy
                       </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
-                      <DropdownMenuItem onClick={() => toast.info(`Email ${t.name}`)}>
+                      <DropdownMenuItem onClick={() => { window.location.href = `mailto:${t.email}`; }}>
                         <Mail className="mr-2 size-4" /> Send email
                       </DropdownMenuItem>
                       <DropdownMenuItem onClick={() => setEditTarget(t)}>
                         <Edit3 className="mr-2 size-4" /> Edit profile
-                      </DropdownMenuItem>
-                      <DropdownMenuItem onClick={() => toast.info("Reassign module modal (mocked)")}>
-                        <BookOpen className="mr-2 size-4" /> Reassign modules
                       </DropdownMenuItem>
                       <DropdownMenuSeparator />
                       <DropdownMenuItem

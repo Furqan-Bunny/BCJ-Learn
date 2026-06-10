@@ -53,7 +53,7 @@ export const en: Record<string, string> = {
   // ── modules list ──
   "modules.eyebrow": "Curriculum",
   "modules.title": "The 5-module program",
-  "modules.desc": "One module per month, June through October 2026. Pass each to unlock the next.",
+  "modules.desc": "Pass each module's quiz to unlock the next.",
   "modules.searchPlaceholder": "Search modules…",
   "modules.filter.all": "All",
   "modules.filter.todo": "To do",

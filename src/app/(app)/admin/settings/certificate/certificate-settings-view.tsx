@@ -36,7 +36,12 @@ export function CertificateSettingsView({ initial }: { initial: CertificateSetti
   }
 
   // Live-preview sample values.
-  const vars = { name: "Jordan Patel", module: "Module 1: Operations & Leadership", score: "92%", date: "Jun 18, 2026" };
+  const vars = {
+    name: "Sample Employee",
+    module: "Module 1: Sample Module",
+    score: "92%",
+    date: new Date().toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }),
+  };
 
   return (
     <>
@@ -63,7 +68,7 @@ export function CertificateSettingsView({ initial }: { initial: CertificateSetti
             <CardContent className="space-y-4">
               <Field label="Organisation name" value={s.orgName} onChange={(v) => set("orgName", v)} placeholder="BCJ Building Services" />
               <div className="grid sm:grid-cols-2 gap-4">
-                <Field label="Signatory name (optional)" value={s.signatoryName} onChange={(v) => set("signatoryName", v)} placeholder="Nancy McMinn" />
+                <Field label="Signatory name (optional)" value={s.signatoryName} onChange={(v) => set("signatoryName", v)} placeholder="e.g., Jane Smith" />
                 <Field label="Signatory title (optional)" value={s.signatoryTitle} onChange={(v) => set("signatoryTitle", v)} placeholder="Director of Operations" />
               </div>
               <label className="flex items-center justify-between rounded-md border p-3">

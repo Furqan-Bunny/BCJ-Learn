@@ -231,7 +231,7 @@ export function ManagerDetailView({ m, modules, myAttempts, deliveriesByModule, 
               <Field icon={Calendar} label="Joined" value={m.status === "pending" ? "—" : fmtDate(m.joinedAt)} />
               <Field icon={Clock} label="Last active" value={m.status === "pending" ? "—" : fmtRelative(m.lastActiveAt)} />
               <Field icon={Phone} label="Phone" value={m.phone ?? "—"} />
-              <Field icon={Trophy} label="Modules passed" value={`${m.modulesCompleted} of 5`} />
+              <Field icon={Trophy} label="Modules passed" value={`${m.modulesCompleted} of ${modules.length}`} />
               <Field icon={Trophy} label="Avg score" value={m.averageScore ? `${m.averageScore}%` : "—"} />
               {m.failedAttempts > 0 && (
                 <Field icon={AlertTriangle} label="Failed attempts" value={String(m.failedAttempts)} highlight="warning" />

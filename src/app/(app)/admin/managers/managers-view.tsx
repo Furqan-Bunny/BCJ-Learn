@@ -70,7 +70,7 @@ import { deactivateUser, resendInvite, deleteUser } from "@/lib/server/admin-act
 const COHORTS: Cohort[] = ["Atlanta", "Nashville", "Charlotte"];
 const STATUSES: ManagerStatus[] = ["pending", "active", "at-risk", "completed", "inactive"];
 
-export function AdminManagersView({ managers }: { managers: Manager[] }) {
+export function AdminManagersView({ managers, totalModules }: { managers: Manager[]; totalModules: number }) {
   const router = useRouter();
   const data = managers;
   const [globalFilter, setGlobalFilter] = React.useState("");
@@ -182,13 +182,13 @@ export function AdminManagersView({ managers }: { managers: Manager[] }) {
         header: "Progress",
         cell: ({ row }) => {
           const m = row.original;
-          const pct = (m.modulesCompleted / 5) * 100;
+          const pct = totalModules > 0 ? (m.modulesCompleted / totalModules) * 100 : 0;
           return (
             <div className="flex items-center gap-2 min-w-[140px]">
               <div className="flex-1 h-1.5 rounded-full bg-muted overflow-hidden">
                 <div className={cn("h-full transition-all", m.status === "at-risk" ? "bg-amber-500" : "bg-emerald-500")} style={{ width: `${pct}%` }} />
               </div>
-              <span className="text-xs font-mono tabular-nums w-9 text-right">{m.modulesCompleted}/5</span>
+              <span className="text-xs font-mono tabular-nums w-9 text-right">{m.modulesCompleted}/{totalModules}</span>
             </div>
           );
         },
@@ -283,7 +283,7 @@ export function AdminManagersView({ managers }: { managers: Manager[] }) {
         },
       },
     ],
-    [],
+    [totalModules],
   );
 
   const table = useReactTable({

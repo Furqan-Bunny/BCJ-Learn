@@ -112,7 +112,7 @@ export function AtRiskView({
               ))}
             </div>
             <div className="mt-4 text-xs text-muted-foreground">
-              <span className="font-medium text-foreground">Why this exists:</span> Nancy and Isabel asked us to surface trouble early so coaching happens before someone falls behind a whole cohort.
+              <span className="font-medium text-foreground">Why this matters:</span> Surfacing trouble early lets you coach an employee before they fall behind their cohort.
             </div>
           </CardContent>
         </Card>

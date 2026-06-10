@@ -53,7 +53,7 @@ export const es: Record<string, string> = {
   // ── modules list ──
   "modules.eyebrow": "Plan de estudios",
   "modules.title": "El programa de 5 módulos",
-  "modules.desc": "Un módulo por mes, de junio a octubre de 2026. Aprueba cada uno para desbloquear el siguiente.",
+  "modules.desc": "Aprueba el cuestionario de cada módulo para desbloquear el siguiente.",
   "modules.searchPlaceholder": "Buscar módulos…",
   "modules.filter.all": "Todos",
   "modules.filter.todo": "Pendientes",

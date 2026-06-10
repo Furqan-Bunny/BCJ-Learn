@@ -156,7 +156,7 @@ export function NotificationsView({ recent, initialRules, profilesById, template
                     drop it in — you never have to type the braces yourself.
                   </p>
                   <p className="italic">
-                    {'Example: "Hi {{name}}, your {{module_title}} seminar is on {{seminar_date}}." → "Hi Nancy, your Operations & Leadership seminar is on Jun 12."'}
+                    {'Example: "Hi {{name}}, your {{module_title}} seminar is on {{seminar_date}}." → "Hi Alex, your Safety Basics seminar is on Mon, Jun 15."'}
                   </p>
                 </div>
               </div>
