@@ -104,35 +104,38 @@ export async function ensurePresentableContent(slug: string): Promise<void> {
     .in("type", ["document", "slides"]);
   if (!contents?.length) return;
 
-  for (const c of contents) {
+  // Extract every content item in parallel — each is independent, and the
+  // hasReal* guards make already-cached items instant no-ops. (Sequential here
+  // is what made the FIRST present slow on a deck-heavy module.)
+  await Promise.all(contents.map(async (c) => {
     const meta = (c.metadata ?? {}) as ContentMeta;
-    if (!c.storage_path) continue;
+    if (!c.storage_path) return;
 
     if (c.type === "document") {
-      if (hasRealDocPages(meta.documentPages)) continue;
+      if (hasRealDocPages(meta.documentPages)) return;
       const { text } = await extractTextForContent({
         type: c.type, title: c.title, storagePath: c.storage_path, fileName: meta.fileName ?? null, metadata: meta,
       });
       const pages = paginate(text, c.title);
-      if (!pages.length) continue;
+      if (!pages.length) return;
       await admin.from("lesson_contents")
         .update({ metadata: { ...meta, documentPages: pages, extractedText: meta.extractedText ?? text } })
         .eq("id", c.id);
     } else if (c.type === "slides") {
-      if (hasRealSlides(meta.slides)) continue;
-      if (ext(meta.fileName) !== "pptx") continue; // only .pptx can be parsed into slides
+      if (hasRealSlides(meta.slides)) return;
+      if (ext(meta.fileName) !== "pptx") return; // only .pptx can be parsed into slides
       try {
         const { data } = await admin.storage.from("module-content").download(c.storage_path);
-        if (!data) continue;
+        if (!data) return;
         const buffer = Buffer.from(await data.arrayBuffer());
         const slides = await extractSlides(buffer, c.title);
-        if (!slides.length) continue;
+        if (!slides.length) return;
         await admin.from("lesson_contents").update({ metadata: { ...meta, slides, slideCount: slides.length } }).eq("id", c.id);
       } catch {
         // leave the placeholder; presenter still shows the title
       }
     }
-  }
+  }));
 }
 
 /**
@@ -142,16 +145,19 @@ export async function ensurePresentableContent(slug: string): Promise<void> {
  */
 export async function attachSignedMedia(mod: ModuleDef): Promise<void> {
   const admin = createAdminClient();
-  for (const lesson of mod.lessons) {
-    for (const content of lesson.contents) {
-      if (content.type !== "video") continue;
-      const url = content.videoUrl ?? "";
-      const isHosted = /youtube\.com|youtu\.be|vimeo\.com/i.test(url);
-      if (isHosted || !content.storagePath) continue; // hosted embed or nothing to sign
-      const { data } = await admin.storage
-        .from("module-content")
-        .createSignedUrl(content.storagePath, SIGNED_URL_TTL_SEC);
-      if (data?.signedUrl) content.videoUrl = data.signedUrl;
-    }
-  }
+  // Sign every uploaded video in parallel (this runs on EVERY present, so the
+  // per-render cost matters) — only the ones that actually need a signed URL.
+  const toSign = mod.lessons.flatMap((lesson) =>
+    lesson.contents.filter((content) => {
+      if (content.type !== "video") return false;
+      const isHosted = /youtube\.com|youtu\.be|vimeo\.com/i.test(content.videoUrl ?? "");
+      return !isHosted && !!content.storagePath; // skip hosted embeds / nothing to sign
+    }),
+  );
+  await Promise.all(toSign.map(async (content) => {
+    const { data } = await admin.storage
+      .from("module-content")
+      .createSignedUrl(content.storagePath as string, SIGNED_URL_TTL_SEC);
+    if (data?.signedUrl) content.videoUrl = data.signedUrl;
+  }));
 }

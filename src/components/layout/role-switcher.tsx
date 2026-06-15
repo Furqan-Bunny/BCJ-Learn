@@ -20,7 +20,7 @@ const DEMO_MODE = process.env.NEXT_PUBLIC_DEMO_MODE === "true";
 
 const ROLE_META: Record<Role, { label: string; icon: typeof GraduationCap; description: string; route: string }> = {
   manager: {
-    label: "Employee",
+    label: "Manager",
     icon: GraduationCap,
     description: "Trainee — take quizzes, track progress",
     route: "/manager/dashboard",

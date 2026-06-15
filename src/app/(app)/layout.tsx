@@ -12,6 +12,7 @@ import { getBrandingSettings } from "@/lib/db/settings";
 import { resolveBrandingLogoUrl, buildBrandingCss } from "@/lib/branding";
 import { LocaleProvider } from "@/lib/i18n/provider";
 import { LanguageFab } from "@/components/shared/language-fab";
+import { SHOW_SPANISH } from "@/lib/i18n";
 
 const DEMO_MODE = process.env.NEXT_PUBLIC_DEMO_MODE === "true";
 
@@ -57,7 +58,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         </main>
       </div>
       <WelcomeModal />
-      {user?.role === "manager" && <LanguageFab />}
+      {user?.role === "manager" && SHOW_SPANISH && <LanguageFab />}
     </div>
     </LocaleProvider>
   );

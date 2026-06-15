@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { PageHeader } from "@/components/shared/page-header";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { LanguageToggle } from "@/components/shared/language-toggle";
+import { SHOW_SPANISH } from "@/lib/i18n";
 import { initials, fmtDate, fmtRelative, fmtPct, fmtDuration } from "@/lib/format";
 import {
   Mail,
@@ -54,7 +55,7 @@ interface MyProfileViewProps {
 }
 
 const ROLE_LABEL: Record<Role, string> = {
-  manager: "Employee",
+  manager: "Manager",
   teacher: "Department Lead",
   admin: "Administrator",
 };
@@ -209,7 +210,7 @@ export function MyProfileView({
           </Card>
 
           {/* Language — employees only */}
-          {role === "manager" && (
+          {role === "manager" && SHOW_SPANISH && (
             <Card>
               <CardContent className="p-5">
                 <LanguageToggle />

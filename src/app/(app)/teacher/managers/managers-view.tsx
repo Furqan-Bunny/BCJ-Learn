@@ -57,7 +57,7 @@ export function TeacherTraineesView({ rows, myModules }: TeacherTraineesViewProp
     () => [
       {
         accessorKey: "name",
-        header: "Employee",
+        header: "Manager",
         cell: ({ row }) => {
           const m = row.original;
           return (
@@ -180,7 +180,7 @@ export function TeacherTraineesView({ rows, myModules }: TeacherTraineesViewProp
       <PageHeader
         eyebrow="Team"
         title="My team"
-        description={`Employees being trained on ${myModules.length === 1 ? "the module you own" : "your modules"} (${myModules.map((m) => `M${m.number}`).join(", ")}). Read-only — Admin manages user records.`}
+        description={`Managers being trained on ${myModules.length === 1 ? "the module you own" : "your modules"} (${myModules.map((m) => `M${m.number}`).join(", ")}). Read-only — Admin manages user records.`}
       />
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
@@ -258,7 +258,7 @@ export function TeacherTraineesView({ rows, myModules }: TeacherTraineesViewProp
               <TableRow>
                 <TableCell colSpan={columns.length} className="h-32 text-center text-muted-foreground">
                   <Filter className="size-6 mx-auto mb-2 opacity-50" />
-                  No employees match your filters.
+                  No managers match your filters.
                 </TableCell>
               </TableRow>
             )}

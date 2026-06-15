@@ -119,6 +119,8 @@ export interface ModuleDef {
   scheduledDate: string;
   /** Seminar start time, "HH:MM" (24h). Empty if not set. */
   scheduledTime: string;
+  /** IANA time zone for the seminar (e.g. "America/New_York"). Empty if not set. */
+  timezone?: string;
   /** When this module was created (ISO). */
   createdAt?: string;
   /** One or more Teachers who own this module. The first is the "primary" owner. */

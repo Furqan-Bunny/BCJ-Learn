@@ -160,7 +160,7 @@ export function AdminDashboardView({
       <PageHeader
         eyebrow="BCJ Learn — Admin"
         title="Program health"
-        description="Live overview of every Employee, every module, and every score across the BCJ training program."
+        description="Live overview of every Manager, every module, and every score across the BCJ training program."
         actions={
           <div className="flex items-center gap-2">
             <Popover open={rangeOpen} onOpenChange={setRangeOpen}>
@@ -209,7 +209,7 @@ export function AdminDashboardView({
                     Apply range
                   </Button>
                   <p className="text-[11px] text-muted-foreground leading-snug">
-                    Applies to pass rate, average score &amp; module performance. Employee status and cohorts always show the current snapshot.
+                    Applies to pass rate, average score &amp; module performance. Manager status and cohorts always show the current snapshot.
                   </p>
                 </div>
               </PopoverContent>
@@ -224,7 +224,7 @@ export function AdminDashboardView({
       />
 
       <Stagger className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-8">
-        <StaggerItem><KpiCard label="Total employees" value={stats.totalManagers} icon={Users} href="/admin/managers" /></StaggerItem>
+        <StaggerItem><KpiCard label="Total managers" value={stats.totalManagers} icon={Users} href="/admin/managers" /></StaggerItem>
         <StaggerItem><KpiCard label="Pass rate" value={`${stats.passRate}%`} icon={Trophy} accent="success" href="/admin/results?status=passed" /></StaggerItem>
         <StaggerItem><KpiCard label="Average score" value={`${stats.avgScore}%`} icon={Target} href="/admin/results" /></StaggerItem>
         <StaggerItem><KpiCard label="At-risk" value={stats.atRisk} icon={AlertTriangle} accent="warning" href="/admin/at-risk" /></StaggerItem>
@@ -255,7 +255,7 @@ export function AdminDashboardView({
 
         <Card>
           <CardHeader>
-            <CardTitle className="text-base">Employee status</CardTitle>
+            <CardTitle className="text-base">Manager status</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="h-56">
@@ -303,7 +303,7 @@ export function AdminDashboardView({
                   >
                     <div className="flex items-center justify-between text-sm">
                       <span className="font-medium">{c.cohort}</span>
-                      <span className="text-muted-foreground">{c.total} employees</span>
+                      <span className="text-muted-foreground">{c.total} managers</span>
                     </div>
                     <div className="mt-1.5 h-2 rounded-full bg-muted overflow-hidden flex">
                       <motion.div className="bg-emerald-500" initial={{ width: 0 }} animate={{ width: c.total ? `${(c.completed / c.total) * 100}%` : "0%" }} transition={{ duration: 0.9, delay: 0.1 }} />
@@ -362,8 +362,8 @@ export function AdminDashboardView({
       <Card>
         <CardHeader className="flex flex-row items-center justify-between">
           <div>
-            <CardTitle className="text-base">At-risk employees</CardTitle>
-            <p className="text-xs text-muted-foreground mt-1">Employees who failed twice, missed deadlines, or have not logged in.</p>
+            <CardTitle className="text-base">At-risk managers</CardTitle>
+            <p className="text-xs text-muted-foreground mt-1">Managers who failed twice, missed deadlines, or have not logged in.</p>
           </div>
           <Button asChild variant="outline" size="sm">
             <Link href="/admin/at-risk">All {atRisk.length} <ArrowRight className="ml-1 size-3.5" /></Link>

@@ -8,10 +8,17 @@ import { revalidatePath } from "next/cache";
 import { pushInAppNotification } from "@/lib/notifications/push";
 import { getModule, listModuleContentVersions } from "@/lib/db/modules";
 import { sendEmail } from "@/lib/emails/send";
+import { ensurePresentableContent } from "@/lib/server/present-content";
 import { fmtDate } from "@/lib/format";
 import type { ContentType, Lesson, LessonContent, ModuleStatus, Role, CheckinState } from "@/types";
 
 const DEMO_MODE = process.env.NEXT_PUBLIC_DEMO_MODE === "true";
+
+// "June 2026" from a "YYYY-MM-DD" date string (for modules.scheduled_month).
+function monthLabel(date: string): string {
+  const d = new Date(`${date}T00:00:00`);
+  return Number.isNaN(d.getTime()) ? "" : d.toLocaleDateString("en-US", { month: "long", year: "numeric" });
+}
 
 interface Guard {
   ok: true;
@@ -64,6 +71,7 @@ export interface CreateModuleInput {
   scheduledMonth: string | null;
   scheduledDate: string | null;
   scheduledTime: string | null;
+  timezone: string | null;
   status: ModuleStatus;
   passThreshold: number;
   questionCount: number;
@@ -88,6 +96,7 @@ export async function createModule(input: CreateModuleInput): Promise<{ ok: bool
     scheduled_month: input.scheduledMonth,
     scheduled_date: input.scheduledDate,
     scheduled_time: input.scheduledTime,
+    timezone: input.timezone,
     status: input.status,
     pass_threshold: input.passThreshold,
     question_count: input.questionCount,
@@ -159,6 +168,7 @@ export async function createModule(input: CreateModuleInput): Promise<{ ok: bool
       delivery_index: 1,
       scheduled_date: input.scheduledDate,
       scheduled_time: input.scheduledTime,
+      timezone: input.timezone,
     })
     .select("id")
     .single();
@@ -294,6 +304,11 @@ export async function updateModuleLessons(
   const res = await replaceLessons(admin, moduleSlug, lessons);
   if (!res.ok) return res;
 
+  // Pre-warm extraction for any newly-added documents/slides (best-effort) so
+  // they're presentable instantly on seminar day. Already-cached items are
+  // skipped by the hasReal* guards.
+  await ensurePresentableContent(moduleSlug).catch(() => {});
+
   revalidatePath(`/teacher/modules/${moduleSlug}`);
   revalidatePath(`/teacher/modules/${moduleSlug}/content`);
   revalidatePath(`/admin/modules/${moduleSlug}`);
@@ -335,6 +350,11 @@ export async function restoreModuleContentVersion(
   const res = await replaceLessons(admin, moduleSlug, lessons);
   if (!res.ok) return res;
 
+  // Pre-warm extraction for any newly-added documents/slides (best-effort) so
+  // they're presentable instantly on seminar day. Already-cached items are
+  // skipped by the hasReal* guards.
+  await ensurePresentableContent(moduleSlug).catch(() => {});
+
   revalidatePath(`/teacher/modules/${moduleSlug}`);
   revalidatePath(`/teacher/modules/${moduleSlug}/content`);
   revalidatePath(`/admin/modules/${moduleSlug}`);
@@ -359,6 +379,10 @@ export async function publishModule(slug: string): Promise<{ ok: boolean; error?
     actor_id: guard.userId,
     message: `${guard.userName} published module ${slug}`,
   });
+
+  // Pre-warm document/slide extraction now (best-effort) so the seminar-day
+  // presenter loads instantly instead of paying extraction on first present.
+  await ensurePresentableContent(slug).catch(() => {});
 
   revalidatePath(`/admin/modules/${slug}`);
   revalidatePath(`/teacher/modules/${slug}`);
@@ -500,7 +524,7 @@ export async function getDueEmployees(moduleSlug: string) {
 
 // Ends the current open delivery, creates a new one on `date`, invites exactly
 // `managerIds`, and emails each of them that the seminar is scheduled.
-export async function scheduleSeminar(moduleSlug: string, date: string, managerIds: string[], time?: string | null) {
+export async function scheduleSeminar(moduleSlug: string, date: string, managerIds: string[], time?: string | null, timezone?: string | null) {
   const guard = await requireAdminOrModuleOwner(moduleSlug);
   if (!guard.ok) return { ok: false as const, error: guard.error };
   if (DEMO_MODE) return { ok: true as const, invited: managerIds.length, emailed: 0 };
@@ -524,7 +548,7 @@ export async function scheduleSeminar(moduleSlug: string, date: string, managerI
 
   const { data: deliveryRow, error: dErr } = await admin
     .from("module_deliveries")
-    .insert({ module_slug: moduleSlug, delivery_index: nextIndex, scheduled_date: date, scheduled_time: time ?? null })
+    .insert({ module_slug: moduleSlug, delivery_index: nextIndex, scheduled_date: date, scheduled_time: time ?? null, timezone: timezone ?? null })
     .select("id")
     .single();
   if (dErr || !deliveryRow) return { ok: false as const, error: dErr?.message ?? "Could not create the seminar" };
@@ -535,6 +559,14 @@ export async function scheduleSeminar(moduleSlug: string, date: string, managerI
       managerIds.map((id) => ({ delivery_id: deliveryId, manager_id: id, status: "invited" })),
     );
   }
+
+  // Keep the module row in sync so every display reflects the current seminar.
+  await admin.from("modules").update({
+    scheduled_date: date,
+    scheduled_month: monthLabel(date),
+    scheduled_time: time ?? null,
+    ...(timezone !== undefined ? { timezone: timezone ?? null } : {}),
+  }).eq("slug", moduleSlug);
 
   // Emails are NOT sent here — the client calls notifySeminar() in batches so it
   // can show live progress. We just return the recipient list.
@@ -607,7 +639,7 @@ export async function notifySeminar(
 
 // Move the CURRENT (active) seminar to a new date — same delivery, same
 // attendees — and email everyone already invited about the new date.
-export async function rescheduleSeminar(moduleSlug: string, newDate: string, newTime?: string | null) {
+export async function rescheduleSeminar(moduleSlug: string, newDate: string, newTime?: string | null, timezone?: string | null) {
   const guard = await requireAdminOrModuleOwner(moduleSlug);
   if (!guard.ok) return { ok: false as const, error: guard.error };
   if (DEMO_MODE) return { ok: true as const, emailed: 0 };
@@ -617,8 +649,20 @@ export async function rescheduleSeminar(moduleSlug: string, newDate: string, new
   if (!deliveryId) return { ok: false as const, error: "No active seminar to reschedule — schedule one first." };
 
   await admin.from("module_deliveries")
-    .update({ scheduled_date: newDate, ...(newTime !== undefined ? { scheduled_time: newTime } : {}) })
+    .update({
+      scheduled_date: newDate,
+      ...(newTime !== undefined ? { scheduled_time: newTime } : {}),
+      ...(timezone !== undefined ? { timezone: timezone ?? null } : {}),
+    })
     .eq("id", deliveryId);
+
+  // Sync the module row so the header/cards/schedule actually show the new date.
+  await admin.from("modules").update({
+    scheduled_date: newDate,
+    scheduled_month: monthLabel(newDate),
+    ...(newTime !== undefined ? { scheduled_time: newTime } : {}),
+    ...(timezone !== undefined ? { timezone: timezone ?? null } : {}),
+  }).eq("slug", moduleSlug);
 
   const mod = await getModule(moduleSlug);
   const moduleTitle = mod?.title ?? moduleSlug;
@@ -791,7 +835,7 @@ export async function getCheckinState(slug: string): Promise<CheckinState> {
     const { data: people } = await admin.from("profiles").select("id, name").in("id", rows.map((r) => r.manager_id));
     const nameById = new Map(((people ?? []) as { id: string; name: string }[]).map((p) => [p.id, p.name]));
     checkedIn = rows
-      .map((r) => ({ id: r.manager_id, name: nameById.get(r.manager_id) ?? "Employee", at: r.checked_in_at }))
+      .map((r) => ({ id: r.manager_id, name: nameById.get(r.manager_id) ?? "Manager", at: r.checked_in_at }))
       .sort((a, b) => +new Date(a.at) - +new Date(b.at));
   }
 
@@ -871,6 +915,7 @@ export interface UpdateModuleMetadataInput {
   scheduledMonth?: string | null;
   scheduledDate?: string | null;
   scheduledTime?: string | null;
+  timezone?: string | null;
   passThreshold?: number;
   questionCount?: number;
   timeLimitMinutes?: number | null;
@@ -905,6 +950,7 @@ export async function updateModuleMetadata(
   if (patch.scheduledMonth !== undefined) update.scheduled_month = patch.scheduledMonth;
   if (patch.scheduledDate !== undefined) update.scheduled_date = patch.scheduledDate;
   if (patch.scheduledTime !== undefined) update.scheduled_time = patch.scheduledTime;
+  if (patch.timezone !== undefined) update.timezone = patch.timezone;
   if (patch.passThreshold !== undefined) update.pass_threshold = patch.passThreshold;
   if (patch.questionCount !== undefined) update.question_count = patch.questionCount;
   if (patch.timeLimitMinutes !== undefined) update.time_limit_minutes = patch.timeLimitMinutes;

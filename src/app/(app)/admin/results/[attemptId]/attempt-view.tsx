@@ -161,7 +161,7 @@ export function AttemptDetailView({ attempt, m, mod, questions, deliveries }: At
               </AvatarFallback>
             </Avatar>
             <div className="flex-1 min-w-0">
-              <div className="text-xs text-muted-foreground uppercase tracking-wider mb-0.5">Employee</div>
+              <div className="text-xs text-muted-foreground uppercase tracking-wider mb-0.5">Manager</div>
               <div className="font-semibold truncate">{m.name}</div>
               <div className="text-xs text-muted-foreground truncate">{m.email} · {m.cohort}</div>
             </div>

@@ -98,7 +98,7 @@ export function AdminResultsView({ rows, modules }: { rows: AttemptRow[]; module
     () => [
       {
         accessorKey: "managerName",
-        header: "Employee",
+        header: "Manager",
         cell: ({ row }) => {
           const r = row.original;
           return (
@@ -229,7 +229,7 @@ export function AdminResultsView({ rows, modules }: { rows: AttemptRow[]; module
       <PageHeader
         eyebrow="Reporting"
         title="All test results"
-        description={`Every quiz attempt across the program — ${totalAttempts} total. Filter by module, search by employee, drill into any attempt.`}
+        description={`Every quiz attempt across the program — ${totalAttempts} total. Filter by module, search by manager, drill into any attempt.`}
         actions={
           <Button
             variant="outline"
@@ -261,7 +261,7 @@ export function AdminResultsView({ rows, modules }: { rows: AttemptRow[]; module
           <Input
             value={globalFilter}
             onChange={(e) => setGlobalFilter(e.target.value)}
-            placeholder="Search by employee, email, module, cohort…"
+            placeholder="Search by manager, email, module, cohort…"
             className="pl-9 h-9"
           />
         </div>

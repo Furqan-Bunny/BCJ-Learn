@@ -24,7 +24,7 @@ import { RescheduleSeminar } from "@/components/admin/reschedule-seminar";
 import { ModuleSetupPanel } from "@/components/admin/module-setup-panel";
 import { EditModuleSheet } from "@/components/admin/edit-module-sheet";
 import { ContentViewer } from "@/components/manager/content-viewer";
-import { fmtDate, initials } from "@/lib/format";
+import { fmtDate, fmtTimeWithZone, initials } from "@/lib/format";
 import { toast } from "sonner";
 import { linkResourceToModule, unlinkResourceFromModule } from "@/lib/server/module-resources-actions";
 import {
@@ -206,11 +206,11 @@ export function AdminModuleView({
   return (
     <>
       <Button asChild variant="ghost" size="sm" className="mb-4 -ml-2">
-        <Link href="/admin/modules"><ArrowLeft className="size-4 mr-1" /> All modules</Link>
+        <Link href="/admin/modules"><ArrowLeft className="size-4 mr-1" /> All Modules</Link>
       </Button>
 
       <PageHeader
-        eyebrow={`Module ${mod.number} · ${mod.scheduledMonth}${totalDeliveries > 1 ? ` · Delivery ${currentDeliveryIdx} of ${totalDeliveries}` : ""}`}
+        eyebrow={`Module ${mod.number} · ${mod.scheduledDate ? fmtDate(mod.scheduledDate) : mod.scheduledMonth}${totalDeliveries > 1 ? ` · Delivery ${currentDeliveryIdx} of ${totalDeliveries}` : ""}`}
         title={mod.title}
         description={mod.description}
         actions={
@@ -242,6 +242,9 @@ export function AdminModuleView({
         questionCount={mod.questionCount}
         currentDeliveryStart={currentDeliveryStart}
         attendeeCount={rosterCounts.expected}
+        scheduledDate={mod.scheduledDate}
+        scheduledTime={mod.scheduledTime}
+        timezone={mod.timezone}
       />
 
       <Tabs value={tab} onValueChange={setTab} className="mb-6">
@@ -349,7 +352,7 @@ export function AdminModuleView({
             <CardContent className="space-y-2">
               {sops.length === 0 ? (
                 <p className="text-xs text-muted-foreground">
-                  No resources linked. Employees can start this module without signing anything.
+                  No resources linked. Managers can start this module without signing anything.
                 </p>
               ) : (
                 <>
@@ -371,7 +374,7 @@ export function AdminModuleView({
                     </div>
                   ))}
                   <p className="text-[10px] text-muted-foreground pt-1">
-                    Employees must sign all {sops.length} before this module unlocks.
+                    Managers must sign all {sops.length} before this module unlocks.
                   </p>
                 </>
               )}
@@ -405,9 +408,11 @@ export function AdminModuleView({
             </CardHeader>
             <CardContent className="space-y-2.5 text-sm">
               <Field icon={Calendar} label="Training day" value={mod.scheduledDate ? fmtDate(mod.scheduledDate) : "—"} />
-              <Field icon={Clock} label="Total length" value={`${totalMinutes} min`} />
+              <Field icon={Clock} label="Start time" value={fmtTimeWithZone(mod.scheduledTime, mod.timezone) ?? "—"} />
+              <Field icon={Clock} label="Seminar length" value={`${totalMinutes} min`} />
               <Field icon={Target} label="Pass threshold" value={`${Math.round(mod.passThreshold * 100)}%`} />
-              <Field icon={Layers} label="Quiz length" value={`${mod.questionCount} questions${mod.timeLimitMinutes ? ` · ${mod.timeLimitMinutes} min limit` : ""}`} />
+              <Field icon={Layers} label="Quiz" value={`${mod.questionCount} questions`} />
+              <Field icon={Clock} label="Quiz time limit" value={mod.timeLimitMinutes ? `${mod.timeLimitMinutes} min` : "No limit"} />
             </CardContent>
           </Card>
 
@@ -503,12 +508,18 @@ export function AdminModuleView({
                   moduleSlug={slug}
                   moduleTitle={mod.title}
                   attendeeCount={rosterCounts.expected}
+                  moduleDate={mod.scheduledDate}
+                  moduleTime={mod.scheduledTime}
+                  moduleTz={mod.timezone}
                 />
               )}
               <ScheduleRedelivery
                 moduleSlug={slug}
                 moduleTitle={mod.title}
                 currentDeliveryStart={currentDeliveryStart}
+                moduleDate={mod.scheduledDate}
+                moduleTime={mod.scheduledTime}
+                moduleTz={mod.timezone}
                 checkedInCount={rosterCounts.checkedIn}
               />
             </div>
@@ -559,7 +570,7 @@ export function AdminModuleView({
                 <table className="w-full text-sm">
                   <thead className="border-b bg-muted/40 text-xs uppercase tracking-wider text-muted-foreground">
                     <tr>
-                      <th className="text-left px-5 py-2.5 font-medium">Employee</th>
+                      <th className="text-left px-5 py-2.5 font-medium">Manager</th>
                       <th className="text-left px-5 py-2.5 font-medium">Date</th>
                       <th className="text-left px-5 py-2.5 font-medium">Pool</th>
                       <th className="text-left px-5 py-2.5 font-medium">Score</th>

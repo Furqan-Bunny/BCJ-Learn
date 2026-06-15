@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { ArrowRight, FileText, Layers, PlayCircle, ListChecks, BarChart3, Link2, BookOpen, PresentationIcon, Users } from "lucide-react";
+import { ArrowLeft, ArrowRight, FileText, Layers, PlayCircle, ListChecks, BarChart3, Link2, BookOpen, PresentationIcon, Users } from "lucide-react";
 import { PageHeader } from "@/components/shared/page-header";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { ModuleRoster } from "@/components/shared/module-roster";
@@ -55,8 +55,12 @@ export function TeacherModuleView({
 
   return (
     <>
+      <Button asChild variant="ghost" size="sm" className="mb-4 -ml-2">
+        <Link href="/teacher/modules"><ArrowLeft className="size-4 mr-1" /> All Modules</Link>
+      </Button>
+
       <PageHeader
-        eyebrow={`Module ${mod.number} · ${mod.scheduledMonth}`}
+        eyebrow={`Module ${mod.number} · ${mod.scheduledDate ? fmtDate(mod.scheduledDate) : mod.scheduledMonth}`}
         title={mod.title}
         description={mod.description}
         actions={<StatusBadge variant={mod.status} />}
@@ -154,12 +158,18 @@ export function TeacherModuleView({
                 moduleSlug={slug}
                 moduleTitle={mod.title}
                 attendeeCount={rosterCounts.expected}
+                moduleDate={mod.scheduledDate}
+                moduleTime={mod.scheduledTime}
+                moduleTz={mod.timezone}
               />
             )}
             <ScheduleRedelivery
               moduleSlug={slug}
               moduleTitle={mod.title}
               currentDeliveryStart={currentDeliveryStart}
+              moduleDate={mod.scheduledDate}
+              moduleTime={mod.scheduledTime}
+              moduleTz={mod.timezone}
               checkedInCount={rosterCounts.checkedIn}
             />
           </div>

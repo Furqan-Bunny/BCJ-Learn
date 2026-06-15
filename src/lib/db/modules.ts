@@ -14,6 +14,7 @@ interface ModuleRow {
   scheduled_month: string | null;
   scheduled_date: string | null;
   scheduled_time: string | null;
+  timezone: string | null;
   created_at: string | null;
   status: ModuleStatus;
   pass_threshold: number;
@@ -70,6 +71,7 @@ function rowToModuleDef(
     scheduledMonth: r.scheduled_month ?? "",
     scheduledDate: r.scheduled_date ?? "",
     scheduledTime: r.scheduled_time ?? "",
+    timezone: r.timezone ?? "",
     createdAt: r.created_at ?? undefined,
     ownerTeacherIds,
     status: r.status,

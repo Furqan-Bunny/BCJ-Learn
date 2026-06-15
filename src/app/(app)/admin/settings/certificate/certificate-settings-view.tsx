@@ -37,7 +37,7 @@ export function CertificateSettingsView({ initial }: { initial: CertificateSetti
 
   // Live-preview sample values.
   const vars = {
-    name: "Sample Employee",
+    name: "Sample Manager",
     module: "Module 1: Sample Module",
     score: "92%",
     date: new Date().toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }),
@@ -48,7 +48,7 @@ export function CertificateSettingsView({ initial }: { initial: CertificateSetti
       <PageHeader
         eyebrow="Settings"
         title="Completion certificate"
-        description="Customise the certificate employees get when they pass a module. Use {{name}}, {{module}}, {{score}}, {{date}} as placeholders."
+        description="Customise the certificate managers get when they pass a module. Use {{name}}, {{module}}, {{score}}, {{date}} as placeholders."
       />
 
       <div className="grid lg:grid-cols-[1fr_460px] gap-6">

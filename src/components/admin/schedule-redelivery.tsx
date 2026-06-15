@@ -14,6 +14,7 @@ import { RotateCcw, AlertCircle, Calendar, Mail, Loader2, Users } from "lucide-r
 import { fmtDate } from "@/lib/format";
 import { toast } from "sonner";
 import { getDueEmployees, scheduleSeminar, notifySeminar } from "@/lib/server/module-actions";
+import { TIMEZONES, defaultTimezone } from "@/lib/timezones";
 
 interface DueEmployee { id: string; name: string; email: string; cohort: string | null }
 
@@ -27,6 +28,10 @@ interface ScheduleRedeliveryProps {
   checkedInCount?: number;
   /** Accepted for back-compat; the attendee list is fetched live. */
   pendingCount?: number;
+  /** Pre-fill the form from the module's current seminar. */
+  moduleDate?: string;
+  moduleTime?: string;
+  moduleTz?: string;
   trigger?: React.ReactNode;
 }
 
@@ -35,12 +40,16 @@ export function ScheduleRedelivery({
   moduleTitle,
   currentDeliveryStart,
   checkedInCount = 0,
+  moduleDate,
+  moduleTime,
+  moduleTz,
   trigger,
 }: ScheduleRedeliveryProps) {
   const router = useRouter();
   const [open, setOpen] = React.useState(false);
   const [newDate, setNewDate] = React.useState("");
   const [newTime, setNewTime] = React.useState("");
+  const [tz, setTz] = React.useState("");
   const [loading, setLoading] = React.useState(false);
   const [submitting, setSubmitting] = React.useState(false);
   const [employees, setEmployees] = React.useState<DueEmployee[]>([]);
@@ -49,18 +58,20 @@ export function ScheduleRedelivery({
 
   React.useEffect(() => {
     if (!open) return;
-    setNewDate(new Date().toISOString().split("T")[0]);
+    setNewDate(moduleDate || new Date().toISOString().split("T")[0]);
+    setNewTime(moduleTime || "");
+    setTz(moduleTz || defaultTimezone());
     setLoading(true);
     getDueEmployees(moduleSlug).then((res) => {
       if (res.ok) {
         setEmployees(res.employees);
         setSelected(new Set(res.employees.map((e) => e.id)));
       } else {
-        toast.error(res.error ?? "Could not load employees");
+        toast.error(res.error ?? "Could not load managers");
       }
       setLoading(false);
     });
-  }, [open, moduleSlug]);
+  }, [open, moduleSlug, moduleDate, moduleTime, moduleTz]);
 
   function toggle(id: string) {
     setSelected((prev) => {
@@ -93,7 +104,7 @@ export function ScheduleRedelivery({
   async function handleConfirm() {
     if (!newDate) return;
     setSubmitting(true);
-    const res = await scheduleSeminar(moduleSlug, newDate, [...selected], newTime || null);
+    const res = await scheduleSeminar(moduleSlug, newDate, [...selected], newTime || null, tz || null);
     if (!res.ok) {
       setSubmitting(false);
       toast.error(res.error ?? "Could not schedule seminar");
@@ -125,7 +136,7 @@ export function ScheduleRedelivery({
           </Badge>
           <DialogTitle>Schedule seminar — {moduleTitle}</DialogTitle>
           <DialogDescription>
-            These employees haven&rsquo;t passed in the last 12 months. Uncheck anyone you don&rsquo;t want, pick the date, and they&rsquo;ll get an email about the seminar.
+            These managers haven&rsquo;t passed in the last 12 months. Uncheck anyone you don&rsquo;t want, pick the date, and they&rsquo;ll get an email about the seminar.
           </DialogDescription>
         </DialogHeader>
 
@@ -151,6 +162,13 @@ export function ScheduleRedelivery({
                 className="h-10"
               />
             </div>
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="new-delivery-tz">Time zone</Label>
+            <select id="new-delivery-tz" value={tz} onChange={(e) => setTz(e.target.value)}
+              className="h-10 w-full rounded-md border bg-card px-3 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+              {TIMEZONES.map((t) => <option key={t.value} value={t.value}>{t.label}</option>)}
+            </select>
           </div>
 
           <div className="rounded-lg border">
@@ -193,7 +211,7 @@ export function ScheduleRedelivery({
           <div className="rounded-lg border border-primary/30 bg-primary/[0.04] p-3 flex items-start gap-2">
             <Mail className="size-4 text-primary shrink-0 mt-0.5" />
             <p className="text-[11px] text-muted-foreground">
-              The {selected.size} selected employee{selected.size === 1 ? "" : "s"} will be invited and emailed
+              The {selected.size} selected manager{selected.size === 1 ? "" : "s"} will be invited and emailed
               about the {newDate ? fmtDate(newDate) : "seminar"} session. Past attempts stay in history; current
               check-ins reset.
             </p>
@@ -220,7 +238,7 @@ export function ScheduleRedelivery({
               />
             </div>
             <p className="text-[11px] text-muted-foreground mt-1">
-              Emailing employees… {notify.sent} of {notify.total}
+              Emailing managers… {notify.sent} of {notify.total}
             </p>
           </div>
         )}

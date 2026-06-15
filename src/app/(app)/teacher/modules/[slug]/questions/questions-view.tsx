@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import Link from "next/link";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -11,12 +12,13 @@ import {
   Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
 } from "@/components/ui/dialog";
 import {
-  Check, X, RefreshCw, Edit3, Sparkles, Search, Filter, CheckCircle2, AlertCircle, Loader2, History, RotateCcw, Users,
+  Check, X, RefreshCw, Edit3, Sparkles, Search, Filter, CheckCircle2, AlertCircle, Loader2, History, RotateCcw, Users, ArrowLeft,
 } from "lucide-react";
 import { PageHeader } from "@/components/shared/page-header";
 import { Pagination, pageSlice } from "@/components/ui/pagination";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { fmtDate, fmtRelative } from "@/lib/format";
+import { SHOW_SPANISH } from "@/lib/i18n";
 import type { ModuleDef, Question, QuestionPool, QuestionStatus } from "@/types";
 import type { QuestionVersion } from "@/lib/db/questions";
 import { toast } from "sonner";
@@ -198,6 +200,10 @@ export function TeacherQuestionsView({ mod, initialQuestions }: TeacherQuestions
 
   return (
     <>
+      <Button asChild variant="ghost" size="sm" className="mb-4 -ml-2">
+        <Link href={`/teacher/modules/${mod.slug}`}><ArrowLeft className="size-4 mr-1" /> Back to module</Link>
+      </Button>
+
       <PageHeader
         eyebrow={`Module ${mod.number} — Question review`}
         title={mod.title}
@@ -208,10 +214,12 @@ export function TeacherQuestionsView({ mod, initialQuestions }: TeacherQuestions
               {generating ? <Loader2 className="size-4 animate-spin" /> : <Sparkles className="size-4 text-[var(--ai)]" />}
               {generating ? "Drafting…" : "Generate questions with AI"}
             </Button>
-            <Button variant="outline" onClick={handleTranslate} disabled={translating} className="gap-2">
-              {translating ? <Loader2 className="size-4 animate-spin" /> : <Sparkles className="size-4 text-[var(--ai)]" />}
-              {translating ? "Translating…" : "Translate to Spanish"}
-            </Button>
+            {SHOW_SPANISH && (
+              <Button variant="outline" onClick={handleTranslate} disabled={translating} className="gap-2">
+                {translating ? <Loader2 className="size-4 animate-spin" /> : <Sparkles className="size-4 text-[var(--ai)]" />}
+                {translating ? "Translating…" : "Translate to Spanish"}
+              </Button>
+            )}
             <Button
               onClick={async () => {
                 const res = await publishModule(mod.slug);

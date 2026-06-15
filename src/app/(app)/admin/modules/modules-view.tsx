@@ -65,8 +65,8 @@ export function AdminModulesView({ modules, attempts, teacherNamesById, teachers
     <>
       <PageHeader
         eyebrow="Curriculum"
-        title="All modules"
-        description="The Employee training program. Click any to see results, content, and attempts."
+        title="All Modules"
+        description="The Manager training program. Click any to see results, content, and attempts."
         actions={
           <div className="flex items-center gap-2">
             <ViewToggle view={view} onChange={changeView} />
@@ -97,7 +97,7 @@ export function AdminModulesView({ modules, attempts, teacherNamesById, teachers
                 <Card className="card-lift card-glow group-hover:border-primary/40 h-full flex flex-col">
                   <CardContent className="p-5 flex flex-col flex-1">
                     <div className="flex items-start justify-between gap-3 mb-2">
-                      <div className="text-xs font-mono text-muted-foreground">M{m.number} · {m.scheduledMonth}</div>
+                      <div className="text-xs font-mono text-muted-foreground">M{m.number} · {m.scheduledDate ? fmtDate(m.scheduledDate) : m.scheduledMonth}</div>
                       <StatusBadge variant={m.status} />
                     </div>
                     <div className="font-semibold text-lg">{m.title}</div>
@@ -131,7 +131,7 @@ export function AdminModulesView({ modules, attempts, teacherNamesById, teachers
                   <CardContent className="p-4 flex items-center gap-4">
                     <div className="text-xs font-mono text-muted-foreground w-24 shrink-0 leading-tight">
                       <div className="text-foreground font-semibold">M{m.number}</div>
-                      <div>{m.scheduledMonth}</div>
+                      <div>{m.scheduledDate ? fmtDate(m.scheduledDate) : m.scheduledMonth}</div>
                     </div>
 
                     <div className="flex-1 min-w-0">

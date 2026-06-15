@@ -192,7 +192,7 @@ export async function bulkInviteUsers(rows: BulkInviteRow[]) {
   await logActivity(
     "user_added",
     guard.userId,
-    `${guard.userName} bulk-invited ${invited} employee${invited === 1 ? "" : "s"} (${rows.length - invited} failed)`,
+    `${guard.userName} bulk-invited ${invited} manager${invited === 1 ? "" : "s"} (${rows.length - invited} failed)`,
   );
 
   revalidatePath("/admin/managers");

@@ -214,7 +214,7 @@ export function ModuleRoster({
             <div className="mt-4 rounded-md border border-amber-500/30 bg-amber-50/50 dark:bg-amber-950/20 px-3 py-2 flex items-center gap-3 text-sm">
               <AlertTriangle className="size-4 text-amber-600 dark:text-amber-400 shrink-0" />
               <span className="flex-1">
-                <span className="font-semibold">{counts.didntAttempt}</span> employee{counts.didntAttempt === 1 ? "" : "s"} didn&rsquo;t take the quiz on training day. Consider sending a reminder or scheduling a makeup.
+                <span className="font-semibold">{counts.didntAttempt}</span> manager{counts.didntAttempt === 1 ? "" : "s"} didn&rsquo;t take the quiz on training day. Consider sending a reminder or scheduling a makeup.
               </span>
               <Button size="sm" variant="outline" onClick={handleRemindAll} disabled={busy === "bulk"}>
                 <Bell className="size-3.5 mr-1.5" /> {busy === "bulk" ? "Sending…" : "Remind all"}

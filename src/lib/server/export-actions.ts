@@ -118,7 +118,7 @@ export async function exportResultsCsv(filter: ExportResultsFilter = {}): Promis
   if (filter.cohort) rows = rows.filter((r) => r.cohort === filter.cohort);
 
   const csv = rowsToCsv(
-    ["Employee", "Email", "Cohort", "Module", "Pool", "Score %", "Correct", "Total", "Status", "Duration (s)", "Started at", "Submitted at"],
+    ["Manager", "Email", "Cohort", "Module", "Pool", "Score %", "Correct", "Total", "Status", "Duration (s)", "Started at", "Submitted at"],
     rows.map((r) => [r.employee, r.email, r.cohort, r.module, r.pool, r.score, r.correct, r.total, r.status, r.duration_sec, r.started_at, r.submitted_at]),
   );
 
@@ -145,7 +145,7 @@ export async function exportAtRiskCsv(): Promise<{ ok: boolean; csv?: string; er
 
   return {
     ok: true,
-    csv: rowsToCsv(["Employee", "Email", "Cohort", "Status", "Last active"], rows),
+    csv: rowsToCsv(["Manager", "Email", "Cohort", "Status", "Last active"], rows),
   };
 }
 
@@ -168,7 +168,7 @@ export async function exportCohortSummaryCsv(): Promise<{ ok: boolean; csv?: str
 
   return {
     ok: true,
-    csv: rowsToCsv(["Cohort", "Total employees", "Active", "Completed", "At-risk"], rows),
+    csv: rowsToCsv(["Cohort", "Total managers", "Active", "Completed", "At-risk"], rows),
   };
 }
 

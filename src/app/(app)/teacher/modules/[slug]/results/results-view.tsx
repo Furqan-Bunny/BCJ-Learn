@@ -1,13 +1,15 @@
 "use client";
 
+import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/shared/page-header";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { KpiCard } from "@/components/shared/kpi-card";
 import { ModuleRoster } from "@/components/shared/module-roster";
 import { fmtDate, fmtPct } from "@/lib/format";
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis, Cell } from "recharts";
-import { Trophy, Users, Target, AlertTriangle } from "lucide-react";
+import { Trophy, Users, Target, AlertTriangle, ArrowLeft } from "lucide-react";
 import type { ModuleDef, Attempt, Question, Manager } from "@/types";
 import type { RosterRow, RosterCounts } from "@/lib/db/roster";
 
@@ -50,6 +52,10 @@ export function TeacherModuleResultsView({
 
   return (
     <>
+      <Button asChild variant="ghost" size="sm" className="mb-4 -ml-2">
+        <Link href={`/teacher/modules/${slug}`}><ArrowLeft className="size-4 mr-1" /> Back to module</Link>
+      </Button>
+
       <PageHeader
         eyebrow={`Module ${mod.number} results`}
         title={mod.title}
@@ -132,7 +138,7 @@ export function TeacherModuleResultsView({
           <table className="w-full text-sm">
             <thead className="border-y bg-muted/30 text-xs uppercase tracking-wider text-muted-foreground">
               <tr>
-                <th className="text-left px-5 py-2.5 font-medium">Employee</th>
+                <th className="text-left px-5 py-2.5 font-medium">Manager</th>
                 <th className="text-left px-5 py-2.5 font-medium">Date</th>
                 <th className="text-left px-5 py-2.5 font-medium">Pool</th>
                 <th className="text-left px-5 py-2.5 font-medium">Score</th>

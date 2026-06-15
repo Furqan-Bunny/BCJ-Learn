@@ -21,6 +21,7 @@ import { Stagger, StaggerItem } from "@/components/shared/animations";
 import { uploadResourceFile } from "@/lib/supabase/storage";
 import { createResource, editResource, deleteResource, getAcknowledgementStatus } from "@/lib/server/resource-actions";
 import { backfillContentSpanish } from "@/lib/server/ai-actions";
+import { SHOW_SPANISH } from "@/lib/i18n";
 import type { AckStatusRow } from "@/lib/db/resources";
 import { MARKETS } from "@/types/markets";
 import { cn } from "@/lib/utils";
@@ -30,7 +31,7 @@ import type { Resource } from "@/lib/db/resources";
 import type { Role } from "@/types";
 
 const ROLES: { value: Role; label: string }[] = [
-  { value: "manager", label: "Employees" },
+  { value: "manager", label: "Managers" },
   { value: "teacher", label: "Department Leads" },
   { value: "admin", label: "Admins" },
 ];
@@ -231,10 +232,12 @@ export function ResourcesAdminView({ initialResources }: { initialResources: Enr
           {initialResources.length} resource{initialResources.length === 1 ? "" : "s"} across {byDepartment.size} department{byDepartment.size === 1 ? "" : "s"}
         </p>
         <div className="flex items-center gap-2">
-          <Button variant="outline" onClick={handleTranslateAll} disabled={backfilling}>
-            {backfilling ? <Loader2 className="size-4 mr-1.5 animate-spin" /> : <Sparkles className="size-4 mr-1.5 text-[var(--ai)]" />}
-            {backfilling ? "Translating…" : "Translate all to Spanish"}
-          </Button>
+          {SHOW_SPANISH && (
+            <Button variant="outline" onClick={handleTranslateAll} disabled={backfilling}>
+              {backfilling ? <Loader2 className="size-4 mr-1.5 animate-spin" /> : <Sparkles className="size-4 mr-1.5 text-[var(--ai)]" />}
+              {backfilling ? "Translating…" : "Translate all to Spanish"}
+            </Button>
+          )}
           <Button onClick={openCreate}>
             <Plus className="size-4 mr-1.5" /> Add resource
           </Button>
@@ -366,7 +369,7 @@ export function ResourcesAdminView({ initialResources }: { initialResources: Enr
               <div className="flex-1">
                 <Label htmlFor="r-ack" className="text-sm font-medium">Require acknowledgement</Label>
                 <p className="text-[11px] text-muted-foreground mt-0.5">
-                  {signupAck ? "Required automatically by the sign-up gate below." : "Employees must confirm they’ve read it."}
+                  {signupAck ? "Required automatically by the sign-up gate below." : "Managers must confirm they’ve read it."}
                 </p>
               </div>
               <Switch id="r-ack" checked={requiresAck} onCheckedChange={setRequiresAck} disabled={signupAck} />

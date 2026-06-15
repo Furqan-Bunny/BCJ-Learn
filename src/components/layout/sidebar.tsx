@@ -85,7 +85,7 @@ export const NAV_BY_ROLE: Record<Role, NavNode[]> = {
       label: "People",
       icon: Users,
       children: [
-        { kind: "link", label: "Employees", href: "/admin/managers", icon: Users },
+        { kind: "link", label: "Managers", href: "/admin/managers", icon: Users },
         { kind: "link", label: "Department Leads", href: "/admin/teachers", icon: BookOpen },
         { kind: "link", label: "Admins", href: "/admin/admins", icon: ShieldCheck },
         { kind: "link", label: "At-risk", href: "/admin/at-risk", icon: AlertTriangle },

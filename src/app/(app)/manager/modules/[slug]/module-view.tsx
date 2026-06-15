@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import Link from "next/link";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -8,7 +9,7 @@ import { acknowledgeResource } from "@/lib/server/resource-actions";
 import type { ModuleSopStatus } from "@/lib/db/module-resources";
 import {
   Calendar, Target, Clock, Layers, PlayCircle, FileText, Link2,
-  BookOpen, Sparkles, Info, Lock, CheckCircle2,
+  BookOpen, Sparkles, Info, Lock, CheckCircle2, ArrowLeft,
 } from "lucide-react";
 import { toast } from "sonner";
 import { PageHeader } from "@/components/shared/page-header";
@@ -95,8 +96,12 @@ export function ManagerModuleView({
           signature={`${checkinOpen}|${!!sessionStartedAt}|${!!sessionEndedAt}|${isCheckedIn}`}
         />
       )}
+      <Button asChild variant="ghost" size="sm" className="mb-4 -ml-2">
+        <Link href="/manager/modules"><ArrowLeft className="size-4 mr-1" /> All Modules</Link>
+      </Button>
+
       <PageHeader
-        eyebrow={`Module ${mod.number} · ${mod.scheduledMonth}`}
+        eyebrow={`Module ${mod.number} · ${mod.scheduledDate ? fmtDate(mod.scheduledDate) : mod.scheduledMonth}`}
         title={mod.title}
         description={mod.description}
       />

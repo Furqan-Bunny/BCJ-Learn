@@ -294,6 +294,24 @@ export async function summarizeModule(moduleSlug: string): Promise<{ ok: boolean
   return { ok: true, summarized: false };
 }
 
+// Normalize question text for duplicate detection (case/punctuation/space-insensitive).
+function normalizeText(s: string): string {
+  return (s ?? "").toLowerCase().replace(/[^\w\s]/g, "").replace(/\s+/g, " ").trim();
+}
+
+// Fetch existing question texts for a module (optionally a pool) for dedup.
+async function existingQuestionTexts(
+  admin: ReturnType<typeof createAdminClient>,
+  moduleSlug: string,
+  pool?: QuestionPool,
+): Promise<{ raw: string[]; normalized: Set<string> }> {
+  let q = admin.from("questions").select("text").eq("module_slug", moduleSlug);
+  if (pool) q = q.eq("pool", pool);
+  const { data } = await q;
+  const raw = ((data ?? []) as { text: string }[]).map((r) => r.text);
+  return { raw, normalized: new Set(raw.map(normalizeText)) };
+}
+
 // Stage 3 — generate one pool's questions from the cached source.
 export async function generateQuestionBatch(
   moduleSlug: string,
@@ -311,13 +329,22 @@ export async function generateQuestionBatch(
   if (DEMO_MODE) return { ok: true, created: 0 };
 
   const count = pool === "retake" ? RETAKE_COUNT : FIRST_ATTEMPT_COUNT;
+  const existing = await existingQuestionTexts(admin, moduleSlug, pool);
   let drafts: DraftQuestion[];
   try {
-    drafts = await callLlmForBatch(source, pool, count);
+    drafts = await callLlmForBatch(source, pool, count, existing.raw);
   } catch (err) {
     return { ok: false, error: `AI error: ${(err as Error).message}` };
   }
-  const created = await insertDrafts(admin, moduleSlug, drafts.map((q) => ({ ...q, pool })), guard.userId);
+  // Drop duplicates — against existing questions and within this batch.
+  const seen = new Set(existing.normalized);
+  const deduped = drafts.filter((d) => {
+    const n = normalizeText(d.text ?? "");
+    if (!n || seen.has(n)) return false;
+    seen.add(n);
+    return true;
+  });
+  const created = await insertDrafts(admin, moduleSlug, deduped.map((q) => ({ ...q, pool })), guard.userId);
   await refreshQuestionCounts(admin, moduleSlug);
   return { ok: true, created };
 }
@@ -340,9 +367,18 @@ export async function generateQuestionDrafts(
   }
   if (DEMO_MODE) return { ok: true, drafts: [] };
 
+  const existing = await existingQuestionTexts(admin, moduleSlug, pool);
+  const seen = new Set(existing.normalized);
+  for (const t of avoidTexts) seen.add(normalizeText(t));
   try {
-    const drafts = await callLlmForBatch(source, pool, count, avoidTexts);
-    const valid = drafts.filter((d) => d.text && Array.isArray(d.options) && d.options.length === 4);
+    const drafts = await callLlmForBatch(source, pool, count, [...avoidTexts, ...existing.raw]);
+    const valid = drafts.filter((d) => {
+      if (!d.text || !Array.isArray(d.options) || d.options.length !== 4) return false;
+      const n = normalizeText(d.text);
+      if (seen.has(n)) return false; // skip duplicates of existing/already-seen
+      seen.add(n);
+      return true;
+    });
     return { ok: true, drafts: valid };
   } catch (err) {
     return { ok: false, error: `AI error: ${(err as Error).message}` };
@@ -363,6 +399,10 @@ export async function commitQuestionDraft(
   if (DEMO_MODE) return { ok: true, id: "demo" };
 
   const admin = createAdminClient();
+  const existing = await existingQuestionTexts(admin, moduleSlug, pool);
+  if (existing.normalized.has(normalizeText(draft.text))) {
+    return { ok: false, error: "That question already exists in this module — skipped to avoid a duplicate." };
+  }
   const { data: insertedQ, error: qErr } = await admin
     .from("questions")
     .insert({

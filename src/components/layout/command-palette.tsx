@@ -94,7 +94,7 @@ export function CommandPalette({ open, onOpenChange }: CommandPaletteProps) {
                 <LayoutDashboard className="mr-2 size-4" /> Admin Dashboard
               </CommandItem>
               <CommandItem onSelect={() => go("/admin/managers")}>
-                <Users className="mr-2 size-4" /> Employees
+                <Users className="mr-2 size-4" /> Managers
               </CommandItem>
               <CommandItem onSelect={() => go("/admin/at-risk")}>
                 <AlertTriangle className="mr-2 size-4" /> At-risk list
@@ -160,7 +160,7 @@ export function CommandPalette({ open, onOpenChange }: CommandPaletteProps) {
         {role === "admin" && data.managers.length > 0 && (
           <>
             <CommandSeparator />
-            <CommandGroup heading="Find an employee">
+            <CommandGroup heading="Find a manager">
               {data.managers.slice(0, 8).map((m) => (
                 <CommandItem key={m.id} onSelect={() => go(`/admin/managers/${m.id}`)}>
                   <Users className="mr-2 size-4" /> {m.name}
@@ -175,7 +175,7 @@ export function CommandPalette({ open, onOpenChange }: CommandPaletteProps) {
 
         <CommandGroup heading="Switch role">
           <CommandItem onSelect={() => pickRole("manager")}>
-            <GraduationCap className="mr-2 size-4" /> View as Employee
+            <GraduationCap className="mr-2 size-4" /> View as Manager
           </CommandItem>
           <CommandItem onSelect={() => pickRole("teacher")}>
             <BookOpen className="mr-2 size-4" /> View as Department Lead

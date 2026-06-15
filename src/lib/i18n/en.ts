@@ -243,7 +243,7 @@ export const en: Record<string, string> = {
   "type.link": "Link",
 
   // ── dashboard (extra) ──
-  "dash.trackProgress": "Track your progress through the BCJ Employee training program.",
+  "dash.trackProgress": "Track your progress through the BCJ Manager training program.",
   "dash.nothingYetLong": "Nothing yet — your activity will appear here.",
   "dash.onFirstTrySuffix": "on first try",
   "dash.programComplete": "Program complete",
@@ -308,7 +308,8 @@ export const en: Record<string, string> = {
   "status.awaitingDesc": "The quiz is delivered on-site immediately after the live seminar. You'll be able to take it once you've attended and checked in to that day's session.",
   "status.missedEyebrow": "You missed this session",
   "status.missedTitle": "The {module} session was on {date}",
-  "status.missedDesc": "You weren't checked in to that day's seminar, so the quiz didn't open for you. Your trainer will reschedule you to the next delivery.",
+  "status.missedDesc": "You weren't checked in to the live seminar — but you can review the materials and take the quiz on your own time.",
+  "status.missedTakeQuiz": "Take the quiz on your own time",
   "status.liveEyebrow": "🔴 Live now",
   "status.liveTitle": "{module} seminar is in progress",
   "status.liveDesc": "You're checked in. Sit tight, listen to your trainer — the quiz unlocks the moment they end the session.",

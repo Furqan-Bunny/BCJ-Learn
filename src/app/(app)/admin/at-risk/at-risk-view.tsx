@@ -53,7 +53,7 @@ export function AtRiskView({
       setBusy(null);
       setPending(null);
       if (!res.ok) { toast.error(res.error ?? "Could not send reminders"); return; }
-      toast.success(`Reminder sent to ${res.sent} employees${res.failed ? ` (${res.failed} failed)` : ""}`);
+      toast.success(`Reminder sent to ${res.sent} managers${res.failed ? ` (${res.failed} failed)` : ""}`);
       router.refresh();
     } else {
       const m = pending.m;
@@ -70,7 +70,7 @@ export function AtRiskView({
     <>
       <PageHeader
         eyebrow="Triage"
-        title="At-risk employees"
+        title="At-risk managers"
         description="Auto-flagged because they failed twice, missed deadlines, or have not logged in. Action needed."
         actions={
           <div className="flex items-center gap-2">
@@ -92,9 +92,9 @@ export function AtRiskView({
                 <AlertTriangle className="size-5" />
               </div>
               <div>
-                <div className="font-semibold">How BCJ Learn flags an Employee</div>
+                <div className="font-semibold">How BCJ Learn flags a Manager</div>
                 <p className="text-sm text-muted-foreground mt-0.5">
-                  An Employee is auto-flagged as <span className="font-medium text-foreground">at-risk</span> when any of the following is true. Flags clear automatically once the employee passes a retake or logs back in.
+                  A Manager is auto-flagged as <span className="font-medium text-foreground">at-risk</span> when any of the following is true. Flags clear automatically once the manager passes a retake or logs back in.
                 </p>
               </div>
             </div>
@@ -112,7 +112,7 @@ export function AtRiskView({
               ))}
             </div>
             <div className="mt-4 text-xs text-muted-foreground">
-              <span className="font-medium text-foreground">Why this matters:</span> Surfacing trouble early lets you coach an employee before they fall behind their cohort.
+              <span className="font-medium text-foreground">Why this matters:</span> Surfacing trouble early lets you coach a manager before they fall behind their cohort.
             </div>
           </CardContent>
         </Card>
@@ -181,7 +181,7 @@ export function AtRiskView({
       {list.length === 0 && (
         <div className="text-center py-16 text-muted-foreground">
           <AlertTriangle className="size-10 mx-auto mb-3 opacity-30" />
-          No employees are currently at risk. Nice work!
+          No managers are currently at risk. Nice work!
         </div>
       )}
 
@@ -193,7 +193,7 @@ export function AtRiskView({
         onOpenChange={(o) => { if (!o) setPending(null); }}
         subject={reminderSubject}
         bodyMarkdown={reminderBody}
-        confirmLabel={pending?.kind === "bulk" ? `Send to ${list.length} employees` : pending?.kind === "one" ? `Send to ${pending.m.name}` : "Send reminder"}
+        confirmLabel={pending?.kind === "bulk" ? `Send to ${list.length} managers` : pending?.kind === "one" ? `Send to ${pending.m.name}` : "Send reminder"}
         onConfirm={confirmSend}
         confirming={busy !== null}
       />

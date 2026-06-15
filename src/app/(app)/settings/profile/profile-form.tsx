@@ -26,7 +26,7 @@ const ROLE_ICON: Record<Role, React.ComponentType<{ className?: string }>> = {
 };
 
 const ROLE_LABEL: Record<Role, string> = {
-  manager: "Employee",
+  manager: "Manager",
   teacher: "Department Lead",
   admin: "Admin",
 };
@@ -287,7 +287,7 @@ export function ProfileForm({ initial }: ProfileFormProps) {
                 className="resize-none"
               />
               <p className="text-[11px] text-muted-foreground">
-                Shown to Employees on modules you own.
+                Shown to Managers on modules you own.
               </p>
             </div>
           )}
@@ -374,7 +374,7 @@ export function ProfileForm({ initial }: ProfileFormProps) {
               checked={atRiskAlerts}
               onChange={setAtRiskAlerts}
               label="At-risk alerts"
-              description="Get an alert when an employee is flagged at-risk."
+              description="Get an alert when a manager is flagged at-risk."
             />
           )}
 

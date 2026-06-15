@@ -181,7 +181,7 @@ async function notifyLockout(userId: string, attemptId: string) {
     admin.from("module_owners").select("teacher_id").eq("module_slug", slug),
     admin.from("profiles").select("id").eq("role", "admin"),
   ]);
-  const name = (prof as { name?: string } | null)?.name ?? "An employee";
+  const name = (prof as { name?: string } | null)?.name ?? "A manager";
   const title = (mod as { title?: string } | null)?.title ?? slug;
   const recipientIds = new Set<string>([
     ...((owners ?? []) as { teacher_id: string }[]).map((o) => o.teacher_id),

@@ -174,7 +174,7 @@ export function PresenterView({
       return;
     }
     toast.success("Session ended — quiz is now open to the room", {
-      description: "Employees who checked in can start the Module quiz on their devices now.",
+      description: "Managers who checked in can start the Module quiz on their devices now.",
     });
     setTimeout(() => router.push(`/teacher/modules/${slug}/results`), 1200);
   }

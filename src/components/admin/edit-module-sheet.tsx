@@ -23,6 +23,7 @@ import {
   unpublishModule,
   deleteModule,
 } from "@/lib/server/module-actions";
+import { TIMEZONES, defaultTimezone } from "@/lib/timezones";
 import type { ModuleDef } from "@/types";
 
 interface Props {
@@ -40,6 +41,7 @@ export function EditModuleSheet({ mod, allTeachers }: Props) {
   const [scheduledMonth, setScheduledMonth] = React.useState(mod.scheduledMonth ?? "");
   const [scheduledDate, setScheduledDate] = React.useState(mod.scheduledDate ?? "");
   const [scheduledTime, setScheduledTime] = React.useState(mod.scheduledTime ?? "");
+  const [tz, setTz] = React.useState(mod.timezone || defaultTimezone());
   const [passPct, setPassPct] = React.useState(String(Math.round(mod.passThreshold * 100)));
   const [questionCount, setQuestionCount] = React.useState(String(mod.questionCount));
   const [timeLimit, setTimeLimit] = React.useState(mod.timeLimitMinutes != null ? String(mod.timeLimitMinutes) : "");
@@ -73,6 +75,7 @@ export function EditModuleSheet({ mod, allTeachers }: Props) {
       scheduledMonth: scheduledMonth || null,
       scheduledDate: scheduledDate || null,
       scheduledTime: scheduledTime || null,
+      timezone: tz || null,
       passThreshold: Math.min(1, Math.max(0.01, (Number(passPct) || 85) / 100)),
       questionCount: Number(questionCount) || mod.questionCount,
       timeLimitMinutes: timeLimit.trim() ? Number(timeLimit) : null,
@@ -155,6 +158,14 @@ export function EditModuleSheet({ mod, allTeachers }: Props) {
             </div>
           </div>
 
+          <div className="space-y-1.5">
+            <Label htmlFor="m-tz" className="text-xs">Time zone</Label>
+            <select id="m-tz" value={tz} onChange={(e) => setTz(e.target.value)}
+              className="h-10 w-full rounded-md border bg-card px-3 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+              {TIMEZONES.map((t) => <option key={t.value} value={t.value}>{t.label}</option>)}
+            </select>
+          </div>
+
           <div className="grid grid-cols-3 gap-3">
             <div className="space-y-1.5">
               <Label htmlFor="m-pass" className="text-xs">Pass %</Label>
@@ -204,8 +215,8 @@ export function EditModuleSheet({ mod, allTeachers }: Props) {
                 <div className="text-sm font-medium">Visibility</div>
                 <span className="text-xs text-muted-foreground">
                   {mod.status === "published"
-                    ? "Live — employees can take this module."
-                    : "Draft — hidden from employees until you publish."}
+                    ? "Live — managers can take this module."
+                    : "Draft — hidden from managers until you publish."}
                 </span>
               </div>
               <Button type="button" variant="outline" size="sm" onClick={handlePublishToggle} disabled={busy}>

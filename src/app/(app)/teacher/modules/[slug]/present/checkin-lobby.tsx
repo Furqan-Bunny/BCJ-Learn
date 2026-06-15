@@ -67,7 +67,7 @@ export function CheckinLobby({ mod, onStart }: { mod: ModuleDef; onStart: () => 
     setOpening(false);
     if (!res.ok) { toast.error(res.error ?? "Could not open check-in"); return; }
     setState(await getCheckinState(slug));
-    toast.success("Check-in is open", { description: "Employees can now check in with the code on screen." });
+    toast.success("Check-in is open", { description: "Managers can now check in with the code on screen." });
   }
 
   return (
@@ -96,7 +96,7 @@ export function CheckinLobby({ mod, onStart }: { mod: ModuleDef; onStart: () => 
               <h1 className="text-2xl font-bold tracking-tight">Check-in is closed</h1>
               <p className="text-sm text-slate-400 mt-2">
                 {canOpen
-                  ? "Open check-in when you're ready. Employees will enter a code shown here to confirm they're in the room."
+                  ? "Open check-in when you're ready. Managers will enter a code shown here to confirm they're in the room."
                   : `Check-in opens at the scheduled start time${mod.scheduledTime ? ` — ${fmtTime12(mod.scheduledTime)}` : ""}. Nobody can check in before then.`}
               </p>
             </div>
@@ -117,7 +117,7 @@ export function CheckinLobby({ mod, onStart }: { mod: ModuleDef; onStart: () => 
               <div className="text-[11px] uppercase tracking-wider text-slate-400">Enter this code to check in</div>
               <div className="mt-3 text-6xl font-bold font-mono tracking-[0.2em] text-[var(--gold)]">{code ?? "····"}</div>
               <p className="text-xs text-slate-400 mt-4">
-                Employees open <span className="text-slate-200">{mod.title}</span> on their device and enter this code. Only people in the room can check in.
+                Managers open <span className="text-slate-200">{mod.title}</span> on their device and enter this code. Only people in the room can check in.
               </p>
             </div>
 
@@ -134,7 +134,7 @@ export function CheckinLobby({ mod, onStart }: { mod: ModuleDef; onStart: () => 
               <div className="rounded-xl border border-white/10 min-h-[180px] max-h-[46vh] overflow-y-auto p-2">
                 {checkedIn.length === 0 ? (
                   <div className="h-full flex items-center justify-center py-12 text-sm text-slate-500">
-                    Waiting for employees to check in…
+                    Waiting for managers to check in…
                   </div>
                 ) : (
                   <div className="grid sm:grid-cols-2 gap-2">

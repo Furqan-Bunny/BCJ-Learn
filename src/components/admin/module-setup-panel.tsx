@@ -29,6 +29,9 @@ interface ModuleSetupPanelProps {
   questionCount: number; // target quiz length
   currentDeliveryStart: string | null;
   attendeeCount: number;
+  scheduledDate?: string;
+  scheduledTime?: string;
+  timezone?: string;
 }
 
 export function ModuleSetupPanel({
@@ -42,6 +45,9 @@ export function ModuleSetupPanel({
   questionCount,
   currentDeliveryStart,
   attendeeCount,
+  scheduledDate,
+  scheduledTime,
+  timezone,
 }: ModuleSetupPanelProps) {
   const router = useRouter();
   const [publishing, setPublishing] = React.useState(false);
@@ -62,7 +68,7 @@ export function ModuleSetupPanel({
   }
 
   async function handleUnpublish() {
-    if (!confirm("Set this module back to draft? Employees won't be able to take it until you publish again.")) return;
+    if (!confirm("Set this module back to draft? Managers won't be able to take it until you publish again.")) return;
     setPublishing(true);
     const res = await unpublishModule(slug);
     setPublishing(false);
@@ -120,20 +126,24 @@ export function ModuleSetupPanel({
             )}
           </Step>
 
-          {/* 3. Choose employees & schedule */}
+          {/* 3. Choose managers & schedule */}
           <Step
             n={3}
             done={hasSeminar}
-            title="Choose employees & schedule the seminar"
+            title="Choose managers & schedule the seminar"
             desc={hasSeminar ? `${attendeeCount} on the current roster.` : "Pick who attends and set the seminar date."}
           >
             {hasSeminar && (
-              <RescheduleSeminar moduleSlug={slug} moduleTitle={moduleTitle} attendeeCount={attendeeCount} />
+              <RescheduleSeminar moduleSlug={slug} moduleTitle={moduleTitle} attendeeCount={attendeeCount}
+                moduleDate={scheduledDate} moduleTime={scheduledTime} moduleTz={timezone} />
             )}
             <ScheduleRedelivery
               moduleSlug={slug}
               moduleTitle={moduleTitle}
               currentDeliveryStart={currentDeliveryStart}
+              moduleDate={scheduledDate}
+              moduleTime={scheduledTime}
+              moduleTz={timezone}
             />
           </Step>
 
@@ -142,7 +152,7 @@ export function ModuleSetupPanel({
             n={4}
             done={isPublished}
             title="Publish the module"
-            desc={isPublished ? "Live — employees can take it." : "Final step — make it live for the assigned employees."}
+            desc={isPublished ? "Live — managers can take it." : "Final step — make it live for the assigned managers."}
           >
             {isPublished ? (
               <Button variant="ghost" size="sm" onClick={handleUnpublish} disabled={publishing}>

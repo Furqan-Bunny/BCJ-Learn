@@ -75,15 +75,15 @@ export function AddManagerSheet() {
     <Sheet open={open} onOpenChange={setOpen}>
       <SheetTrigger asChild>
         <Button>
-          <Plus className="mr-2 size-4" /> Add employee
+          <Plus className="mr-2 size-4" /> Add manager
         </Button>
       </SheetTrigger>
       <SheetContent className="w-full sm:max-w-md overflow-y-auto">
         <SheetHeader className="pb-2">
           <Badge variant="outline" className="w-fit text-[10px] uppercase tracking-wider">
-            New Employee
+            New Manager
           </Badge>
-          <SheetTitle className="text-xl tracking-tight">Add an Employee</SheetTitle>
+          <SheetTitle className="text-xl tracking-tight">Add a Manager</SheetTitle>
           <SheetDescription>
             New hires are auto-invited to any module they haven&rsquo;t yet passed. They&rsquo;ll receive a welcome email with the next training day and a link to log in.
           </SheetDescription>
@@ -162,7 +162,7 @@ export function AddManagerSheet() {
             onClick={handleSubmit as unknown as React.MouseEventHandler<HTMLButtonElement>}
             disabled={!canSubmit || submitting}
           >
-            {submitting ? "Adding…" : "Add employee"}
+            {submitting ? "Adding…" : "Add manager"}
           </Button>
         </SheetFooter>
       </SheetContent>

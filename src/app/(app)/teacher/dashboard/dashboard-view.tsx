@@ -56,7 +56,7 @@ export function TeacherDashboardView({ me, myModules, attemptsByModule }: Teache
               <CardHeader className="pb-3">
                 <div className="flex items-start justify-between gap-3">
                   <div>
-                    <div className="text-xs font-mono text-muted-foreground">M{m.number} · {m.scheduledMonth}</div>
+                    <div className="text-xs font-mono text-muted-foreground">M{m.number} · {m.scheduledDate ? fmtDate(m.scheduledDate) : m.scheduledMonth}</div>
                     <CardTitle className="text-lg mt-1">{m.title}</CardTitle>
                   </div>
                   <StatusBadge variant={m.status} />

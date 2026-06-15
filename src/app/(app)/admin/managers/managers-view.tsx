@@ -114,7 +114,7 @@ export function AdminManagersView({ managers, totalModules }: { managers: Manage
       },
       {
         accessorKey: "name",
-        header: "Employee",
+        header: "Manager",
         cell: ({ row }) => {
           const m = row.original;
           return (
@@ -314,8 +314,8 @@ export function AdminManagersView({ managers, totalModules }: { managers: Manage
     <>
       <PageHeader
         eyebrow="People"
-        title="Employees"
-        description={`${data.length} employees across ${COHORTS.length} markets. Search, filter, sort, and act in one place.`}
+        title="Managers"
+        description={`${data.length} managers across ${COHORTS.length} markets. Search, filter, sort, and act in one place.`}
         actions={
           <div className="flex items-center gap-2">
             <BulkImportSheet />
@@ -450,7 +450,7 @@ export function AdminManagersView({ managers, totalModules }: { managers: Manage
               <TableRow>
                 <TableCell colSpan={columns.length} className="h-32 text-center text-muted-foreground">
                   <Filter className="size-6 mx-auto mb-2 opacity-50" />
-                  No employees match your filters.
+                  No managers match your filters.
                 </TableCell>
               </TableRow>
             )}

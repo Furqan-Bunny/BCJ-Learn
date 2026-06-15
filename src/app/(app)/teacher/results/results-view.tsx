@@ -59,7 +59,7 @@ export function TeacherResultsView({ rows, myModules }: TeacherResultsViewProps)
     () => [
       {
         accessorKey: "managerName",
-        header: "Employee",
+        header: "Manager",
         cell: ({ row }) => {
           const r = row.original;
           return (

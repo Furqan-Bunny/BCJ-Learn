@@ -21,8 +21,9 @@ import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 import { LessonsBuilder, emptyLesson } from "@/components/admin/lessons-builder";
 import { QuestionReviewPanel } from "@/components/admin/question-review-panel";
-import { createModule, publishModule, getDueEmployees, scheduleSeminar, notifySeminar } from "@/lib/server/module-actions";
-import { linkResourceToModule } from "@/lib/server/module-resources-actions";
+import { createModule, updateModuleMetadata, updateModuleOwners, updateModuleLessons, publishModule, getDueEmployees, scheduleSeminar, notifySeminar } from "@/lib/server/module-actions";
+import { TIMEZONES, defaultTimezone } from "@/lib/timezones";
+import { linkResourceToModule, unlinkResourceFromModule } from "@/lib/server/module-resources-actions";
 import type { Lesson, Teacher } from "@/types";
 import type { Resource } from "@/lib/db/resources";
 
@@ -51,6 +52,7 @@ export function AddModuleSheet({ trigger, teachers, defaultNumber = 6, lockedOwn
   const [description, setDescription] = React.useState("");
   const [scheduledDate, setScheduledDate] = React.useState("");
   const [scheduledTime, setScheduledTime] = React.useState("");
+  const [tz, setTz] = React.useState(defaultTimezone());
   const [ownerTeacherIds, setOwnerTeacherIds] = React.useState<string[]>(lockedOwnerId ? [lockedOwnerId] : []);
   const [passThreshold, setPassThreshold] = React.useState(85);
   const [questionCount, setQuestionCount] = React.useState(25);
@@ -64,6 +66,9 @@ export function AddModuleSheet({ trigger, teachers, defaultNumber = 6, lockedOwn
   // SOPs the admin wants to link as "required reading" — employees must sign
   // each one before the module unlocks for them.
   const [selectedSopIds, setSelectedSopIds] = React.useState<Set<string>>(new Set());
+  // SOPs already persisted to the module — lets us re-sync (link/unlink the
+  // diff) when the admin returns to step 1 via Back and changes the selection.
+  const linkedSopIdsRef = React.useRef<Set<string>>(new Set());
   function toggleSop(id: string) {
     setSelectedSopIds((prev) => { const n = new Set(prev); if (n.has(id)) n.delete(id); else n.add(id); return n; });
   }
@@ -93,22 +98,56 @@ export function AddModuleSheet({ trigger, teachers, defaultNumber = 6, lockedOwn
     setOwnerTeacherIds(lockedOwnerId ? [lockedOwnerId] : []);
     setLessons([emptyLesson(`m-${number + 1}`, 1)]);
     setSelectedSopIds(new Set());
+    linkedSopIdsRef.current = new Set();
     setGenAdded(0);
     setEmployees([]); setSelected(new Set()); setNotify(null); setEmpSearch("");
   }
 
   const canCreate = !!title.trim() && !!description.trim() && !!scheduledDate && ownerTeacherIds.length > 0 && lessons.length > 0;
 
-  // ─── Step 1 → create ──────────────────────────────────────────────────
+  // ─── Step 1 → create (or save edits when returning via Back) ──────────
   async function handleCreate() {
     if (!canCreate) return;
     setSubmitting(true);
     const monthLabel = scheduledDate
-      ? new Date(scheduledDate).toLocaleDateString("en-US", { month: "long", year: "numeric" })
+      ? new Date(`${scheduledDate}T00:00:00`).toLocaleDateString("en-US", { month: "long", year: "numeric" })
       : null;
+
+    // Returning to step 1 via Back — the module already exists, so save the
+    // edits in place instead of creating a duplicate, then go forward again.
+    if (createdSlug) {
+      const meta = await updateModuleMetadata(createdSlug, {
+        number, title: title.trim(), description: description.trim(),
+        scheduledMonth: monthLabel, scheduledDate: scheduledDate || null,
+        scheduledTime: scheduledTime || null, timezone: tz || null,
+        passThreshold: passThreshold / 100, questionCount,
+        timeLimitMinutes: hasTimeLimit ? timeLimitMinutes : null,
+      });
+      if (!meta.ok) { setSubmitting(false); toast.error(meta.error ?? "Could not save changes"); return; }
+
+      const own = await updateModuleOwners(createdSlug, ownerTeacherIds, ownerTeacherIds[0]);
+      if (!own.ok) { setSubmitting(false); toast.error(own.error ?? "Could not save owners"); return; }
+
+      const les = await updateModuleLessons(createdSlug, lessons);
+      if (!les.ok) { setSubmitting(false); toast.error(les.error ?? "Could not save content"); return; }
+
+      // Re-sync linked SOPs: unlink the ones removed, link the newly added.
+      const prev = linkedSopIdsRef.current;
+      await Promise.all([
+        ...Array.from(prev).filter((id) => !selectedSopIds.has(id)).map((id) => unlinkResourceFromModule(createdSlug, id)),
+        ...Array.from(selectedSopIds).filter((id) => !prev.has(id)).map((id) => linkResourceToModule(createdSlug, id)),
+      ]);
+      linkedSopIdsRef.current = new Set(selectedSopIds);
+
+      setSubmitting(false);
+      setStep(2);
+      router.refresh();
+      return;
+    }
+
     const res = await createModule({
       slug: draftSlug, number, title: title.trim(), description: description.trim(),
-      scheduledMonth: monthLabel, scheduledDate: scheduledDate || null, scheduledTime: scheduledTime || null, status: "draft",
+      scheduledMonth: monthLabel, scheduledDate: scheduledDate || null, scheduledTime: scheduledTime || null, timezone: tz || null, status: "draft",
       passThreshold: passThreshold / 100, questionCount,
       timeLimitMinutes: hasTimeLimit ? timeLimitMinutes : null,
       ownerTeacherIds, lessons,
@@ -121,6 +160,7 @@ export function AddModuleSheet({ trigger, teachers, defaultNumber = 6, lockedOwn
         Array.from(selectedSopIds).map((id) => linkResourceToModule(draftSlug, id)),
       );
     }
+    linkedSopIdsRef.current = new Set(selectedSopIds);
     setSubmitting(false);
     setCreatedSlug(draftSlug);
     setStep(2);
@@ -157,7 +197,7 @@ export function AddModuleSheet({ trigger, teachers, defaultNumber = 6, lockedOwn
     setOpen(false);
     resetAll();
     toast.success(`${title || "Module"} saved as a draft`, {
-      description: "Not visible to employees until you publish it from the module page.",
+      description: "Not visible to managers until you publish it from the module page.",
     });
     router.refresh();
   }
@@ -171,7 +211,7 @@ export function AddModuleSheet({ trigger, teachers, defaultNumber = 6, lockedOwn
 
     const ids = [...selected];
     if (ids.length > 0 && scheduledDate) {
-      const sch = await scheduleSeminar(createdSlug, scheduledDate, ids, scheduledTime || null);
+      const sch = await scheduleSeminar(createdSlug, scheduledDate, ids, scheduledTime || null, tz || null);
       if (sch.ok) {
         setNotify({ sent: 0, total: ids.length });
         const CHUNK = 5;
@@ -186,12 +226,12 @@ export function AddModuleSheet({ trigger, teachers, defaultNumber = 6, lockedOwn
     setSubmitting(false);
     setNotify(null);
     setOpen(false);
-    toast.success(`${title} published`, { description: ids.length ? `Seminar scheduled · ${ids.length} employee(s) notified.` : undefined });
+    toast.success(`${title} published`, { description: ids.length ? `Seminar scheduled · ${ids.length} manager(s) notified.` : undefined });
     resetAll();
     router.refresh();
   }
 
-  const stepLabels = ["Details & content", "Generate questions", "Choose employees", "Publish & send"];
+  const stepLabels = ["Details & content", "Generate questions", "Choose managers", "Publish & send"];
 
   return (
     <Dialog open={open} onOpenChange={(o) => { setOpen(o); if (!o) resetAll(); }}>
@@ -211,8 +251,8 @@ export function AddModuleSheet({ trigger, teachers, defaultNumber = 6, lockedOwn
             <DialogDescription className="mt-1">
               {step === 1 ? "Fill in the details and upload content. Next, AI drafts the quiz, you pick who takes it, and publish."
                 : step === 2 ? "Review each AI-drafted question — Add the good ones, Skip the rest."
-                : step === 3 ? "These employees are due for this module. Pick who attends — leave empty to schedule the seminar later."
-                : "Publish the module and send it to the selected employees."}
+                : step === 3 ? "These managers are due for this module. Pick who attends — leave empty to schedule the seminar later."
+                : "Publish the module and send it to the selected managers."}
             </DialogDescription>
             {/* numbered stepper */}
             <div className="flex items-center gap-2 mt-4">
@@ -268,6 +308,13 @@ export function AddModuleSheet({ trigger, teachers, defaultNumber = 6, lockedOwn
               <div className="space-y-1.5">
                 <Label htmlFor="m-time" className="text-xs"><Clock className="size-3 inline mr-1" /> Start time</Label>
                 <Input id="m-time" type="time" value={scheduledTime} onChange={(e) => setScheduledTime(e.target.value)} className="h-10" />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="m-tz" className="text-xs"><Clock className="size-3 inline mr-1" /> Time zone</Label>
+                <select id="m-tz" value={tz} onChange={(e) => setTz(e.target.value)}
+                  className="h-10 w-full rounded-md border bg-card px-3 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+                  {TIMEZONES.map((t) => <option key={t.value} value={t.value}>{t.label}</option>)}
+                </select>
               </div>
             </div>
 
@@ -347,7 +394,7 @@ export function AddModuleSheet({ trigger, teachers, defaultNumber = 6, lockedOwn
                   Required resources <span className="text-muted-foreground/70 font-normal lowercase">(optional)</span>
                 </Label>
                 <p className="text-[11px] text-muted-foreground px-1">
-                  Employees will have to sign every resource picked here before they can take this module&rsquo;s quiz.
+                  Managers will have to sign every resource picked here before they can take this module&rsquo;s quiz.
                 </p>
                 <div className="max-h-40 overflow-y-auto space-y-1 mt-2">
                   {allSops.map((s) => {
@@ -390,13 +437,16 @@ export function AddModuleSheet({ trigger, teachers, defaultNumber = 6, lockedOwn
             </p>
             {createdSlug && <QuestionReviewPanel moduleSlug={createdSlug} onAddedChange={setGenAdded} />}
             <div className="sticky bottom-0 -mx-6 px-6 py-3 flex items-center justify-between gap-3 border-t bg-background/95 backdrop-blur">
-              <span className="text-sm text-muted-foreground whitespace-nowrap">
-                {genAdded > 0 ? `${genAdded} added so far` : "None added yet"}
-              </span>
+              <div className="flex items-center gap-2 min-w-0">
+                <Button variant="ghost" onClick={() => setStep(1)}><ArrowLeft className="size-4 mr-1" /> Back</Button>
+                <span className="text-sm text-muted-foreground whitespace-nowrap hidden sm:inline">
+                  {genAdded > 0 ? `${genAdded} added so far` : "None added yet"}
+                </span>
+              </div>
               <div className="flex gap-2 shrink-0">
                 {genAdded === 0 && <Button variant="ghost" onClick={() => setStep(3)}>Skip</Button>}
                 <Button onClick={() => setStep(3)}>
-                  Next: employees <ArrowRight className="size-4 ml-1" />
+                  Next: managers <ArrowRight className="size-4 ml-1" />
                 </Button>
               </div>
             </div>
@@ -426,9 +476,9 @@ export function AddModuleSheet({ trigger, teachers, defaultNumber = 6, lockedOwn
                 {empLoading ? (
                   <div className="p-6 text-center"><Loader2 className="size-4 animate-spin mx-auto text-muted-foreground" /></div>
                 ) : employees.length === 0 ? (
-                  <div className="p-6 text-center text-sm text-muted-foreground">No employees are due for this module right now.</div>
+                  <div className="p-6 text-center text-sm text-muted-foreground">No managers are due for this module right now.</div>
                 ) : filteredEmployees.length === 0 ? (
-                  <div className="p-6 text-center text-sm text-muted-foreground">No employees match “{empSearch}”.</div>
+                  <div className="p-6 text-center text-sm text-muted-foreground">No managers match “{empSearch}”.</div>
                 ) : filteredEmployees.map((e) => (
                   <label key={e.id} className="flex items-center gap-3 px-3 py-2 cursor-pointer hover:bg-accent/40">
                     <Checkbox checked={selected.has(e.id)} onCheckedChange={() => toggleEmp(e.id)} />
@@ -453,12 +503,12 @@ export function AddModuleSheet({ trigger, teachers, defaultNumber = 6, lockedOwn
               <div className="flex items-center gap-2 font-semibold"><Rocket className="size-4 text-primary" /> Ready to publish</div>
               <div className="flex items-center gap-2 text-muted-foreground"><ListChecks className="size-4" /> {genAdded > 0 ? `${genAdded} questions added` : "Questions can be added later"}</div>
               <div className="flex items-center gap-2 text-muted-foreground"><Calendar className="size-4" /> Seminar on {scheduledDate || "—"}</div>
-              <div className="flex items-center gap-2 text-muted-foreground"><Mail className="size-4" /> {selected.size > 0 ? `${selected.size} employee(s) will be invited & emailed` : "No attendees — schedule & email later from the module page"}</div>
+              <div className="flex items-center gap-2 text-muted-foreground"><Mail className="size-4" /> {selected.size > 0 ? `${selected.size} manager(s) will be invited & emailed` : "No attendees — schedule & email later from the module page"}</div>
             </div>
             {notify && (
               <div>
                 <div className="h-1.5 rounded-full bg-muted overflow-hidden"><div className="h-full bg-primary transition-all" style={{ width: `${notify.total ? (notify.sent / notify.total) * 100 : 0}%` }} /></div>
-                <p className="text-[11px] text-muted-foreground mt-1">Emailing employees… {notify.sent} of {notify.total}</p>
+                <p className="text-[11px] text-muted-foreground mt-1">Emailing managers… {notify.sent} of {notify.total}</p>
               </div>
             )}
             <div className="sticky bottom-0 -mx-6 px-6 py-3 flex justify-between gap-2 border-t bg-background/95 backdrop-blur">

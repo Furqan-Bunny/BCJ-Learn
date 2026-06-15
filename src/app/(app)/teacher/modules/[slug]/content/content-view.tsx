@@ -19,7 +19,7 @@ import {
   restoreModuleContentVersion,
 } from "@/lib/server/module-actions";
 import type { ModuleContentVersion } from "@/lib/db/modules";
-import { fmtRelative } from "@/lib/format";
+import { fmtRelative, fmtDate } from "@/lib/format";
 import type { Lesson, ModuleDef } from "@/types";
 import { toast } from "sonner";
 
@@ -63,7 +63,7 @@ export function TeacherContentView({ mod }: { mod: ModuleDef }) {
       </Button>
 
       <PageHeader
-        eyebrow={`Module ${mod.number} · ${mod.scheduledMonth}`}
+        eyebrow={`Module ${mod.number} · ${mod.scheduledDate ? fmtDate(mod.scheduledDate) : mod.scheduledMonth}`}
         title={`Edit content — ${mod.title}`}
         description="Organize the seminar into lessons and add the videos, documents, slide decks, or links you'll present in each."
         actions={

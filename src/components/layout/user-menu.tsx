@@ -29,6 +29,7 @@ import { useCurrentUser } from "@/lib/supabase/use-user";
 import { createClient } from "@/lib/supabase/client";
 import { setLocale } from "@/lib/server/locale-actions";
 import { useLocale, useT } from "@/lib/i18n/provider";
+import { SHOW_SPANISH } from "@/lib/i18n";
 import { toast } from "sonner";
 import type { Role } from "@/types";
 
@@ -41,7 +42,7 @@ const ROLE_ICON: Record<Role, React.ComponentType<{ className?: string }>> = {
 };
 
 const ROLE_LABEL: Record<Role, string> = {
-  manager: "Employee",
+  manager: "Manager",
   teacher: "Department Lead",
   admin: "Admin",
 };
@@ -192,7 +193,7 @@ export function UserMenu() {
           </DropdownMenuItem>
 
           {/* Language switch — employees only (staff screens stay English). */}
-          {user.role === "manager" && (
+          {user.role === "manager" && SHOW_SPANISH && (
             <>
               <DropdownMenuSeparator />
               <DropdownMenuLabel className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">

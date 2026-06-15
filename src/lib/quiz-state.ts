@@ -25,6 +25,9 @@ export type QuizState =
   | { kind: "locked"; lastAttempt: Attempt; attemptsUsed: number }
   | { kind: "ready"; checkedIn: boolean }
   | { kind: "awaiting-seminar"; seminarDate: string }
+  // The live seminar day passed without a check-in. The quiz card still offers a
+  // "take it on your own time" path (self-serve) — the attempt is recorded with
+  // no attendance row, so admins see it as "not attended".
   | { kind: "missed-session"; seminarDate: string };
 
 export interface QuizStateInput {

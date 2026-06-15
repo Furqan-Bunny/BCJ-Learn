@@ -322,26 +322,26 @@ export function LessonsBuilder({ lessons, onChange, moduleSlug }: LessonsBuilder
                               <Icon className="size-3.5" />
                             </div>
                             <div className="flex-1 min-w-0">
-                              <div className="text-sm font-medium truncate flex items-center gap-1.5">
-                                {c.title}
+                              <div className="text-sm font-medium flex items-center gap-1.5 min-w-0">
+                                <span className="truncate">{c.title}</span>
                                 {c.presentationHidden && (
                                   <Badge variant="outline" className="text-[9px] gap-0.5 px-1 py-0 shrink-0 text-muted-foreground">
                                     <EyeOff className="size-2.5" /> Not on presentation day
                                   </Badge>
                                 )}
                               </div>
-                              <div className="text-[11px] text-muted-foreground flex items-center gap-2">
-                                <span>{meta.label}</span>
+                              <div className="text-[11px] text-muted-foreground flex items-center gap-2 min-w-0">
+                                <span className="shrink-0">{meta.label}</span>
                                 {c.durationMinutes && (
                                   <>
-                                    <span className="text-muted-foreground/50">·</span>
-                                    <span>{c.durationMinutes} min</span>
+                                    <span className="text-muted-foreground/50 shrink-0">·</span>
+                                    <span className="shrink-0">{c.durationMinutes} min</span>
                                   </>
                                 )}
                                 {c.fileName && (
                                   <>
-                                    <span className="text-muted-foreground/50">·</span>
-                                    <span className="truncate">{c.fileName}</span>
+                                    <span className="text-muted-foreground/50 shrink-0">·</span>
+                                    <span className="truncate min-w-0">{c.fileName}</span>
                                   </>
                                 )}
                               </div>
@@ -508,7 +508,7 @@ function EditContentDialog({
                 {hidden ? <EyeOff className="size-3.5" /> : <Eye className="size-3.5" />} Don&rsquo;t show on presentation day
               </div>
               <div className="text-[11px] text-muted-foreground">
-                Employees can still review it as optional pre-study material.
+                Managers can still review it as optional pre-study material.
               </div>
             </div>
           </label>

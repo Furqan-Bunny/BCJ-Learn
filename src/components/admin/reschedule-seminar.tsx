@@ -12,26 +12,35 @@ import { CalendarClock, Loader2, Mail } from "lucide-react";
 import { fmtDate } from "@/lib/format";
 import { toast } from "sonner";
 import { rescheduleSeminar, notifySeminar } from "@/lib/server/module-actions";
+import { TIMEZONES, defaultTimezone } from "@/lib/timezones";
 
 interface RescheduleSeminarProps {
   moduleSlug: string;
   moduleTitle: string;
   /** Number of already-invited attendees (display only). */
   attendeeCount?: number;
+  /** Pre-fill the form from the module's current seminar. */
+  moduleDate?: string;
+  moduleTime?: string;
+  moduleTz?: string;
   trigger?: React.ReactNode;
 }
 
-export function RescheduleSeminar({ moduleSlug, moduleTitle, attendeeCount = 0, trigger }: RescheduleSeminarProps) {
+export function RescheduleSeminar({ moduleSlug, moduleTitle, attendeeCount = 0, moduleDate, moduleTime, moduleTz, trigger }: RescheduleSeminarProps) {
   const router = useRouter();
   const [open, setOpen] = React.useState(false);
   const [date, setDate] = React.useState("");
   const [time, setTime] = React.useState("");
+  const [tz, setTz] = React.useState("");
   const [submitting, setSubmitting] = React.useState(false);
   const [notify, setNotify] = React.useState<{ sent: number; total: number } | null>(null);
 
   React.useEffect(() => {
-    if (open) setDate(new Date().toISOString().split("T")[0]);
-  }, [open]);
+    if (!open) return;
+    setDate(moduleDate || new Date().toISOString().split("T")[0]);
+    setTime(moduleTime || "");
+    setTz(moduleTz || defaultTimezone());
+  }, [open, moduleDate, moduleTime, moduleTz]);
 
   async function notifyInBatches(recipients: { id: string }[]): Promise<number> {
     const ids = recipients.map((r) => r.id);
@@ -50,7 +59,7 @@ export function RescheduleSeminar({ moduleSlug, moduleTitle, attendeeCount = 0, 
   async function handleConfirm() {
     if (!date) return;
     setSubmitting(true);
-    const res = await rescheduleSeminar(moduleSlug, date, time || null);
+    const res = await rescheduleSeminar(moduleSlug, date, time || null, tz || null);
     if (!res.ok) {
       setSubmitting(false);
       toast.error(res.error ?? "Could not reschedule");
@@ -93,6 +102,13 @@ export function RescheduleSeminar({ moduleSlug, moduleTitle, attendeeCount = 0, 
               <Label htmlFor="reschedule-time">Start time</Label>
               <Input id="reschedule-time" type="time" value={time} onChange={(e) => setTime(e.target.value)} className="h-10" />
             </div>
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="reschedule-tz">Time zone</Label>
+            <select id="reschedule-tz" value={tz} onChange={(e) => setTz(e.target.value)}
+              className="h-10 w-full rounded-md border bg-card px-3 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+              {TIMEZONES.map((t) => <option key={t.value} value={t.value}>{t.label}</option>)}
+            </select>
           </div>
           <div className="rounded-lg border border-primary/30 bg-primary/[0.04] p-3 flex items-start gap-2">
             <Mail className="size-4 text-primary shrink-0 mt-0.5" />

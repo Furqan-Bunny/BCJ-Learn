@@ -22,7 +22,7 @@ import { toast } from "sonner";
 import { deleteResource } from "@/lib/server/resource-actions";
 import type { Resource, ResourceVersion, ResourceVersionSnapshot, AckHistoryEntry, AckStatusRow } from "@/lib/db/resources";
 
-const ROLE_LABEL: Record<string, string> = { manager: "Employees", teacher: "Department Leads", admin: "Admins" };
+const ROLE_LABEL: Record<string, string> = { manager: "Managers", teacher: "Department Leads", admin: "Admins" };
 
 // Human label for each snapshot field, in display order.
 const DIFF_FIELDS: { key: keyof ResourceVersionSnapshot; label: string }[] = [

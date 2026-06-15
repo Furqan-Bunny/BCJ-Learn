@@ -12,7 +12,7 @@ import { MAX_STRIKES } from "@/lib/quiz-pool";
 import { CheckInCard } from "@/components/manager/check-in-card";
 import { QuizStatusCard } from "@/components/manager/quiz-status-card";
 import { DeliveryLiveSync } from "@/components/manager/delivery-live-sync";
-import { fmtRelative, initials } from "@/lib/format";
+import { fmtRelative, fmtDate, initials, toLocalDate } from "@/lib/format";
 import { differenceInCalendarDays } from "date-fns";
 import { Stagger, StaggerItem, CountUp, motion, useReducedMotion } from "@/components/shared/animations";
 import type { ModuleDef, Attempt, ActivityEvent, ManagerStatus, Cohort } from "@/types";
@@ -59,7 +59,7 @@ export function ManagerDashboardView({
   // highlight — every published module is still openable).
   const nextModule = orderedModules.find((m) => !passedSlugs.has(m.slug)) ?? orderedModules[orderedModules.length - 1];
   const daysToNext = nextModule?.scheduledDate
-    ? differenceInCalendarDays(new Date(nextModule.scheduledDate), new Date())
+    ? differenceInCalendarDays(toLocalDate(nextModule.scheduledDate), new Date())
     : 0;
   const overallPct = orderedModules.length > 0 ? Math.round((completedCount / orderedModules.length) * 100) : 0;
   const nextModuleAttempts = nextModule
@@ -166,7 +166,7 @@ export function ManagerDashboardView({
                     <div className="font-semibold text-sm leading-tight line-clamp-2 min-h-[2.5rem]">
                       {m.title}
                     </div>
-                    <div className="text-xs text-muted-foreground mt-2">{m.scheduledMonth}</div>
+                    <div className="text-xs text-muted-foreground mt-2">{m.scheduledDate ? fmtDate(m.scheduledDate) : m.scheduledMonth}</div>
                     {passed && myAttempt && (
                       <div className="mt-3 text-xs">
                         <span className="text-emerald-600 dark:text-emerald-400 font-semibold">{myAttempt.scorePct}%</span>

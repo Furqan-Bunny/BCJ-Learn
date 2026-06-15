@@ -47,7 +47,7 @@ export function Topbar({ userId, initialNotifications, initialUnreadCount }: Top
           <Search className="size-4 shrink-0 transition-transform group-hover:scale-110 group-hover:text-primary" />
           <span className="flex-1 min-w-0 text-left truncate">
             <span className="sm:hidden">Search…</span>
-            <span className="hidden sm:inline">Search employees, modules, actions…</span>
+            <span className="hidden sm:inline">Search managers, modules, actions…</span>
           </span>
           <kbd className="ml-auto hidden sm:inline-flex items-center gap-1 rounded border bg-muted px-1.5 py-0.5 font-mono text-[10px] transition-colors group-hover:border-primary/40">
             <CmdIcon className="size-3" /> K

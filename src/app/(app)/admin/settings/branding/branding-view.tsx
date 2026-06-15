@@ -232,7 +232,7 @@ export function BrandingView({ initial }: { initial: BrandingSettings }) {
                 </div>
               </div>
               <div className="mt-3 text-xs text-muted-foreground text-center">
-                Employee dashboard preview
+                Manager dashboard preview
               </div>
             </CardContent>
           </Card>

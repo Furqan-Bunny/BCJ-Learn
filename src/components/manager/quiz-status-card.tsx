@@ -9,7 +9,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { computeQuizState } from "@/lib/quiz-state";
-import { fmtDate, fmtRelative, fmtPct, fmtTime } from "@/lib/format";
+import { fmtDate, fmtRelative, fmtPct, fmtTimeWithZone } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import type { ModuleDef, Attempt } from "@/types";
 import { useT } from "@/lib/i18n/provider";
@@ -43,7 +43,7 @@ export function QuizStatusCard({
   void managerId; // not used directly; attempts already filtered by host
   const t = useT();
   const sessionLive = !!sessionStartedAt && !sessionEndedAt;
-  const timeStr = fmtTime(mod.scheduledTime);
+  const timeStr = fmtTimeWithZone(mod.scheduledTime, mod.timezone);
 
   const state = computeQuizState({
     currentAttempts: myAttempts,
@@ -160,6 +160,9 @@ export function QuizStatusCard({
   }
 
   if (state.kind === "missed-session") {
+    // The live seminar passed without a check-in. Rather than dead-ending, let
+    // the manager take the quiz on their own time — admins still see this
+    // attempt as "not attended" (no attendance row was created).
     return (
       <StatusContainer
         variant={variant}
@@ -168,10 +171,16 @@ export function QuizStatusCard({
         eyebrow={t("status.missedEyebrow")}
         title={t("status.missedTitle", { module: mod.title, date: fmtDate(state.seminarDate) })}
         description={t("status.missedDesc")}
-        primaryAction={null}
+        primaryAction={
+          <Button asChild>
+            <Link href={`/manager/modules/${mod.slug}/quiz`}>
+              {t("status.missedTakeQuiz")} <ArrowRight className="size-4 ml-1" />
+            </Link>
+          </Button>
+        }
         meta={[
           { icon: Calendar, label: t("status.metaOriginalSession"), value: fmtDate(state.seminarDate) },
-          { icon: RefreshCcw, label: t("status.metaStatus"), value: t("status.metaAwaitingReschedule") },
+          { icon: Target, label: t("status.metaPassAt"), value: `${Math.round(mod.passThreshold * 100)}%` },
         ]}
       />
     );

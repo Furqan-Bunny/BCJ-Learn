@@ -7,7 +7,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { fmtDate, fmtRelative } from "@/lib/format";
+import { fmtDate, fmtRelative, toLocalDate } from "@/lib/format";
 import type { ModuleDef } from "@/types";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -52,7 +52,7 @@ export function CheckInCard({
   // the QuizStatusCard takes over with "Start Quiz".
   if (sessionEndedAt) return null;
 
-  const trainingDate = mod.scheduledDate ? new Date(mod.scheduledDate) : null;
+  const trainingDate = mod.scheduledDate ? toLocalDate(mod.scheduledDate) : null;
   const now = new Date();
   const isToday = trainingDate
     ? trainingDate.getFullYear() === now.getFullYear() &&

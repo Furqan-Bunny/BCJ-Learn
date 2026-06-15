@@ -7,7 +7,9 @@
 
 import * as React from "react";
 import { Button } from "@/components/ui/button";
-import { X, Loader2, CheckCircle2, AlertCircle, Plus } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { X, Loader2, CheckCircle2, AlertCircle, Plus, Pencil } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
@@ -37,6 +39,8 @@ export function QuestionReviewPanel({
   const [skipped, setSkipped] = React.useState(0);
   const [busy, setBusy] = React.useState(false);
   const [noMore, setNoMore] = React.useState(false);
+  const [editing, setEditing] = React.useState(false);
+  const [draftEdit, setDraftEdit] = React.useState<Draft | null>(null);
   const seen = React.useRef<Record<Pool, string[]>>({ "first-attempt": [], retake: [] });
   const prepStarted = React.useRef(false);
 
@@ -111,11 +115,32 @@ export function QuestionReviewPanel({
     setBuffer((prev) => prev.slice(1));
   }
 
+  function startEdit() {
+    if (!current) return;
+    setDraftEdit({ text: current.text, options: current.options.map((o) => ({ ...o })), explanation: current.explanation });
+    setEditing(true);
+  }
+
+  function saveEdit() {
+    if (!draftEdit) return;
+    if (!draftEdit.text.trim()) { toast.error("Question text can't be empty"); return; }
+    if (draftEdit.options.filter((o) => o.correct).length !== 1) { toast.error("Mark exactly one correct answer"); return; }
+    if (draftEdit.options.some((o) => !o.text.trim())) { toast.error("Every option needs text"); return; }
+    const cleaned: Draft = {
+      text: draftEdit.text.trim(),
+      options: draftEdit.options.map((o) => ({ text: o.text.trim(), correct: o.correct })),
+      explanation: draftEdit.explanation?.trim() || undefined,
+    };
+    setBuffer((prev) => [cleaned, ...prev.slice(1)]);
+    setEditing(false);
+  }
+
   function switchPool(p: Pool) {
     if (p === pool) return;
     setPool(p);
     setBuffer([]);
     setNoMore(false);
+    setEditing(false);
   }
 
   if (phase === "prep") {
@@ -149,7 +174,30 @@ export function QuestionReviewPanel({
 
       <div className="min-h-[240px] flex items-stretch">
         <AnimatePresence mode="wait">
-          {current ? (
+          {editing && draftEdit ? (
+            <motion.div key="edit"
+              initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+              transition={{ duration: 0.15 }} className="w-full rounded-lg border bg-card p-4 space-y-3">
+              <Textarea value={draftEdit.text} onChange={(e) => setDraftEdit({ ...draftEdit, text: e.target.value })} rows={2} className="resize-none font-medium" placeholder="Question text" />
+              <div className="space-y-1.5">
+                {draftEdit.options.map((o, i) => (
+                  <div key={i} className="flex items-center gap-2">
+                    <button type="button" aria-label="Mark correct"
+                      onClick={() => setDraftEdit({ ...draftEdit, options: draftEdit.options.map((x, xi) => ({ ...x, correct: xi === i })) })}
+                      className={cn("size-4 rounded-full border shrink-0 flex items-center justify-center", o.correct ? "bg-emerald-500 border-emerald-500" : "border-muted-foreground/40")}>
+                      {o.correct && <span className="size-1.5 rounded-full bg-white" />}
+                    </button>
+                    <Input value={o.text} onChange={(e) => setDraftEdit({ ...draftEdit, options: draftEdit.options.map((x, xi) => (xi === i ? { ...x, text: e.target.value } : x)) })} className="h-9" />
+                  </div>
+                ))}
+              </div>
+              <Textarea value={draftEdit.explanation ?? ""} onChange={(e) => setDraftEdit({ ...draftEdit, explanation: e.target.value })} rows={2} placeholder="Explanation (optional)" className="resize-none text-sm" />
+              <div className="flex gap-2 justify-end">
+                <Button variant="outline" size="sm" onClick={() => setEditing(false)}>Cancel</Button>
+                <Button size="sm" onClick={saveEdit}>Save edits</Button>
+              </div>
+            </motion.div>
+          ) : current ? (
             <motion.div key={`${pool}-${added}-${skipped}`}
               initial={{ opacity: 0, x: 24 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -24 }}
               transition={{ duration: 0.18 }} className="w-full rounded-lg border bg-card p-4 space-y-3">
@@ -173,14 +221,19 @@ export function QuestionReviewPanel({
         </AnimatePresence>
       </div>
 
-      <div className="flex items-center gap-2">
-        <Button variant="outline" onClick={handleSkip} disabled={!current || busy} className="flex-1">
-          <X className="size-4 mr-1.5" /> Skip
-        </Button>
-        <Button onClick={handleAdd} disabled={!current || busy} className="flex-1">
-          {busy ? <Loader2 className="size-4 animate-spin mr-1.5" /> : <Plus className="size-4 mr-1.5" />} Add question
-        </Button>
-      </div>
+      {!editing && (
+        <div className="flex items-center gap-2">
+          <Button variant="outline" onClick={handleSkip} disabled={!current || busy} className="flex-1">
+            <X className="size-4 mr-1.5" /> Skip
+          </Button>
+          <Button variant="outline" onClick={startEdit} disabled={!current || busy}>
+            <Pencil className="size-4 mr-1.5" /> Edit
+          </Button>
+          <Button onClick={handleAdd} disabled={!current || busy} className="flex-1">
+            {busy ? <Loader2 className="size-4 animate-spin mr-1.5" /> : <Plus className="size-4 mr-1.5" />} Add question
+          </Button>
+        </div>
+      )}
       <p className="text-[11px] text-muted-foreground text-center">
         <strong>Add</strong> saves &amp; approves the question · <strong>Skip</strong> discards it (nothing saved).
         {fetching && current && <> · <Loader2 className="size-3 animate-spin inline" /> drafting more…</>}

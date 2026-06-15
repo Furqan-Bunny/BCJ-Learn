@@ -25,14 +25,14 @@ const DEMO_MODE = process.env.NEXT_PUBLIC_DEMO_MODE === "true";
 const ROLES: { id: Role; title: string; subtitle: string; icon: typeof GraduationCap; route: string }[] = [
   {
     id: "manager",
-    title: "Employee",
+    title: "Manager",
     subtitle: "Take quizzes, study your modules, track your progress.",
     icon: GraduationCap,
     route: "/manager/dashboard",
   },
   {
     id: "teacher",
-    title: "Department Lead/Manager",
+    title: "Department Lead",
     subtitle: "Approve AI-drafted questions, see your module results.",
     icon: BookOpen,
     route: "/teacher/dashboard",

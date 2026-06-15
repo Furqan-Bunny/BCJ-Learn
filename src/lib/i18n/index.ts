@@ -8,6 +8,11 @@ import { es } from "./es";
 
 export type Locale = "en" | "es";
 
+// Master switch for the Spanish language feature. Set to false to hide all
+// language-switching UI (FAB, user-menu toggle, "Translate to Spanish" buttons)
+// without removing any code — flip back to true to re-enable later.
+export const SHOW_SPANISH = false;
+
 const DICTS: Record<Locale, Record<string, string>> = { en, es };
 
 export function t(locale: Locale, key: string, vars?: Record<string, string | number>): string {
