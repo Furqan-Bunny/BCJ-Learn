@@ -932,11 +932,16 @@ export async function translateQuestionToSpanish(
   const admin = createAdminClient();
   const { data: qRow } = await admin
     .from("questions")
-    .select("text, explanation")
+    .select("text, explanation, module_slug")
     .eq("id", questionId)
     .single();
   if (!qRow) return { ok: false, error: "Question not found" };
-  const { text, explanation } = qRow as { text: string; explanation: string | null };
+  const { text, explanation, module_slug } = qRow as { text: string; explanation: string | null; module_slug: string };
+
+  // Admin/owner only — stops an arbitrary user from spending AI budget or
+  // overwriting cached translations on questions they don't own.
+  const guard = await requireAdminOrModuleOwner(module_slug);
+  if (!guard.ok) return { ok: false, error: guard.error };
 
   const { data: optRows } = await admin
     .from("question_options")

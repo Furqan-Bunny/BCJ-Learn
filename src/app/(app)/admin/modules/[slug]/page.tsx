@@ -7,6 +7,7 @@ import { listDeliveriesForModule, getCurrentDelivery } from "@/lib/db/deliveries
 import { getModuleRoster, getModuleRosterCounts } from "@/lib/db/roster";
 import { listResourcesForModule } from "@/lib/db/module-resources";
 import { listResources } from "@/lib/db/resources";
+import { getCurrentUser } from "@/lib/supabase/current-user";
 import { AdminModuleView } from "./module-view";
 import type { Teacher } from "@/types";
 import type { Metadata } from "next";
@@ -20,6 +21,10 @@ export async function generateMetadata(props: PageProps<"/admin/modules/[slug]">
 
 export default async function AdminModuleDetailPage(props: PageProps<"/admin/modules/[slug]">) {
   const { slug } = await props.params;
+  // Admin-only: the admin module console exposes any module's answer key + roster.
+  // (Leads manage their own modules under /teacher/modules/[slug].)
+  const me = await getCurrentUser();
+  if (!me || me.role !== "admin") notFound();
   const mod = await getModule(slug);
   if (!mod) return notFound();
 

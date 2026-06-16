@@ -6,7 +6,8 @@ import { useT } from "@/lib/i18n/provider";
 import { Pagination, pageSlice } from "@/components/ui/pagination";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Calendar, CheckCircle2, XCircle, ArrowUpRight, Clock, History, Target } from "lucide-react";
+import { Calendar, CheckCircle2, XCircle, ArrowUpRight, Clock, History, Target, Award, Download } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/shared/page-header";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { fmtDate, fmtRelative, fmtPct } from "@/lib/format";
@@ -47,6 +48,11 @@ export function ManagerProgressView({ me, modules, myAttempts }: ManagerProgress
   const HISTORY_PER_PAGE = 10;
   const [historyPage, setHistoryPage] = React.useState(0);
 
+  // Modules this employee has passed — each earns a downloadable certificate.
+  const passedModules = ordered.filter((m) =>
+    myAttempts.some((a) => a.moduleSlug === m.slug && a.status === "passed"),
+  );
+
   return (
     <>
       <PageHeader
@@ -80,6 +86,37 @@ export function ManagerProgressView({ me, modules, myAttempts }: ManagerProgress
           </CardContent>
         </Card>
       </div>
+
+      {/* ─── Certificates (one per passed module) ──────────────────── */}
+      {passedModules.length > 0 && (
+        <Card className="mb-8 border-[var(--gold)]/30 bg-[var(--gold)]/5">
+          <CardHeader>
+            <CardTitle className="text-base flex items-center gap-2">
+              <Award className="size-4 text-[var(--gold-foreground)]" /> {t("progress.certificatesTitle")}
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <ul className="grid sm:grid-cols-2 gap-2">
+              {passedModules.map((m) => (
+                <li key={m.slug} className="flex items-center gap-3 rounded-md border bg-card px-3 py-2.5">
+                  <div className="size-9 rounded-md bg-emerald-100 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0">
+                    <Award className="size-4" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="text-sm font-medium truncate">M{m.number}: {m.title}</div>
+                    <div className="text-[11px] text-muted-foreground">{t("progress.certificateEarned")}</div>
+                  </div>
+                  <Button asChild size="sm" variant="outline" className="shrink-0">
+                    <Link href={`/manager/modules/${m.slug}/certificate`}>
+                      <Download className="size-3.5 mr-1.5" /> {t("progress.viewCertificate")}
+                    </Link>
+                  </Button>
+                </li>
+              ))}
+            </ul>
+          </CardContent>
+        </Card>
+      )}
 
       {/* ─── Full attempt history ──────────────────────────────────── */}
       <Card className="mb-8">

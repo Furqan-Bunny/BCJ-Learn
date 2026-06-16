@@ -3,6 +3,7 @@ import { getCurrentUserForRole } from "@/lib/supabase/current-user";
 import { getModule } from "@/lib/db/modules";
 import { listAttemptsForManager } from "@/lib/db/attempts";
 import { listModuleSopsForUser } from "@/lib/db/module-resources";
+import { canStartQuizNow } from "@/lib/auth/quiz-access";
 import { ManagerQuizView } from "./quiz-view";
 
 export default async function ManagerQuizPage(props: PageProps<"/manager/modules/[slug]/quiz">) {
@@ -24,6 +25,12 @@ export default async function ManagerQuizPage(props: PageProps<"/manager/modules
   const alreadyPassed = attempts.some((a) => a.moduleSlug === slug && a.status === "passed");
   const allSopsSigned = sops.every((s) => s.signed);
   if (!allSopsSigned && !alreadyPassed) {
+    redirect(`/manager/modules/${slug}`);
+  }
+
+  // Hard seminar gate — the quiz can't be opened before the seminar. Sends a
+  // direct-URL visitor back to the module page (where the status card explains).
+  if (!(await canStartQuizNow(slug, me.id))) {
     redirect(`/manager/modules/${slug}`);
   }
 

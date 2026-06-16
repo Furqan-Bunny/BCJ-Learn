@@ -2,6 +2,7 @@ import { getModule } from "@/lib/db/modules";
 import { getAccessibleModuleOr404 } from "@/lib/auth/module-access";
 import { listAttemptsForModule } from "@/lib/db/attempts";
 import { listAssignableUsers } from "@/lib/db/profiles";
+import { getAddableEmployees } from "@/lib/server/module-actions";
 import { listDeliveriesForModule, getCurrentDelivery } from "@/lib/db/deliveries";
 import { getModuleRoster, getModuleRosterCounts } from "@/lib/db/roster";
 import { TeacherModuleView } from "./module-view";
@@ -31,10 +32,10 @@ export default async function TeacherModulePage(props: PageProps<"/teacher/modul
     allManagers.map((m) => [m.id, { id: m.id, name: m.name, avatarColor: m.avatarColor, avatarUrl: m.avatarUrl, cohort: m.cohort }]),
   );
 
+  // Full active directory via a guarded action — teacher profile reads are
+  // scoped to their own modules (0048), so the picker can't use a broad query.
   const rosterIds = new Set(roster.map((r) => r.manager.id));
-  const addableManagers = allManagers
-    .filter((m) => !rosterIds.has(m.id) && m.status !== "inactive" && m.status !== "pending")
-    .map((m) => ({ id: m.id, name: m.name }));
+  const addableManagers = (await getAddableEmployees(slug)).filter((m) => !rosterIds.has(m.id));
 
   return (
     <TeacherModuleView

@@ -914,6 +914,22 @@ export async function resetManagerForModule(
   if (DEMO_MODE) return { ok: true };
 
   const admin = createAdminClient();
+
+  // The target must actually be on this module (an invitee of a delivery, or
+  // someone who has attempted it) — so a caller can't reset / notify an
+  // arbitrary user by passing any id.
+  const { data: delRows } = await admin.from("module_deliveries").select("id").eq("module_slug", moduleSlug);
+  const deliveryIds = ((delRows ?? []) as { id: string }[]).map((d) => d.id);
+  const [{ data: attempt }, { data: invitee }] = await Promise.all([
+    admin.from("attempts").select("id").eq("manager_id", managerId).eq("module_slug", moduleSlug).limit(1).maybeSingle(),
+    deliveryIds.length
+      ? admin.from("module_invitees").select("manager_id").eq("manager_id", managerId).in("delivery_id", deliveryIds).limit(1).maybeSingle()
+      : Promise.resolve({ data: null }),
+  ]);
+  if (!attempt && !invitee) {
+    return { ok: false, error: "That person isn't on this module's roster." };
+  }
+
   const { error } = await admin.from("module_member_resets").insert({
     module_slug: moduleSlug,
     manager_id: managerId,
@@ -951,6 +967,22 @@ export async function resetManagerForModule(
   revalidatePath(`/teacher/modules/${moduleSlug}`);
   revalidatePath(`/admin/managers/${managerId}`);
   return { ok: true };
+}
+
+// Active users who can be added to a module's seminar roster. Goes through the
+// service-role client behind an admin/owner guard, so the "Add employee" picker
+// still lists the full directory even after teacher profile reads were scoped to
+// their own modules (migration 0048). Any role can be assigned (per 0043).
+export async function getAddableEmployees(
+  moduleSlug: string,
+): Promise<{ id: string; name: string }[]> {
+  const guard = await requireAdminOrModuleOwner(moduleSlug);
+  if (!guard.ok) return [];
+  const admin = createAdminClient();
+  const { data } = await admin.from("profiles").select("id, name, status").order("name");
+  return ((data ?? []) as { id: string; name: string; status: string | null }[])
+    .filter((p) => p.status !== "inactive" && p.status !== "pending")
+    .map((p) => ({ id: p.id, name: p.name }));
 }
 
 // ─── updateModuleMetadata (admin) ──────────────────────────────────────

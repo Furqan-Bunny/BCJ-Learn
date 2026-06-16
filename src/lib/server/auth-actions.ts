@@ -95,20 +95,33 @@ export async function verifyLoginOtp(email: string, code: string) {
   const entered = code.trim();
   if (!normalized || !entered) return { ok: false as const, error: "Enter the 6-digit code." };
 
+  const MAX_ATTEMPTS = 5;
   const admin = createAdminClient();
   const { data } = await admin
     .from("email_otps")
-    .select("id, code, expires_at")
+    .select("id, code, expires_at, attempts")
     .eq("email", normalized)
     .order("created_at", { ascending: false })
     .limit(1)
     .maybeSingle();
 
-  const row = data as { id: string; code: string; expires_at: string } | null;
-  if (!row || row.code !== entered) return { ok: false as const, error: "Incorrect code. Check your email and try again." };
+  const row = data as { id: string; code: string; expires_at: string; attempts: number } | null;
+  if (!row) return { ok: false as const, error: "Incorrect code. Check your email and try again." };
+
   if (new Date(row.expires_at) < new Date()) {
     await admin.from("email_otps").delete().eq("id", row.id);
     return { ok: false as const, error: "That code expired. Request a new one." };
+  }
+
+  if (row.code !== entered) {
+    // Brute-force guard: burn the code after too many wrong tries.
+    const attempts = (row.attempts ?? 0) + 1;
+    if (attempts >= MAX_ATTEMPTS) {
+      await admin.from("email_otps").delete().eq("id", row.id);
+      return { ok: false as const, error: "Too many incorrect attempts. Request a new code." };
+    }
+    await admin.from("email_otps").update({ attempts }).eq("id", row.id);
+    return { ok: false as const, error: "Incorrect code. Check your email and try again." };
   }
 
   await admin.from("email_otps").delete().eq("id", row.id);

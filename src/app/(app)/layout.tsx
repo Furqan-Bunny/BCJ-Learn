@@ -13,11 +13,15 @@ import { resolveBrandingLogoUrl, buildBrandingCss } from "@/lib/branding";
 import { LocaleProvider } from "@/lib/i18n/provider";
 import { LanguageFab } from "@/components/shared/language-fab";
 import { SHOW_SPANISH } from "@/lib/i18n";
+import { redirect } from "next/navigation";
 
 const DEMO_MODE = process.env.NEXT_PUBLIC_DEMO_MODE === "true";
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const user = await getCurrentUser();
+  // Defense-in-depth: never render the authenticated shell for a signed-out
+  // visitor (middleware already redirects, but don't rely on it alone).
+  if (!user && !DEMO_MODE) redirect("/login");
   const branding = await getBrandingSettings();
   const logoUrl = resolveBrandingLogoUrl(branding.logoPath);
   const brandingCss = buildBrandingCss(branding.primaryColor, branding.accentColor);

@@ -4,6 +4,12 @@
 import { dbClient } from "@/lib/supabase/db-client";
 import type { Admin, Manager, Teacher, Role, Cohort, ManagerStatus } from "@/types";
 
+// Explicit column list (never `select("*")`) so we never read `invite_token`
+// over the RLS client — that column is revoked from authenticated reads (it's a
+// secret only the service-role invite flow needs). See migration 0047.
+const PROFILE_COLS =
+  "id, name, email, role, cohort, markets, avatar_color, avatar_url, status, bio, title, joined_at, last_active_at, phone, invite_sent_at, invite_expires_at";
+
 interface ProfileRow {
   id: string;
   name: string;
@@ -88,7 +94,7 @@ function toAdmin(r: ProfileRow): Admin {
 
 export async function listManagers(): Promise<Manager[]> {
   const sb = await dbClient();
-  const { data } = await sb.from("profiles").select("*").eq("role", "manager").order("joined_at", { ascending: false });
+  const { data } = await sb.from("profiles").select(PROFILE_COLS).eq("role", "manager").order("joined_at", { ascending: false });
   return (data ?? []).map((r) => toManager(r as ProfileRow));
 }
 
@@ -100,25 +106,25 @@ export async function listManagers(): Promise<Manager[]> {
 // no manager_status, so toManager defaults them to "active" (they stay addable).
 export async function listAssignableUsers(): Promise<Manager[]> {
   const sb = await dbClient();
-  const { data } = await sb.from("profiles").select("*").order("joined_at", { ascending: false });
+  const { data } = await sb.from("profiles").select(PROFILE_COLS).order("joined_at", { ascending: false });
   return (data ?? []).map((r) => toManager(r as ProfileRow));
 }
 
 export async function listTeachers(): Promise<Teacher[]> {
   const sb = await dbClient();
-  const { data } = await sb.from("profiles").select("*").eq("role", "teacher").order("joined_at", { ascending: false });
+  const { data } = await sb.from("profiles").select(PROFILE_COLS).eq("role", "teacher").order("joined_at", { ascending: false });
   return (data ?? []).map((r) => toTeacher(r as ProfileRow));
 }
 
 export async function listAdmins(): Promise<Admin[]> {
   const sb = await dbClient();
-  const { data } = await sb.from("profiles").select("*").eq("role", "admin").order("joined_at", { ascending: false });
+  const { data } = await sb.from("profiles").select(PROFILE_COLS).eq("role", "admin").order("joined_at", { ascending: false });
   return (data ?? []).map((r) => toAdmin(r as ProfileRow));
 }
 
 export async function getProfile(id: string): Promise<Manager | Teacher | Admin | null> {
   const sb = await dbClient();
-  const { data } = await sb.from("profiles").select("*").eq("id", id).single();
+  const { data } = await sb.from("profiles").select(PROFILE_COLS).eq("id", id).single();
   if (!data) return null;
   const r = data as ProfileRow;
   if (r.role === "manager") return toManager(r);
@@ -128,7 +134,7 @@ export async function getProfile(id: string): Promise<Manager | Teacher | Admin 
 
 export async function listAllProfiles(): Promise<(Manager | Teacher | Admin)[]> {
   const sb = await dbClient();
-  const { data } = await sb.from("profiles").select("*");
+  const { data } = await sb.from("profiles").select(PROFILE_COLS);
   return (data ?? []).map((row) => {
     const r = row as ProfileRow;
     if (r.role === "manager") return toManager(r);

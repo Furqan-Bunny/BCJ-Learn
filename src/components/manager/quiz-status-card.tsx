@@ -146,7 +146,7 @@ export function QuizStatusCard({
         description={t("status.awaitingDesc")}
         primaryAction={
           <Button asChild variant="outline">
-            <Link href={`/manager/modules/${mod.slug}`}>
+            <Link href={`/manager/modules/${mod.slug}#seminar-outline`}>
               {t("status.reviewMaterials")} <ArrowRight className="size-4 ml-1" />
             </Link>
           </Button>
@@ -241,7 +241,7 @@ export function QuizStatusCard({
       description={t("status.earlyDesc")}
       primaryAction={
         <Button asChild variant="outline">
-          <Link href={`/manager/modules/${mod.slug}`}>
+          <Link href={`/manager/modules/${mod.slug}#seminar-outline`}>
             {t("status.reviewMaterials")} <ArrowRight className="size-4 ml-1" />
           </Link>
         </Button>

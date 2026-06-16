@@ -41,7 +41,11 @@ export async function getCurrentUser(): Promise<CurrentUser | null> {
   } = await sb.auth.getUser();
   if (!user) return null;
 
-  const { data } = await sb.from("profiles").select("*").eq("id", user.id).single();
+  const { data } = await sb
+    .from("profiles")
+    .select("id, name, email, role, cohort, avatar_color, avatar_url, status, bio, title, locale")
+    .eq("id", user.id)
+    .single();
   if (!data) return null;
 
   const r = data as ProfileRow;

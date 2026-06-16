@@ -26,6 +26,7 @@ import { revalidatePath } from "next/cache";
 import { sendEmail } from "@/lib/emails/send";
 import { pushInAppNotification } from "@/lib/notifications/push";
 import { decideQuizPool } from "@/lib/quiz-pool";
+import { canStartQuizNow } from "@/lib/auth/quiz-access";
 import type { QuestionPool } from "@/types";
 
 export interface QuizQuestion {
@@ -50,6 +51,13 @@ export async function startQuiz(moduleSlug: string): Promise<StartQuizResult> {
     data: { user },
   } = await sb.auth.getUser();
   if (!user) return { ok: false, error: "Not signed in" };
+
+  // Hard server-side seminar gate — the quiz can't be opened before the seminar
+  // (no check-in, session not ended, training day not passed). Stops anyone from
+  // starting it early by hitting the quiz URL directly.
+  if (!(await canStartQuizNow(moduleSlug, user.id))) {
+    return { ok: false, error: "This quiz opens after the seminar — check in at the session, or wait for your trainer to open it." };
+  }
 
   // Already-passed guard — block opening the quiz a second time.
   const { data: priorAttempts, error: attemptsError } = await sb
@@ -244,19 +252,21 @@ async function sendQuizResultEmail(
   const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "";
   const progressLink = `${appUrl}/manager/progress`;
   const retakeLink = `${appUrl}/manager/modules/${moduleSlug}/quiz`;
+  const certificateLink = `${appUrl}/manager/modules/${moduleSlug}/certificate`;
 
   if (result.passed) {
     await sendEmail({
       to: email,
       templateKey: "quiz_passed",
       recipientUserId: userId,
-      href: "/manager/progress",
+      href: `/manager/modules/${moduleSlug}/certificate`,
       variables: {
         name,
         module_title: title,
         score,
         next_module_date: `Module ${number + 1}`,
         progress_link: progressLink,
+        certificate_link: certificateLink,
       },
     });
   } else {

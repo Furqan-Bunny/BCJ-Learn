@@ -228,7 +228,7 @@ export function ManagerModuleView({
         </CardContent>
       </Card>
 
-      <div className="flex items-center justify-between mb-3">
+      <div id="seminar-outline" className="flex items-center justify-between mb-3 scroll-mt-24">
         <h3 className="text-lg font-semibold tracking-tight">{t("module.seminarOutline")}</h3>
         <Badge variant="secondary" className="text-[10px]">{t("module.availableNow")}</Badge>
       </div>
