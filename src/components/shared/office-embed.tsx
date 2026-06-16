@@ -92,13 +92,15 @@ export function OfficeEmbed({
   }
 
   return (
-    <div className="relative">
+    // The sizing className goes on the wrapper so the iframe's h-full has a sized
+    // parent (otherwise an h-full caller collapses the iframe to a thin strip).
+    <div className={`relative ${className}`}>
       <iframe
         key={reloadKey}
         src={officeUrl(fileUrl)}
         loading="lazy"
         onLoad={() => setLoaded(true)}
-        className={className}
+        className="w-full h-full border-0 bg-white"
         title={title ?? "Document"}
       />
       {!loaded && (
