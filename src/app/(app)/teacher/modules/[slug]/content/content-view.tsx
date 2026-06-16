@@ -18,6 +18,7 @@ import {
   getModuleContentVersions,
   restoreModuleContentVersion,
 } from "@/lib/server/module-actions";
+import { clearGeneratedQuestions } from "@/lib/server/ai-actions";
 import type { ModuleContentVersion } from "@/lib/db/modules";
 import { fmtRelative, fmtDate } from "@/lib/format";
 import type { Lesson, ModuleDef } from "@/types";
@@ -37,6 +38,8 @@ export function TeacherContentView({ mod }: { mod: ModuleDef }) {
   const [lessons, setLessons] = React.useState<Lesson[]>(mod.lessons);
   const [saving, setSaving] = React.useState(false);
   const [historyOpen, setHistoryOpen] = React.useState(false);
+  const [postSaveOpen, setPostSaveOpen] = React.useState(false);
+  const [clearing, setClearing] = React.useState(false);
 
   const totalMinutes = lessons.reduce((s, l) => s + (l.durationMinutes || 0), 0);
   const totalItems = lessons.reduce((s, l) => s + l.contents.length, 0);
@@ -52,6 +55,21 @@ export function TeacherContentView({ mod }: { mod: ModuleDef }) {
     }
     toast.success("Content saved", {
       description: `${lessons.length} lessons · ${totalItems} items · ${totalMinutes} min total.`,
+    });
+    router.refresh();
+    // If this module already has AI questions, they were authored against the
+    // previous content. Offer to clean them up / regenerate.
+    if (mod.questionsTotal > 0) setPostSaveOpen(true);
+  }
+
+  async function handleRemoveOldQuestions() {
+    setClearing(true);
+    const res = await clearGeneratedQuestions(slug, { onlyUnapproved: true });
+    setClearing(false);
+    setPostSaveOpen(false);
+    if (!res.ok) { toast.error(res.error ?? "Could not remove questions"); return; }
+    toast.success(`Removed ${res.removed ?? 0} un-approved AI question${(res.removed ?? 0) === 1 ? "" : "s"}`, {
+      description: "Approved questions are kept and tagged as older content.",
     });
     router.refresh();
   }
@@ -141,6 +159,34 @@ export function TeacherContentView({ mod }: { mod: ModuleDef }) {
         slug={slug}
         onRestored={() => { setHistoryOpen(false); router.refresh(); }}
       />
+
+      <Dialog open={postSaveOpen} onOpenChange={setPostSaveOpen}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Content updated — what about the questions?</DialogTitle>
+            <DialogDescription>
+              This module already has AI-generated questions written against the previous
+              content. They&rsquo;re now tagged <span className="font-medium">Older content</span> in the
+              question bank. You can keep them, or remove the un-approved ones and regenerate.
+              Approved questions are always kept.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="flex-col sm:flex-row gap-2">
+            <Button variant="outline" onClick={() => setPostSaveOpen(false)}>
+              Keep them
+            </Button>
+            <Button asChild variant="outline">
+              <Link href={`/teacher/modules/${slug}/questions`}>
+                <Sparkles className="mr-2 size-4" /> Go to Questions
+              </Link>
+            </Button>
+            <Button variant="destructive" onClick={handleRemoveOldQuestions} disabled={clearing}>
+              {clearing ? <Loader2 className="mr-2 size-4 animate-spin" /> : null}
+              Remove un-approved AI questions
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </>
   );
 }

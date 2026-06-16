@@ -1,8 +1,9 @@
 import { redirect } from "next/navigation";
 import { getCurrentUserForRole } from "@/lib/supabase/current-user";
-import { listModules } from "@/lib/db/modules";
-import { listAttemptsForModule } from "@/lib/db/attempts";
+import { listModules, listModulesAssignedToUser } from "@/lib/db/modules";
+import { listAttemptsForModule, listAttemptsForManager } from "@/lib/db/attempts";
 import { dbClient } from "@/lib/supabase/db-client";
+import { AssignedTraining } from "@/components/shared/assigned-training";
 import { TeacherDashboardView } from "./dashboard-view";
 import type { Attempt } from "@/types";
 
@@ -28,11 +29,20 @@ export default async function TeacherDashboardPage() {
     attemptsByModule[m.slug] = attemptsLists[i];
   });
 
+  // Modules this lead has been assigned to TAKE (separate from the ones they own).
+  const [assignedModules, myAttempts] = await Promise.all([
+    listModulesAssignedToUser(me.id),
+    listAttemptsForManager(me.id),
+  ]);
+
   return (
-    <TeacherDashboardView
-      me={{ id: me.id, name: me.name }}
-      myModules={myModules}
-      attemptsByModule={attemptsByModule}
-    />
+    <>
+      <AssignedTraining modules={assignedModules} attempts={myAttempts} />
+      <TeacherDashboardView
+        me={{ id: me.id, name: me.name }}
+        myModules={myModules}
+        attemptsByModule={attemptsByModule}
+      />
+    </>
   );
 }

@@ -1,5 +1,12 @@
 # BCJ Learn — Supabase Migration Status
 
+> **⚠️ SUPERSEDED (historical).** This file describes an early point in the
+> migration and is **no longer accurate**. The Supabase migration is complete:
+> all role pages (admin / teacher / manager) fetch via `src/lib/db/*` and mutate
+> via `src/lib/server/*-actions`, and the schema is **41 migrations** deep. The
+> "still on mock data" / "pages remaining" sections below are kept only as a
+> record of the original plan — do not treat them as current state.
+
 ## What's done (full Supabase wiring)
 
 ### Foundation

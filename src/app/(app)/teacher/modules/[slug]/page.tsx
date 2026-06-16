@@ -1,7 +1,7 @@
 import { getModule } from "@/lib/db/modules";
 import { getAccessibleModuleOr404 } from "@/lib/auth/module-access";
 import { listAttemptsForModule } from "@/lib/db/attempts";
-import { listManagers } from "@/lib/db/profiles";
+import { listAssignableUsers } from "@/lib/db/profiles";
 import { listDeliveriesForModule, getCurrentDelivery } from "@/lib/db/deliveries";
 import { getModuleRoster, getModuleRosterCounts } from "@/lib/db/roster";
 import { TeacherModuleView } from "./module-view";
@@ -20,7 +20,7 @@ export default async function TeacherModulePage(props: PageProps<"/teacher/modul
 
   const [attempts, allManagers, deliveries, roster, counts, currentDelivery] = await Promise.all([
     listAttemptsForModule(slug),
-    listManagers(),
+    listAssignableUsers(),
     listDeliveriesForModule(slug),
     getModuleRoster(slug),
     getModuleRosterCounts(slug),

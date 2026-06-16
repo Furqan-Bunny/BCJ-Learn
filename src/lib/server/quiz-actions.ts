@@ -1,13 +1,24 @@
 "use server";
 
-// Quiz engine — server actions that wrap the SECURITY DEFINER RPCs defined in
-// migration 0001 (start_quiz_attempt + submit_quiz_attempt).
+// Quiz engine — server actions that wrap the SECURITY DEFINER RPCs
+// (start_quiz_attempt + submit_quiz_attempt). The quiz logic has evolved across
+// migrations; the live behaviour is:
 //
-// The RPCs enforce: manager role, module published, server-side grading
-// (the `correct` field is never sent to the client), retake auto-scheduling
-// on first failure, and 'at-risk' flagging on second failure. We only:
+// start_quiz_attempt — the single 3-arg (p_module_slug, p_pool, p_locale) version
+//   from migration 0042 (which merged the locale-awareness of 0036 with the
+//   retake-pool fallback of 0041). It enforces manager role + module published,
+//   reuses a non-terminal attempt instead of duplicating, serves the question set
+//   WITHOUT the `correct` field, and — when serving the retake pool — random-fills
+//   from the first-attempt pool so an empty retake pool never yields zero questions.
+//
+// submit_quiz_attempt — grades server-side and enforces the 3-STRIKE rule
+//   (migration 0026): fail #1 schedules a retake; fail #2 schedules a retake AND
+//   flags the manager 'at-risk'; fail #3 LOCKS the module (no more retakes) and
+//   flags 'at-risk'. Returns `locked` + `attempts_remaining`.
+//
+// These actions only:
 //   1. decide which question pool to serve (first-attempt vs retake) by
-//      inspecting the caller's prior attempts for this module
+//      inspecting the caller's prior attempts for this module (see quiz-pool.ts)
 //   2. shape the payload for the client
 
 import { createClient, createAdminClient } from "@/lib/supabase/server";

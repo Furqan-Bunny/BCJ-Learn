@@ -123,6 +123,9 @@ export interface ModuleDef {
   timezone?: string;
   /** When this module was created (ISO). */
   createdAt?: string;
+  /** Bumped each time the module's content is saved. Questions stamped with an
+   *  older version are flagged as authored against previous content. */
+  contentVersion?: number;
   /** One or more Teachers who own this module. The first is the "primary" owner. */
   ownerTeacherIds: string[];
   status: ModuleStatus;
@@ -142,6 +145,8 @@ export interface Question {
   moduleSlug: string;
   pool: QuestionPool;
   status: QuestionStatus;
+  /** The module content_version this question was generated against (if known). */
+  sourceContentVersion?: number | null;
   text: string;
   options: { id: string; text: string; correct: boolean }[];
   explanation?: string;

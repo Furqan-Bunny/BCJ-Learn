@@ -169,11 +169,22 @@ async function callLlmForBatch(
   return extractJsonArray(text);
 }
 
+// The module content_version in effect right now — every generated question is
+// stamped with it so the question bank can flag ones authored against older content.
+async function currentContentVersion(
+  admin: ReturnType<typeof createAdminClient>,
+  moduleSlug: string,
+): Promise<number> {
+  const { data } = await admin.from("modules").select("content_version").eq("slug", moduleSlug).single();
+  return (data as { content_version?: number } | null)?.content_version ?? 1;
+}
+
 async function insertDrafts(
   admin: ReturnType<typeof createAdminClient>,
   moduleSlug: string,
   drafts: (DraftQuestion & { pool: QuestionPool })[],
   userId: string,
+  contentVersion: number,
 ): Promise<number> {
   let created = 0;
   for (const draft of drafts) {
@@ -187,6 +198,7 @@ async function insertDrafts(
         text: draft.text,
         explanation: draft.explanation ?? null,
         generated_by_ai: true,
+        source_content_version: contentVersion,
       })
       .select("id")
       .single();
@@ -344,9 +356,78 @@ export async function generateQuestionBatch(
     seen.add(n);
     return true;
   });
-  const created = await insertDrafts(admin, moduleSlug, deduped.map((q) => ({ ...q, pool })), guard.userId);
+  const cv = await currentContentVersion(admin, moduleSlug);
+  const created = await insertDrafts(admin, moduleSlug, deduped.map((q) => ({ ...q, pool })), guard.userId, cv);
   await refreshQuestionCounts(admin, moduleSlug);
   return { ok: true, created };
+}
+
+// Remove AI-generated questions for a module. By default only un-curated ones
+// (status pending/rejected) are deleted — human-approved/edited questions are
+// kept (they just get tagged "older content" by the version stamp). Used by the
+// "content changed" prompt and the replace-mode generation.
+export async function clearGeneratedQuestions(
+  moduleSlug: string,
+  opts?: { onlyUnapproved?: boolean },
+): Promise<{ ok: boolean; error?: string; removed?: number }> {
+  const guard = await requireAdminOrModuleOwner(moduleSlug);
+  if (!guard.ok) return { ok: false, error: guard.error };
+  if (DEMO_MODE) return { ok: true, removed: 0 };
+
+  const onlyUnapproved = opts?.onlyUnapproved ?? true;
+  const admin = createAdminClient();
+  let del = admin.from("questions").delete({ count: "exact" }).eq("module_slug", moduleSlug).eq("generated_by_ai", true);
+  if (onlyUnapproved) del = del.in("status", ["pending", "rejected"]);
+  const { count, error } = await del;
+  if (error) return { ok: false, error: error.message };
+  await refreshQuestionCounts(admin, moduleSlug);
+  return { ok: true, removed: count ?? 0 };
+}
+
+// Delete every "older content" question for a module — i.e. any question whose
+// source_content_version is below the NEWEST version present (the same rule the
+// question bank uses for the "Older content" badge). Removes ALL of them,
+// including approved/edited ones (the UI confirms first). Question_options and
+// attempt_answers cascade on delete.
+export async function deleteOlderContentQuestions(
+  moduleSlug: string,
+): Promise<{ ok: boolean; error?: string; removed?: number }> {
+  const guard = await requireAdminOrModuleOwner(moduleSlug);
+  if (!guard.ok) return { ok: false, error: guard.error };
+  if (DEMO_MODE) return { ok: true, removed: 0 };
+
+  const admin = createAdminClient();
+
+  // Newest content version that actually has questions.
+  const { data: verRows } = await admin
+    .from("questions")
+    .select("source_content_version")
+    .eq("module_slug", moduleSlug)
+    .not("source_content_version", "is", null)
+    .order("source_content_version", { ascending: false })
+    .limit(1);
+  const maxV = (verRows?.[0] as { source_content_version?: number } | undefined)?.source_content_version;
+  if (maxV == null) return { ok: true, removed: 0 };
+
+  const { count, error } = await admin
+    .from("questions")
+    .delete({ count: "exact" })
+    .eq("module_slug", moduleSlug)
+    .not("source_content_version", "is", null)
+    .lt("source_content_version", maxV);
+  if (error) return { ok: false, error: error.message };
+
+  // Recompute total AND approved (approved questions may have been removed).
+  const [{ count: total }, { count: approved }] = await Promise.all([
+    admin.from("questions").select("*", { count: "exact", head: true }).eq("module_slug", moduleSlug),
+    admin.from("questions").select("*", { count: "exact", head: true }).eq("module_slug", moduleSlug).in("status", ["approved", "edited"]),
+  ]);
+  await admin.from("modules").update({ questions_total: total ?? 0, questions_approved: approved ?? 0 }).eq("slug", moduleSlug);
+
+  revalidatePath(`/teacher/modules/${moduleSlug}/questions`);
+  revalidatePath(`/admin/modules/${moduleSlug}`);
+  revalidatePath(`/admin/questions`);
+  return { ok: true, removed: count ?? 0 };
 }
 
 // Returns drafts WITHOUT inserting — powers the interactive one-by-one review.
@@ -403,6 +484,7 @@ export async function commitQuestionDraft(
   if (existing.normalized.has(normalizeText(draft.text))) {
     return { ok: false, error: "That question already exists in this module — skipped to avoid a duplicate." };
   }
+  const cv = await currentContentVersion(admin, moduleSlug);
   const { data: insertedQ, error: qErr } = await admin
     .from("questions")
     .insert({
@@ -412,6 +494,7 @@ export async function commitQuestionDraft(
       text: draft.text,
       explanation: draft.explanation ?? null,
       generated_by_ai: true,
+      source_content_version: cv,
       approved_at: new Date().toISOString(),
       approved_by: guard.userId,
     })
@@ -442,10 +525,21 @@ export async function commitQuestionDraft(
 }
 
 // One-shot generation (used by the "Generate with AI" button) — composes the stages.
-export async function generateQuestions(moduleSlug: string): Promise<
-  | { ok: true; created: number }
+// mode 'replace' first clears un-curated AI questions (so editing content + regenerating
+// doesn't keep piling old questions on); 'append' (default) keeps the existing behaviour.
+export async function generateQuestions(
+  moduleSlug: string,
+  mode: "append" | "replace" = "append",
+): Promise<
+  | { ok: true; created: number; removed?: number }
   | { ok: false; error: string }
 > {
+  let removed = 0;
+  if (mode === "replace") {
+    const cleared = await clearGeneratedQuestions(moduleSlug, { onlyUnapproved: true });
+    if (!cleared.ok) return { ok: false, error: cleared.error ?? "Could not clear old questions" };
+    removed = cleared.removed ?? 0;
+  }
   const ex = await extractModuleSources(moduleSlug);
   if (!ex.ok) return ex;
   if (ex.totalChars < 200) {
@@ -456,7 +550,7 @@ export async function generateQuestions(moduleSlug: string): Promise<
   if (!a.ok) return { ok: false, error: a.error ?? "Generation failed" };
   const b = await generateQuestionBatch(moduleSlug, "retake");
   if (!b.ok) return { ok: false, error: b.error ?? "Generation failed" };
-  return { ok: true, created: (a.created ?? 0) + (b.created ?? 0) };
+  return { ok: true, created: (a.created ?? 0) + (b.created ?? 0), removed };
 }
 
 // ─── Approve question ──────────────────────────────────────────────────

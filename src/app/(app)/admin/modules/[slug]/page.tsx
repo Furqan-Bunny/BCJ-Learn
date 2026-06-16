@@ -2,7 +2,7 @@ import { notFound } from "next/navigation";
 import { getModule } from "@/lib/db/modules";
 import { listAttemptsForModule } from "@/lib/db/attempts";
 import { listQuestionsForModule } from "@/lib/db/questions";
-import { listTeachers, listManagers } from "@/lib/db/profiles";
+import { listTeachers, listAssignableUsers } from "@/lib/db/profiles";
 import { listDeliveriesForModule, getCurrentDelivery } from "@/lib/db/deliveries";
 import { getModuleRoster, getModuleRosterCounts } from "@/lib/db/roster";
 import { listResourcesForModule } from "@/lib/db/module-resources";
@@ -27,7 +27,7 @@ export default async function AdminModuleDetailPage(props: PageProps<"/admin/mod
     listAttemptsForModule(slug),
     listQuestionsForModule(slug),
     listTeachers(),
-    listManagers(),
+    listAssignableUsers(),
     listDeliveriesForModule(slug),
     getModuleRoster(slug),
     getModuleRosterCounts(slug),

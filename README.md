@@ -2,7 +2,7 @@
 
 Custom Employee training & quiz platform for BCJ. Built with Next.js 16, Tailwind v4, shadcn/ui, and TanStack Table. Hosted on Vercel.
 
-This is a **demo / prototype** — all data is mocked. No backend yet.
+This app runs on a full **Supabase** backend — Postgres (with RLS), Auth, Storage, and email — driven by Server Actions and SECURITY DEFINER RPCs. Setting `NEXT_PUBLIC_DEMO_MODE=true` switches on a demo path that bypasses the auth gate and skips real email/AI sends for sales demos and UI work; production runs with it `false`. See `SETUP.md` for configuration.
 
 ## Quick start
 

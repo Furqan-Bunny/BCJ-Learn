@@ -12,7 +12,7 @@ import {
   Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
 } from "@/components/ui/dialog";
 import {
-  Check, X, RefreshCw, Edit3, Sparkles, Search, Filter, CheckCircle2, AlertCircle, Loader2, History, RotateCcw, Users, ArrowLeft,
+  Check, X, RefreshCw, Edit3, Sparkles, Search, Filter, CheckCircle2, AlertCircle, Loader2, History, RotateCcw, Users, ArrowLeft, Trash2,
 } from "lucide-react";
 import { PageHeader } from "@/components/shared/page-header";
 import { Pagination, pageSlice } from "@/components/ui/pagination";
@@ -36,6 +36,7 @@ import {
   duplicateQuestionToRetake,
   getQuestionResponders,
   backfillModuleSpanish,
+  deleteOlderContentQuestions,
   type QuestionResponder,
 } from "@/lib/server/ai-actions";
 import { publishModule } from "@/lib/server/module-actions";
@@ -56,6 +57,7 @@ export function TeacherQuestionsView({ mod, initialQuestions }: TeacherQuestions
   const [search, setSearch] = React.useState("");
   const [selected, setSelected] = React.useState<string | null>(initialQuestions[0]?.id ?? null);
   const [generating, setGenerating] = React.useState(false);
+  const [deletingOlder, setDeletingOlder] = React.useState(false);
   const [translating, setTranslating] = React.useState(false);
   const [busyId, setBusyId] = React.useState<string | null>(null);
   const [editOpen, setEditOpen] = React.useState(false);
@@ -68,9 +70,26 @@ export function TeacherQuestionsView({ mod, initialQuestions }: TeacherQuestions
     if (!selected && initialQuestions[0]) setSelected(initialQuestions[0].id);
   }, [initialQuestions]); // eslint-disable-line
 
+  // "Older content" = generated against an earlier content version than the
+  // NEWEST batch present in this module. Comparing to the latest version that
+  // actually has questions (rather than the module's content_version) keeps the
+  // most recent batch marked "current" even when the content was edited again
+  // afterwards without regenerating questions.
+  const latestQuestionVersion = questions.reduce(
+    (max, q) => Math.max(max, q.sourceContentVersion ?? 1),
+    1,
+  );
+  const isOlderContent = React.useCallback(
+    (q: Question) => q.sourceContentVersion != null && q.sourceContentVersion < latestQuestionVersion,
+    [latestQuestionVersion],
+  );
+  const [onlyOlder, setOnlyOlder] = React.useState(false);
+  const olderCount = questions.filter(isOlderContent).length;
+
   const filtered = questions.filter((q) => {
     if (pool !== "all" && q.pool !== pool) return false;
     if (statusFilter !== "all" && q.status !== statusFilter) return false;
+    if (onlyOlder && !isOlderContent(q)) return false;
     if (search && !q.text.toLowerCase().includes(search.toLowerCase())) return false;
     return true;
   });
@@ -148,21 +167,39 @@ export function TeacherQuestionsView({ mod, initialQuestions }: TeacherQuestions
     router.refresh();
   }
 
-  async function handleGenerate() {
+  async function handleGenerate(mode: "append" | "replace" = "append") {
     if (DEMO_MODE) {
       toast.success("Demo mode: stubbing 80 pending questions (no API call)");
       return;
     }
+    if (mode === "replace" && !window.confirm(
+      "Remove all un-approved AI questions for this module and generate a fresh set? Approved/edited questions are kept.",
+    )) return;
     setGenerating(true);
     const toastId = "generate-batch";
     toast.loading("OpenAI is drafting 80 questions… (≈ 30 sec)", { id: toastId });
-    const res = await generateQuestions(mod.slug);
+    const res = await generateQuestions(mod.slug, mode);
     setGenerating(false);
     if (!res.ok) {
       toast.error(res.error ?? "Generation failed", { id: toastId });
       return;
     }
-    toast.success(`Drafted ${res.created} new questions`, { id: toastId });
+    const removedNote = res.removed ? ` · removed ${res.removed} old` : "";
+    toast.success(`Drafted ${res.created} new questions${removedNote}`, { id: toastId });
+    router.refresh();
+  }
+
+  async function handleDeleteOlder() {
+    if (olderCount === 0) return;
+    if (!window.confirm(
+      `Permanently delete all ${olderCount} "Older content" question${olderCount === 1 ? "" : "s"} for this module? This includes any that were approved. Only the current batch will remain. This can't be undone.`,
+    )) return;
+    setDeletingOlder(true);
+    const res = await deleteOlderContentQuestions(mod.slug);
+    setDeletingOlder(false);
+    if (!res.ok) { toast.error(res.error ?? "Could not delete"); return; }
+    setOnlyOlder(false);
+    toast.success(`Removed ${res.removed ?? 0} older-content question${(res.removed ?? 0) === 1 ? "" : "s"}`);
     router.refresh();
   }
 
@@ -210,10 +247,21 @@ export function TeacherQuestionsView({ mod, initialQuestions }: TeacherQuestions
         description="Review every AI-drafted question. Approve, edit, regenerate, or reject. Only approved questions go live."
         actions={
           <div className="flex items-center gap-2">
-            <Button variant="outline" onClick={handleGenerate} disabled={generating} className="gap-2">
+            <Button variant="outline" onClick={() => handleGenerate("append")} disabled={generating} className="gap-2">
               {generating ? <Loader2 className="size-4 animate-spin" /> : <Sparkles className="size-4 text-[var(--ai)]" />}
               {generating ? "Drafting…" : "Generate questions with AI"}
             </Button>
+            {olderCount > 0 && (
+              <Button
+                variant="outline"
+                onClick={handleDeleteOlder}
+                disabled={deletingOlder}
+                className="gap-2 text-destructive hover:text-destructive border-destructive/30 hover:bg-destructive/5"
+              >
+                {deletingOlder ? <Loader2 className="size-4 animate-spin" /> : <Trash2 className="size-4" />}
+                Delete older content ({olderCount})
+              </Button>
+            )}
             {SHOW_SPANISH && (
               <Button variant="outline" onClick={handleTranslate} disabled={translating} className="gap-2">
                 {translating ? <Loader2 className="size-4 animate-spin" /> : <Sparkles className="size-4 text-[var(--ai)]" />}
@@ -283,6 +331,16 @@ export function TeacherQuestionsView({ mod, initialQuestions }: TeacherQuestions
             <TabsTrigger value="approved">Approved</TabsTrigger>
           </TabsList>
         </Tabs>
+        {olderCount > 0 && (
+          <Button
+            variant={onlyOlder ? "default" : "outline"}
+            size="sm"
+            onClick={() => setOnlyOlder((v) => !v)}
+            className="h-9 gap-1.5"
+          >
+            <AlertCircle className="size-3.5" /> Older content ({olderCount})
+          </Button>
+        )}
         <div className="text-xs text-muted-foreground ml-auto">
           <Filter className="size-3 inline mr-1" />
           {filtered.length} of {questions.length}
@@ -317,9 +375,17 @@ export function TeacherQuestionsView({ mod, initialQuestions }: TeacherQuestions
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="text-sm line-clamp-2 leading-snug font-medium">{q.text}</div>
-                  <div className="mt-1.5 flex items-center gap-1.5">
+                  <div className="mt-1.5 flex items-center gap-1.5 flex-wrap">
                     <StatusBadge variant={q.status} />
                     <StatusBadge variant={q.pool} />
+                    {isOlderContent(q) && (
+                      <Badge variant="outline" className="text-[10px] border-amber-500/40 text-amber-600 dark:text-amber-400">
+                        Older content
+                      </Badge>
+                    )}
+                    {q.createdAt && (
+                      <span className="text-[10px] text-muted-foreground">{fmtDate(q.createdAt)}</span>
+                    )}
                   </div>
                 </div>
               </button>
@@ -337,6 +403,14 @@ export function TeacherQuestionsView({ mod, initialQuestions }: TeacherQuestions
                       <Badge variant="outline" className="text-[10px] gap-1">
                         <Sparkles className="size-3 text-[var(--ai)]" /> AI-drafted
                       </Badge>
+                    )}
+                    {isOlderContent(current) && (
+                      <Badge variant="outline" className="text-[10px] border-amber-500/40 text-amber-600 dark:text-amber-400">
+                        Older content
+                      </Badge>
+                    )}
+                    {current.createdAt && (
+                      <span className="text-[10px] text-muted-foreground">Generated {fmtDate(current.createdAt)}</span>
                     )}
                     <StatusBadge variant={current.status} />
                     <div className="inline-flex rounded-md border overflow-hidden text-xs">

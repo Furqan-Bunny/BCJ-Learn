@@ -10,10 +10,10 @@ import * as React from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { ArrowLeft, ArrowRight, Lock, Users, CheckCircle2, Loader2, Clock } from "lucide-react";
+import { ArrowLeft, ArrowRight, Lock, Users, CheckCircle2, Loader2, Clock, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
 import type { ModuleDef, CheckinState } from "@/types";
-import { openCheckIn, getCheckinState } from "@/lib/server/module-actions";
+import { openCheckIn, regenerateCheckinCode, getCheckinState } from "@/lib/server/module-actions";
 import { fmtDate } from "@/lib/format";
 
 function scheduledStart(mod: ModuleDef): Date | null {
@@ -36,6 +36,7 @@ export function CheckinLobby({ mod, onStart }: { mod: ModuleDef; onStart: () => 
   const slug = mod.slug;
   const [state, setState] = React.useState<CheckinState | null>(null);
   const [opening, setOpening] = React.useState(false);
+  const [regenerating, setRegenerating] = React.useState(false);
   const [now, setNow] = React.useState(() => new Date());
 
   React.useEffect(() => {
@@ -68,6 +69,15 @@ export function CheckinLobby({ mod, onStart }: { mod: ModuleDef; onStart: () => 
     if (!res.ok) { toast.error(res.error ?? "Could not open check-in"); return; }
     setState(await getCheckinState(slug));
     toast.success("Check-in is open", { description: "Managers can now check in with the code on screen." });
+  }
+
+  async function handleNewCode() {
+    setRegenerating(true);
+    const res = await regenerateCheckinCode(slug);
+    setRegenerating(false);
+    if (!res.ok) { toast.error(res.error ?? "Could not generate a new code"); return; }
+    setState(await getCheckinState(slug));
+    toast.success("New code generated", { description: "Share the new code shown on screen." });
   }
 
   return (
@@ -116,8 +126,21 @@ export function CheckinLobby({ mod, onStart }: { mod: ModuleDef; onStart: () => 
             <div className="rounded-2xl border border-white/10 bg-white/5 p-6 text-center">
               <div className="text-[11px] uppercase tracking-wider text-slate-400">Enter this code to check in</div>
               <div className="mt-3 text-6xl font-bold font-mono tracking-[0.2em] text-[var(--gold)]">{code ?? "····"}</div>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={handleNewCode}
+                disabled={regenerating}
+                className="mt-3 text-slate-300 hover:text-white hover:bg-white/10"
+              >
+                {regenerating ? <Loader2 className="size-3.5 mr-1.5 animate-spin" /> : <RefreshCw className="size-3.5 mr-1.5" />}
+                New code
+              </Button>
               <p className="text-xs text-slate-400 mt-4">
                 Managers open <span className="text-slate-200">{mod.title}</span> on their device and enter this code. Only people in the room can check in.
+              </p>
+              <p className="text-[11px] text-slate-500 mt-3 border-t border-white/10 pt-3">
+                This code is for <span className="text-slate-300">check-in</span> only. The quiz opens to the room automatically when you end the session.
               </p>
             </div>
 

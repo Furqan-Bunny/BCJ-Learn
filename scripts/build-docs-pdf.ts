@@ -16,7 +16,7 @@ import { marked } from "marked";
 import puppeteer from "puppeteer";
 
 const NAVY = "#041D39";
-const TEAL = "#12D7CD";
+const TEAL = "#25BCB9";
 const INK = "#1a2330";
 const MUTED = "#5b6675";
 const BORDER = "#dbe2ea";

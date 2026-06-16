@@ -12,6 +12,7 @@ import {
 import { cn } from "@/lib/utils";
 import type { LessonContent, ContentType } from "@/types";
 import { signedUrlForContent } from "@/lib/supabase/storage";
+import { OfficeEmbed } from "@/components/shared/office-embed";
 import { saveVideoProgress, getVideoProgress } from "@/lib/server/progress-actions";
 import { useT } from "@/lib/i18n/provider";
 
@@ -199,9 +200,8 @@ function StoredFilePreview({
       </div>
     );
   }
-  if (OFFICE_EXTS.includes(ext)) {
-    const office = `https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(url)}`;
-    return <iframe src={office} loading="lazy" className="w-full h-full border-0 bg-white" title={content.title} />;
+  if (OFFICE_EXTS.includes(ext) && content.storagePath) {
+    return <OfficeEmbed path={content.storagePath} initialUrl={url} title={content.title} className="w-full h-full border-0 bg-white" />;
   }
   // Unknown binary — offer a download.
   return (

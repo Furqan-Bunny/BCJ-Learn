@@ -8,6 +8,7 @@ import * as React from "react";
 import { Button } from "@/components/ui/button";
 import { FileText, Loader2, Download, ExternalLink } from "lucide-react";
 import { signedUrlForContent } from "@/lib/supabase/storage";
+import { OfficeEmbed } from "@/components/shared/office-embed";
 import { useT } from "@/lib/i18n/provider";
 
 const VIDEO_EXTS = ["mp4", "webm", "mov", "m4v", "ogg"];
@@ -94,10 +95,9 @@ export function ResourceDocViewer({ resource }: { resource: ResourceDocViewerRes
       );
     }
     if (isOffice) {
-      const office = `https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(url)}`;
       return (
         <div>{toolbar}
-          <iframe src={office} loading="lazy" className="w-full h-[65vh] rounded-lg border bg-white" title={resource.title} />
+          <OfficeEmbed path={resource.storagePath} initialUrl={url} title={resource.title} className="w-full h-[65vh] rounded-lg border bg-white" />
           <div className="text-[11px] text-muted-foreground mt-1.5 text-right">{t("content.renderingExternally")}</div>
         </div>
       );

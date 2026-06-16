@@ -8,16 +8,26 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
-import { Mail, Bell, Send, Sparkles, Loader2, Info, Plus } from "lucide-react";
+import {
+  Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
+} from "@/components/ui/dialog";
+import { Mail, Bell, Send, Sparkles, Loader2, Info, Plus, Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { PageHeader } from "@/components/shared/page-header";
 import { Badge } from "@/components/ui/badge";
 import { fmtRelative } from "@/lib/format";
 import { toast } from "sonner";
-import { updateEmailTemplate } from "@/lib/server/email-template-actions";
+import {
+  updateEmailTemplate,
+  createEmailTemplate,
+  deleteEmailTemplate,
+  sendCustomEmail,
+  type SendAudience,
+} from "@/lib/server/email-template-actions";
 import { sendTestEmail } from "@/lib/server/reminder-actions";
 import { EmailPreviewDialog } from "@/components/admin/email-preview-dialog";
 import { updateReminderRules } from "@/lib/server/settings-actions";
+import { MARKETS } from "@/types/markets";
 import type { NotificationItem } from "@/types";
 import type { ReminderRules } from "@/lib/db/settings";
 import type { TemplateKey } from "@/lib/emails/send";
@@ -57,6 +67,17 @@ export function NotificationsView({ recent, initialRules, profilesById, template
   const [saving, setSaving] = React.useState(false);
   const [savingRules, setSavingRules] = React.useState(false);
   const [testing, setTesting] = React.useState(false);
+  // Custom-template create + send-now state.
+  const [createOpen, setCreateOpen] = React.useState(false);
+  const [creating, setCreating] = React.useState(false);
+  const [deleting, setDeleting] = React.useState(false);
+  const [newLabel, setNewLabel] = React.useState("");
+  const [newSubject, setNewSubject] = React.useState("");
+  const [newBody, setNewBody] = React.useState("");
+  const [sendOpen, setSendOpen] = React.useState(false);
+  const [sending, setSending] = React.useState(false);
+  const [audienceKind, setAudienceKind] = React.useState<"all" | "managers" | "teachers" | "admins" | "market">("all");
+  const [audienceMarket, setAudienceMarket] = React.useState<string>(MARKETS[0] ?? "");
 
   const tpl = templates.find((t) => t.key === activeTpl) ?? templates[0];
   const [subject, setSubject] = React.useState(tpl?.subject ?? "");
@@ -115,6 +136,48 @@ export function NotificationsView({ recent, initialRules, profilesById, template
     toast.success(`Test email sent to ${result.to}`);
   }
 
+  async function handleCreate() {
+    setCreating(true);
+    const res = await createEmailTemplate({ label: newLabel, subject: newSubject, bodyMarkdown: newBody });
+    setCreating(false);
+    if (!res.ok) { toast.error(res.error ?? "Could not create template"); return; }
+    toast.success("Template created");
+    setCreateOpen(false);
+    setNewLabel(""); setNewSubject(""); setNewBody("");
+    if (res.key) setActiveTpl(res.key);
+    router.refresh();
+  }
+
+  async function handleDelete() {
+    if (!tpl?.isCustom) return;
+    if (!window.confirm(`Delete the "${tpl.label ?? tpl.key}" template? This can't be undone.`)) return;
+    setDeleting(true);
+    const res = await deleteEmailTemplate(tpl.key);
+    setDeleting(false);
+    if (!res.ok) { toast.error(res.error ?? "Could not delete"); return; }
+    toast.success("Template deleted");
+    setActiveTpl(templates[0]?.key ?? "");
+    router.refresh();
+  }
+
+  async function handleSendNow() {
+    if (!tpl) return;
+    let audience: SendAudience;
+    if (audienceKind === "managers") audience = { role: "manager" };
+    else if (audienceKind === "teachers") audience = { role: "teacher" };
+    else if (audienceKind === "admins") audience = { role: "admin" };
+    else if (audienceKind === "market") audience = { market: audienceMarket };
+    else audience = { all: true };
+
+    setSending(true);
+    const res = await sendCustomEmail(tpl.key, audience);
+    setSending(false);
+    if (!res.ok) { toast.error(res.error ?? "Could not send"); return; }
+    toast.success(`Sent to ${res.sent ?? 0} recipient${(res.sent ?? 0) === 1 ? "" : "s"}`);
+    setSendOpen(false);
+    router.refresh();
+  }
+
   async function handleSaveRules() {
     setSavingRules(true);
     const result = await updateReminderRules({ autoReminders, overdueDays });
@@ -138,10 +201,13 @@ export function NotificationsView({ recent, initialRules, profilesById, template
       <div className="grid lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2 space-y-6">
           <Card>
-            <CardHeader>
+            <CardHeader className="flex-row items-center justify-between gap-2 space-y-0">
               <CardTitle className="text-base flex items-center gap-2">
                 <Mail className="size-4" /> Email templates
               </CardTitle>
+              <Button size="sm" variant="outline" onClick={() => setCreateOpen(true)}>
+                <Plus className="size-3.5 mr-1.5" /> New template
+              </Button>
             </CardHeader>
             <CardContent>
               <div className="mb-4 rounded-lg border border-primary/20 bg-primary/[0.04] p-3 flex gap-2.5">
@@ -177,13 +243,14 @@ export function NotificationsView({ recent, initialRules, profilesById, template
                       type="button"
                       onClick={() => setActiveTpl(t.key)}
                       className={cn(
-                        "text-left text-sm rounded-md px-3 py-2 whitespace-nowrap shrink-0 transition-colors",
+                        "text-left text-sm rounded-md px-3 py-2 whitespace-nowrap shrink-0 transition-colors flex items-center gap-1.5",
                         activeTpl === t.key
                           ? "bg-primary/10 text-primary font-medium"
                           : "text-muted-foreground hover:bg-accent hover:text-foreground",
                       )}
                     >
-                      {labelFor(t.key)}
+                      {t.label ?? labelFor(t.key)}
+                      {t.isCustom && <span className="text-[9px] uppercase tracking-wide rounded bg-[var(--gold)]/20 text-[var(--gold-foreground)] px-1">Custom</span>}
                     </button>
                   ))}
                 </div>
@@ -235,6 +302,16 @@ export function NotificationsView({ recent, initialRules, profilesById, template
                           <><Send className="size-3.5 mr-1.5" /> Send test to me</>
                         )}
                       </Button>
+                      {tpl.isCustom && (
+                        <>
+                          <Button variant="outline" onClick={() => setSendOpen(true)}>
+                            <Send className="size-3.5 mr-1.5" /> Send now…
+                          </Button>
+                          <Button variant="ghost" onClick={handleDelete} disabled={deleting} className="text-destructive hover:text-destructive">
+                            {deleting ? <Loader2 className="size-3.5 animate-spin" /> : <Trash2 className="size-3.5" />}
+                          </Button>
+                        </>
+                      )}
                     </div>
                   </div>
                 )}
@@ -315,6 +392,83 @@ export function NotificationsView({ recent, initialRules, profilesById, template
           </Card>
         </div>
       </div>
+
+      {/* Create a new custom template */}
+      <Dialog open={createOpen} onOpenChange={setCreateOpen}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>New email template</DialogTitle>
+            <DialogDescription>
+              Create your own email. Use <code className="font-mono bg-muted px-1 rounded">{"{{name}}"}</code> for the
+              recipient&rsquo;s name. You can send it to a chosen audience after saving.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div className="space-y-1.5">
+              <Label>Name (for your reference)</Label>
+              <Input value={newLabel} onChange={(e) => setNewLabel(e.target.value)} placeholder="e.g. Welcome back" />
+            </div>
+            <div className="space-y-1.5">
+              <Label>Subject</Label>
+              <Input value={newSubject} onChange={(e) => setNewSubject(e.target.value)} placeholder="Subject line" />
+            </div>
+            <div className="space-y-1.5">
+              <Label>Body</Label>
+              <Textarea value={newBody} onChange={(e) => setNewBody(e.target.value)} rows={8} className="font-mono text-sm" placeholder="Hi {{name}}, …" />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setCreateOpen(false)}>Cancel</Button>
+            <Button onClick={handleCreate} disabled={creating || !newLabel.trim() || !newSubject.trim()}>
+              {creating ? <Loader2 className="size-4 mr-2 animate-spin" /> : null} Create template
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Send a custom template now to an audience */}
+      <Dialog open={sendOpen} onOpenChange={setSendOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Send &ldquo;{tpl?.label ?? tpl?.key}&rdquo;</DialogTitle>
+            <DialogDescription>Choose who receives this email. It sends immediately.</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div className="space-y-1.5">
+              <Label>Audience</Label>
+              <select
+                value={audienceKind}
+                onChange={(e) => setAudienceKind(e.target.value as typeof audienceKind)}
+                className="w-full h-9 rounded-md border bg-background px-3 text-sm"
+              >
+                <option value="all">Everyone</option>
+                <option value="managers">All employees (managers)</option>
+                <option value="teachers">All Department Leads</option>
+                <option value="admins">All admins</option>
+                <option value="market">By market</option>
+              </select>
+            </div>
+            {audienceKind === "market" && (
+              <div className="space-y-1.5">
+                <Label>Market</Label>
+                <select
+                  value={audienceMarket}
+                  onChange={(e) => setAudienceMarket(e.target.value)}
+                  className="w-full h-9 rounded-md border bg-background px-3 text-sm"
+                >
+                  {MARKETS.map((m) => <option key={m} value={m}>{m}</option>)}
+                </select>
+              </div>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setSendOpen(false)}>Cancel</Button>
+            <Button onClick={handleSendNow} disabled={sending}>
+              {sending ? <Loader2 className="size-4 mr-2 animate-spin" /> : <Send className="size-4 mr-2" />} Send now
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </>
   );
 }

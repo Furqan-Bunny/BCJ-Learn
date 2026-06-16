@@ -13,6 +13,9 @@ import { renderMarkdown, substituteVars } from "./render";
 
 const DEMO_MODE = process.env.NEXT_PUBLIC_DEMO_MODE === "true";
 
+// The built-in template keys. Custom (admin-created) templates are also allowed
+// — sendEmail accepts any string key (TemplateKey | string), and custom keys
+// resolve their notification kind from the template row's notification_kind.
 export type TemplateKey =
   | "invite"
   | "password_reset"
@@ -25,17 +28,21 @@ export type TemplateKey =
   | "seminar_scheduled"
   | "seminar_rescheduled";
 
-// Maps template kinds to the notification_kind enum on `notifications`.
-function notificationKindFor(template: TemplateKey): "invitation" | "reminder" | "result" | "alert" {
+// Maps a template to the notification_kind enum on `notifications`. Built-ins are
+// mapped by key; custom templates fall back to their stored kind, else 'reminder'.
+function notificationKindFor(template: string, customKind?: string | null): "invitation" | "reminder" | "result" | "alert" {
   if (template === "invite" || template === "welcome") return "invitation";
   if (template === "overdue_reminder" || template === "password_reset" || template === "seminar_scheduled" || template === "seminar_rescheduled") return "reminder";
   if (template === "quiz_passed" || template === "quiz_failed") return "result";
-  return "alert";
+  if (template === "at_risk_alert" || template === "login_code") return "alert";
+  if (customKind === "invitation" || customKind === "reminder" || customKind === "result" || customKind === "alert") return customKind;
+  return "reminder";
 }
 
 export interface SendEmailInput {
   to: string | string[];
-  templateKey: TemplateKey;
+  /** A built-in TemplateKey or a custom template key (any string). */
+  templateKey: TemplateKey | string;
   variables: Record<string, string>;
   /** Optional override; if omitted we look up by templateKey from `email_templates`. */
   recipientUserId?: string;
@@ -52,7 +59,7 @@ export interface SendEmailResult {
 // Map opt-outable templates to a key in `profiles.notification_prefs`.
 // Transactional templates (invite, password_reset, welcome) are absent — the
 // gate is a no-op for them, so they always send.
-const PREF_KEY_BY_TEMPLATE: Partial<Record<TemplateKey, "quiz_results" | "training_reminders" | "at_risk_alerts">> = {
+const PREF_KEY_BY_TEMPLATE: Record<string, "quiz_results" | "training_reminders" | "at_risk_alerts"> = {
   quiz_passed:      "quiz_results",
   quiz_failed:      "quiz_results",
   overdue_reminder: "training_reminders",
@@ -80,14 +87,14 @@ export async function sendEmail(input: SendEmailInput): Promise<SendEmailResult>
   // 1. Look up the editable template.
   const { data: templateRow, error: templateErr } = await admin
     .from("email_templates")
-    .select("subject, body_markdown")
+    .select("subject, body_markdown, notification_kind")
     .eq("key", input.templateKey)
     .maybeSingle();
 
   if (templateErr || !templateRow) {
     return { ok: false, error: `Template "${input.templateKey}" not found in DB` };
   }
-  const tpl = templateRow as { subject: string; body_markdown: string };
+  const tpl = templateRow as { subject: string; body_markdown: string; notification_kind?: string | null };
 
   // 2. Substitute vars in subject + body, then render body as HTML.
   const subject = substituteVars(tpl.subject, input.variables);
@@ -100,7 +107,7 @@ export async function sendEmail(input: SendEmailInput): Promise<SendEmailResult>
   const recipients = Array.isArray(input.to) ? input.to : [input.to];
   if (input.recipientUserId) {
     await admin.from("notifications").insert({
-      kind: notificationKindFor(input.templateKey),
+      kind: notificationKindFor(input.templateKey, tpl.notification_kind),
       recipient_id: input.recipientUserId,
       subject,
       preview,

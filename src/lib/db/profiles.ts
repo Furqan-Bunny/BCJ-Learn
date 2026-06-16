@@ -92,6 +92,18 @@ export async function listManagers(): Promise<Manager[]> {
   return (data ?? []).map((r) => toManager(r as ProfileRow));
 }
 
+// All users who can be assigned to a module's seminar/quiz — managers, plus
+// Department Leads (teachers) and Admins (per Nancy's Jun-16 request that any
+// user be able to be assigned and take a quiz). Returned in the Manager shape so
+// the existing roster name-lookup + "Add employee" picker work unchanged; only
+// id/name/avatar/markets/status are read by those callers. Teachers/admins have
+// no manager_status, so toManager defaults them to "active" (they stay addable).
+export async function listAssignableUsers(): Promise<Manager[]> {
+  const sb = await dbClient();
+  const { data } = await sb.from("profiles").select("*").order("joined_at", { ascending: false });
+  return (data ?? []).map((r) => toManager(r as ProfileRow));
+}
+
 export async function listTeachers(): Promise<Teacher[]> {
   const sb = await dbClient();
   const { data } = await sb.from("profiles").select("*").eq("role", "teacher").order("joined_at", { ascending: false });

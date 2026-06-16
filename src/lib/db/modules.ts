@@ -16,6 +16,7 @@ interface ModuleRow {
   scheduled_time: string | null;
   timezone: string | null;
   created_at: string | null;
+  content_version: number | null;
   status: ModuleStatus;
   pass_threshold: number;
   question_count: number;
@@ -73,6 +74,7 @@ function rowToModuleDef(
     scheduledTime: r.scheduled_time ?? "",
     timezone: r.timezone ?? "",
     createdAt: r.created_at ?? undefined,
+    contentVersion: r.content_version ?? 1,
     ownerTeacherIds,
     status: r.status,
     passThreshold: r.pass_threshold,
@@ -162,6 +164,36 @@ export async function listModules(locale: Locale = "en"): Promise<ModuleDef[]> {
 export async function getModule(slug: string, locale: Locale = "en"): Promise<ModuleDef | null> {
   const all = await listModules(locale);
   return all.find((m) => m.slug === slug) ?? null;
+}
+
+// Modules a given user is assigned to / has engaged with — used to surface a
+// "Training assigned to you" section for non-managers (Department Leads/Admins)
+// who don't have a manager dashboard. A module qualifies if the user is invited
+// to one of its deliveries OR has any attempt on it. Published modules only.
+export async function listModulesAssignedToUser(userId: string, locale: Locale = "en"): Promise<ModuleDef[]> {
+  const sb = await dbClient();
+  const [{ data: inviteeRows }, { data: attemptRows }] = await Promise.all([
+    sb.from("module_invitees").select("delivery_id").eq("manager_id", userId),
+    sb.from("attempts").select("module_slug").eq("manager_id", userId),
+  ]);
+
+  const deliveryIds = Array.from(
+    new Set(((inviteeRows ?? []) as { delivery_id: string }[]).map((r) => r.delivery_id)),
+  );
+  const slugs = new Set<string>(
+    ((attemptRows ?? []) as { module_slug: string }[]).map((r) => r.module_slug),
+  );
+  if (deliveryIds.length > 0) {
+    const { data: deliveryRows } = await sb
+      .from("module_deliveries")
+      .select("module_slug")
+      .in("id", deliveryIds);
+    for (const d of (deliveryRows ?? []) as { module_slug: string }[]) slugs.add(d.module_slug);
+  }
+  if (slugs.size === 0) return [];
+
+  const all = await listModules(locale);
+  return all.filter((m) => slugs.has(m.slug) && m.status === "published");
 }
 
 export async function moduleTotalMinutes(slug: string): Promise<number> {

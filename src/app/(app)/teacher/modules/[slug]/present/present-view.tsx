@@ -15,6 +15,7 @@ import { toast } from "sonner";
 import { startSession as startSessionAction, endSession as endSessionAction } from "@/lib/server/module-actions";
 import { recordContentView } from "@/lib/server/content-views";
 import { signedUrlForContent } from "@/lib/supabase/storage";
+import { OfficeEmbed } from "@/components/shared/office-embed";
 import { CheckinLobby } from "./checkin-lobby";
 
 // Presentation shows the lead's ACTUAL uploaded file (no AI extraction) whenever
@@ -565,9 +566,8 @@ function StoredFilePresenter({
       </div>
     );
   }
-  if (RAW_OFFICE_EXTS.includes(ext)) {
-    const office = `https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(url)}`;
-    return <iframe src={office} loading="lazy" className="w-full h-[72vh] border-0 bg-white" title={content.title} />;
+  if (RAW_OFFICE_EXTS.includes(ext) && content.storagePath) {
+    return <OfficeEmbed path={content.storagePath} initialUrl={url} title={content.title} />;
   }
   return (
     <div className="p-12 text-center">

@@ -93,7 +93,7 @@ export function CertificateSettingsView({ initial }: { initial: CertificateSetti
             <CardHeader><CardTitle className="text-base">Live preview</CardTitle></CardHeader>
             <CardContent>
               <div className="bg-white text-[#041D39] rounded-lg overflow-hidden border-4 border-double border-[#041D39] p-6 text-center text-sm">
-                <div className="h-1.5 -mx-6 -mt-6 mb-4 bg-[#12D7CD]" />
+                <div className="h-1.5 -mx-6 -mt-6 mb-4 bg-[#25BCB9]" />
                 {s.showLogo && (
                   <div className="flex items-center justify-center gap-2 mb-4">
                     <div className="size-7 rounded bg-[#041D39] text-white flex items-center justify-center"><Award className="size-4" /></div>

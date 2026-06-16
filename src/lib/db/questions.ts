@@ -10,6 +10,7 @@ interface QuestionRow {
   module_slug: string;
   pool: QuestionPool;
   status: QuestionStatus;
+  source_content_version: number | null;
   text: string;
   explanation: string | null;
   generated_by_ai: boolean;
@@ -34,6 +35,7 @@ function hydrate(qRows: QuestionRow[], optsByQ: Map<string, OptionRow[]>, approv
     moduleSlug: r.module_slug,
     pool: r.pool,
     status: r.status,
+    sourceContentVersion: r.source_content_version,
     text: r.text,
     options: (optsByQ.get(r.id) ?? []).map((o) => ({ id: o.id, text: o.text, correct: o.correct })),
     explanation: r.explanation ?? undefined,

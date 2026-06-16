@@ -54,7 +54,7 @@ export function CertificateView({
 
       <div className="mx-auto max-w-3xl">
         <div className="certificate printable relative bg-white text-[#041D39] rounded-lg overflow-hidden border-8 border-double border-[#041D39] p-10 md:p-14 text-center shadow-sm">
-          <div className="absolute inset-x-0 top-0 h-2 bg-[#12D7CD]" />
+          <div className="absolute inset-x-0 top-0 h-2 bg-[#25BCB9]" />
 
           {settings.showLogo && (
             <div className="flex items-center justify-center gap-2 mb-8">
@@ -106,7 +106,7 @@ export function CertificateView({
                 <div className="text-[11px] text-[#041D39]/60">{fill(settings.footer, vars)}</div>
               )}
             </div>
-            <div className="size-16 rounded-full border-2 border-[#12D7CD] flex items-center justify-center text-[#12D7CD] shrink-0">
+            <div className="size-16 rounded-full border-2 border-[#25BCB9] flex items-center justify-center text-[#25BCB9] shrink-0">
               <Award className="size-8" />
             </div>
           </div>

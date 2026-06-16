@@ -304,6 +304,12 @@ export async function updateModuleLessons(
   const res = await replaceLessons(admin, moduleSlug, lessons);
   if (!res.ok) return res;
 
+  // Bump the content version so AI questions generated against the previous
+  // content get tagged "older content" in the question bank.
+  const { data: mv } = await admin.from("modules").select("content_version").eq("slug", moduleSlug).single();
+  const nextVersion = ((mv as { content_version?: number } | null)?.content_version ?? 1) + 1;
+  await admin.from("modules").update({ content_version: nextVersion }).eq("slug", moduleSlug);
+
   // Pre-warm extraction for any newly-added documents/slides (best-effort) so
   // they're presentable instantly on seminar day. Already-cached items are
   // skipped by the hasReal* guards.
@@ -349,6 +355,13 @@ export async function restoreModuleContentVersion(
 
   const res = await replaceLessons(admin, moduleSlug, lessons);
   if (!res.ok) return res;
+
+  // A restore is a content change too — bump the version so the question bank can
+  // flag questions authored against the pre-restore content as "older content".
+  // (Keeps content_version = 1 + number of content_version snapshots in sync.)
+  const { data: mv } = await admin.from("modules").select("content_version").eq("slug", moduleSlug).single();
+  const nextVersion = ((mv as { content_version?: number } | null)?.content_version ?? 1) + 1;
+  await admin.from("modules").update({ content_version: nextVersion }).eq("slug", moduleSlug);
 
   // Pre-warm extraction for any newly-added documents/slides (best-effort) so
   // they're presentable instantly on seminar day. Already-cached items are
@@ -653,6 +666,10 @@ export async function rescheduleSeminar(moduleSlug: string, newDate: string, new
       scheduled_date: newDate,
       ...(newTime !== undefined ? { scheduled_time: newTime } : {}),
       ...(timezone !== undefined ? { timezone: timezone ?? null } : {}),
+      // Reset check-in so the rescheduled seminar mints a fresh code on open
+      // (a stale code from a prior run is never silently reused).
+      checkin_code: null,
+      checkin_opened_at: null,
     })
     .eq("id", deliveryId);
 
@@ -795,6 +812,38 @@ export async function openCheckIn(slug: string): Promise<{ ok: boolean; error?: 
   const { error } = await admin
     .from("module_deliveries")
     .update({ checkin_opened_at: d.checkin_opened_at ?? new Date().toISOString(), checkin_code: code })
+    .eq("id", d.id);
+  if (error) return { ok: false, error: error.message };
+
+  revalidatePath(`/teacher/modules/${slug}/present`);
+  return { ok: true, code };
+}
+
+// Force a brand-new check-in code for the current delivery. Unlike openCheckIn
+// (which reuses an existing code so re-opening the lobby UI doesn't churn it),
+// this always mints a fresh 4-digit code — for when the trainer wants a new
+// wave of check-ins or the room never got a code. Keeps check-in open.
+export async function regenerateCheckinCode(slug: string): Promise<{ ok: boolean; error?: string; code?: string }> {
+  const guard = await requireAdminOrModuleOwner(slug);
+  if (!guard.ok) return { ok: false, error: guard.error };
+  if (DEMO_MODE) return { ok: true, code: "1234" };
+
+  const admin = createAdminClient();
+  const { data: delivery } = await admin
+    .from("module_deliveries")
+    .select("id, checkin_opened_at")
+    .eq("module_slug", slug)
+    .is("ended_at", null)
+    .order("delivery_index", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (!delivery) return { ok: false, error: "No open delivery — schedule a seminar first." };
+  const d = delivery as { id: string; checkin_opened_at: string | null };
+
+  const code = makeCheckinCode();
+  const { error } = await admin
+    .from("module_deliveries")
+    .update({ checkin_code: code, checkin_opened_at: d.checkin_opened_at ?? new Date().toISOString() })
     .eq("id", d.id);
   if (error) return { ok: false, error: error.message };
 
