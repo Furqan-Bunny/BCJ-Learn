@@ -1,7 +1,7 @@
 import { notFound, redirect } from "next/navigation";
 import { getCurrentUserForRole } from "@/lib/supabase/current-user";
 import { getModule } from "@/lib/db/modules";
-import { getProfile } from "@/lib/db/profiles";
+import { getModuleTrainer } from "@/lib/db/profiles";
 import { listAttemptsForManager } from "@/lib/db/attempts";
 import { getCheckedInStatus, getCurrentDelivery } from "@/lib/db/deliveries";
 import { listModuleSopsForUser } from "@/lib/db/module-resources";
@@ -25,15 +25,10 @@ export default async function ManagerModulePage(props: PageProps<"/manager/modul
 
   const totalMinutes = mod.lessons.reduce((sum, l) => sum + l.durationMinutes, 0);
 
-  // Primary teacher (first owner if any).
+  // Primary teacher (first owner if any). Fetched via getModuleTrainer because
+  // managers have no RLS read on staff profiles — it returns only name + bio.
   const primaryTeacherId = mod.ownerTeacherIds[0];
-  let teacher: { id: string; name: string; bio: string } | null = null;
-  if (primaryTeacherId) {
-    const profile = await getProfile(primaryTeacherId);
-    if (profile && profile.role === "teacher") {
-      teacher = { id: profile.id, name: profile.name, bio: profile.bio };
-    }
-  }
+  const teacher = primaryTeacherId ? await getModuleTrainer(primaryTeacherId) : null;
 
   const [allMyAttempts, checkInStatus, delivery, moduleSops] = await Promise.all([
     listAttemptsForManager(me.id),

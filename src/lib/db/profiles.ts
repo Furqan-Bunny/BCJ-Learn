@@ -2,6 +2,7 @@
 // can swap import paths without changing types downstream.
 
 import { dbClient } from "@/lib/supabase/db-client";
+import { createAdminClient } from "@/lib/supabase/server";
 import type { Admin, Manager, Teacher, Role, Cohort, ManagerStatus } from "@/types";
 
 // Explicit column list (never `select("*")`) so we never read `invite_token`
@@ -120,6 +121,20 @@ export async function listAdmins(): Promise<Admin[]> {
   const sb = await dbClient();
   const { data } = await sb.from("profiles").select(PROFILE_COLS).eq("role", "admin").order("joined_at", { ascending: false });
   return (data ?? []).map((r) => toAdmin(r as ProfileRow));
+}
+
+// The trainer's public display info (name + bio) for an employee viewing their
+// assigned module's "taught by …". Managers have no RLS read on other profiles,
+// so this uses the service-role client — but it returns ONLY name + bio (never
+// email/phone), which is shown to employees about their trainer by design.
+export async function getModuleTrainer(
+  teacherId: string,
+): Promise<{ id: string; name: string; bio: string } | null> {
+  const admin = createAdminClient();
+  const { data } = await admin.from("profiles").select("id, name, bio, role").eq("id", teacherId).maybeSingle();
+  const r = data as { id: string; name: string; bio: string | null; role: string } | null;
+  if (!r || r.role !== "teacher") return null;
+  return { id: r.id, name: r.name, bio: r.bio ?? "" };
 }
 
 export async function getProfile(id: string): Promise<Manager | Teacher | Admin | null> {
