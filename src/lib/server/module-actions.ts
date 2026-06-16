@@ -161,31 +161,36 @@ export async function createModule(input: CreateModuleInput): Promise<{ ok: bool
     }
   }
 
-  // First delivery row — invite all managers automatically.
-  const { data: deliveryRow } = await admin
-    .from("module_deliveries")
-    .insert({
-      module_slug: input.slug,
-      delivery_index: 1,
-      scheduled_date: input.scheduledDate,
-      scheduled_time: input.scheduledTime,
-      timezone: input.timezone,
-    })
-    .select("id")
-    .single();
-  if (deliveryRow) {
-    const deliveryId = (deliveryRow as { id: string }).id;
-    const { data: managers } = await admin
-      .from("profiles")
+  // Create the first delivery + auto-invite ONLY when a seminar date is set.
+  // An undated draft must NOT create a phantom "open delivery" with the whole
+  // company invited (that polluted every roster/count before the seminar was
+  // even scheduled). scheduleSeminar owns delivery + invitee creation otherwise.
+  if (input.scheduledDate) {
+    const { data: deliveryRow } = await admin
+      .from("module_deliveries")
+      .insert({
+        module_slug: input.slug,
+        delivery_index: 1,
+        scheduled_date: input.scheduledDate,
+        scheduled_time: input.scheduledTime,
+        timezone: input.timezone,
+      })
       .select("id")
-      .eq("role", "manager")
-      .not("status", "in", "(inactive,pending)");
-    if (managers && managers.length > 0) {
-      const inviteeRows = (managers as { id: string }[]).map((m) => ({
-        delivery_id: deliveryId,
-        manager_id: m.id,
-      }));
-      await admin.from("module_invitees").insert(inviteeRows);
+      .single();
+    if (deliveryRow) {
+      const deliveryId = (deliveryRow as { id: string }).id;
+      const { data: managers } = await admin
+        .from("profiles")
+        .select("id")
+        .eq("role", "manager")
+        .not("status", "in", "(inactive,pending)");
+      if (managers && managers.length > 0) {
+        const inviteeRows = (managers as { id: string }[]).map((m) => ({
+          delivery_id: deliveryId,
+          manager_id: m.id,
+        }));
+        await admin.from("module_invitees").insert(inviteeRows);
+      }
     }
   }
 

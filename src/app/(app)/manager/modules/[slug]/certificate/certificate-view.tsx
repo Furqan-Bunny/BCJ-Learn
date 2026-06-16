@@ -53,8 +53,8 @@ export function CertificateView({
       </div>
 
       <div className="mx-auto max-w-3xl">
-        <div className="certificate printable relative bg-white text-[#041D39] rounded-lg overflow-hidden border-8 border-double border-[#041D39] p-10 md:p-14 text-center shadow-sm">
-          <div className="absolute inset-x-0 top-0 h-2 bg-[#25BCB9]" />
+        <div className="certificate printable relative bg-white text-primary rounded-lg overflow-hidden border-8 border-double border-primary p-10 md:p-14 text-center shadow-sm">
+          <div className="absolute inset-x-0 top-0 h-2 bg-[var(--gold)]" />
 
           {settings.showLogo && (
             <div className="flex items-center justify-center gap-2 mb-8">
@@ -63,7 +63,7 @@ export function CertificateView({
                 <img src={logoUrl} alt={settings.orgName} onError={() => setLogoOk(false)} className="h-12 w-auto object-contain" />
               ) : (
                 <>
-                  <div className="size-10 rounded-md bg-[#041D39] text-white flex items-center justify-center">
+                  <div className="size-10 rounded-md bg-primary text-white flex items-center justify-center">
                     <Award className="size-5" />
                   </div>
                   <div className="text-lg font-bold tracking-tight">{settings.orgName}</div>
@@ -72,47 +72,47 @@ export function CertificateView({
             </div>
           )}
 
-          <div className="text-xs uppercase tracking-[0.3em] text-[#041D39]/60">{fill(settings.heading, vars)}</div>
+          <div className="text-xs uppercase tracking-[0.3em] text-primary/60">{fill(settings.heading, vars)}</div>
 
-          <p className="mt-8 text-sm text-[#041D39]/70">{fill(settings.introLine, vars)}</p>
+          <p className="mt-8 text-sm text-primary/70">{fill(settings.introLine, vars)}</p>
           <h1 className="mt-2 text-3xl md:text-4xl font-bold tracking-tight">{name}</h1>
 
-          <p className="mt-6 text-sm text-[#041D39]/70">{fill(settings.completionLine, vars)}</p>
+          <p className="mt-6 text-sm text-primary/70">{fill(settings.completionLine, vars)}</p>
           <h2 className="mt-2 text-xl md:text-2xl font-semibold">
             Module {moduleNumber}: {moduleTitle}
           </h2>
 
-          <div className="mt-8 inline-flex items-center gap-6 rounded-lg bg-[#041D39]/[0.04] px-6 py-4">
+          <div className="mt-8 inline-flex items-center gap-6 rounded-lg bg-primary/[0.04] px-6 py-4">
             <div>
-              <div className="text-[10px] uppercase tracking-wider text-[#041D39]/60">Score</div>
+              <div className="text-[10px] uppercase tracking-wider text-primary/60">Score</div>
               <div className="text-2xl font-bold tabular-nums">{scorePct}%</div>
             </div>
-            <div className="h-8 w-px bg-[#041D39]/15" />
+            <div className="h-8 w-px bg-primary/15" />
             <div>
-              <div className="text-[10px] uppercase tracking-wider text-[#041D39]/60">Completed</div>
+              <div className="text-[10px] uppercase tracking-wider text-primary/60">Completed</div>
               <div className="text-2xl font-bold">{fmtDate(passedAt)}</div>
             </div>
           </div>
 
           <div className="mt-12 flex items-end justify-between gap-6">
             <div className="flex-1 text-left">
-              <div className="h-px bg-[#041D39]/30 mb-1" />
+              <div className="h-px bg-primary/30 mb-1" />
               {settings.signatoryName ? (
                 <>
                   <div className="text-sm font-semibold">{settings.signatoryName}</div>
-                  {settings.signatoryTitle && <div className="text-[11px] text-[#041D39]/60">{settings.signatoryTitle}</div>}
+                  {settings.signatoryTitle && <div className="text-[11px] text-primary/60">{settings.signatoryTitle}</div>}
                 </>
               ) : (
-                <div className="text-[11px] text-[#041D39]/60">{fill(settings.footer, vars)}</div>
+                <div className="text-[11px] text-primary/60">{fill(settings.footer, vars)}</div>
               )}
             </div>
-            <div className="size-16 rounded-full border-2 border-[#25BCB9] flex items-center justify-center text-[#25BCB9] shrink-0">
+            <div className="size-16 rounded-full border-2 border-[var(--gold)] flex items-center justify-center text-[var(--gold)] shrink-0">
               <Award className="size-8" />
             </div>
           </div>
 
           {settings.signatoryName && (
-            <div className="mt-6 text-[11px] text-[#041D39]/50">{fill(settings.footer, vars)}</div>
+            <div className="mt-6 text-[11px] text-primary/50">{fill(settings.footer, vars)}</div>
           )}
         </div>
       </div>

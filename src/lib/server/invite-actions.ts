@@ -67,11 +67,20 @@ export async function acceptInvite(input: { token: string; name: string; passwor
   const { error: pwErr } = await admin.auth.admin.updateUserById(id, { password });
   if (pwErr) return { ok: false as const, error: pwErr.message };
 
-  // Activate the profile and burn the token (single use).
-  await admin
+  // Activate the profile and burn the token — CONDITIONAL on the token still
+  // being present, so a double-submit (or a second tab) updates zero rows
+  // instead of silently leaving the account 'pending' with a live token. The
+  // error + row count are checked (the old code ignored both).
+  const { data: claimed, error: updErr } = await admin
     .from("profiles")
     .update({ name: name.trim(), status: "active", invite_token: null })
-    .eq("id", id);
+    .eq("id", id)
+    .eq("invite_token", token)
+    .select("id");
+  if (updErr) return { ok: false as const, error: updErr.message };
+  if (!claimed || claimed.length === 0) {
+    return { ok: false as const, error: "This invite was already completed. Please sign in instead." };
+  }
 
   return { ok: true as const, email };
 }

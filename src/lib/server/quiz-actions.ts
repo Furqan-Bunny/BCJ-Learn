@@ -27,6 +27,7 @@ import { sendEmail } from "@/lib/emails/send";
 import { pushInAppNotification } from "@/lib/notifications/push";
 import { decideQuizPool } from "@/lib/quiz-pool";
 import { canStartQuizNow } from "@/lib/auth/quiz-access";
+import { hasSignedAllSops } from "@/lib/db/module-resources";
 import type { QuestionPool } from "@/types";
 
 export interface QuizQuestion {
@@ -57,6 +58,11 @@ export async function startQuiz(moduleSlug: string): Promise<StartQuizResult> {
   // starting it early by hitting the quiz URL directly.
   if (!(await canStartQuizNow(moduleSlug, user.id))) {
     return { ok: false, error: "This quiz opens after the seminar — check in at the session, or wait for your trainer to open it." };
+  }
+
+  // Required-resources (SOP) gate — server-side backstop, not just the page.
+  if (!(await hasSignedAllSops(moduleSlug, user.id))) {
+    return { ok: false, error: "Please read and acknowledge the required resources for this module before taking the quiz." };
   }
 
   // Already-passed guard — block opening the quiz a second time.

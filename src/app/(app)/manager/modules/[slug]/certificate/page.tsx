@@ -2,10 +2,9 @@ import { notFound, redirect } from "next/navigation";
 import { getCurrentUserForRole } from "@/lib/supabase/current-user";
 import { getModule } from "@/lib/db/modules";
 import { listAttemptsForManager } from "@/lib/db/attempts";
-import { getCertificateSettings } from "@/lib/db/settings";
+import { getCertificateSettings, getBrandingSettings } from "@/lib/db/settings";
+import { resolveBrandingLogoUrl } from "@/lib/branding";
 import { CertificateView } from "./certificate-view";
-
-const LOGO_URL = `${process.env.NEXT_PUBLIC_SUPABASE_URL ?? ""}/storage/v1/object/public/branding/bcj-logo.png`;
 
 // A printable completion certificate. Only the employee who PASSED this module
 // can see it — derived purely from their passed attempt + the module.
@@ -14,10 +13,11 @@ export default async function CertificatePage(props: { params: Promise<{ slug: s
   const me = await getCurrentUserForRole("manager");
   if (!me) redirect("/login");
 
-  const [mod, myAttempts, certSettings] = await Promise.all([
+  const [mod, myAttempts, certSettings, branding] = await Promise.all([
     getModule(slug),
     listAttemptsForManager(me.id),
     getCertificateSettings(),
+    getBrandingSettings(),
   ]);
   if (!mod) return notFound();
 
@@ -36,7 +36,7 @@ export default async function CertificatePage(props: { params: Promise<{ slug: s
       passedAt={passed.submittedAt ?? passed.startedAt}
       moduleSlug={slug}
       settings={certSettings}
-      logoUrl={LOGO_URL}
+      logoUrl={resolveBrandingLogoUrl(branding.logoPath) ?? ""}
     />
   );
 }

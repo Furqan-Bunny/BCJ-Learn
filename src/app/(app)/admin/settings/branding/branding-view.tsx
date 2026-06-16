@@ -15,28 +15,19 @@ import type { BrandingSettings } from "@/lib/db/settings";
 
 const DEMO_MODE = process.env.NEXT_PUBLIC_DEMO_MODE === "true";
 
-export function BrandingView({ initial }: { initial: BrandingSettings }) {
+export function BrandingView({ initial, initialLogoUrl }: { initial: BrandingSettings; initialLogoUrl?: string | null }) {
   const router = useRouter();
   const [name, setName] = React.useState(initial.name);
   const [primary, setPrimary] = React.useState(initial.primaryColor);
   const [accent, setAccent] = React.useState(initial.accentColor);
   const [emailFrom, setEmailFrom] = React.useState(initial.emailFrom);
   const [logoPath, setLogoPath] = React.useState<string | null>(initial.logoPath);
-  const [logoUrl, setLogoUrl] = React.useState<string | null>(null);
+  // Show the current logo on load (resolved server-side from logoPath), so the
+  // box renders the actual logo instead of a generic "on file" placeholder.
+  const [logoUrl, setLogoUrl] = React.useState<string | null>(initialLogoUrl ?? null);
   const [uploading, setUploading] = React.useState(false);
   const [saving, setSaving] = React.useState(false);
   const fileInputRef = React.useRef<HTMLInputElement>(null);
-
-  // Note: branding bucket is public so we can use getPublicUrl directly,
-  // but uploadBrandingAsset already returns the public URL with cache-bust.
-  React.useEffect(() => {
-    // If we have a stored logoPath, derive the public URL once.
-    if (logoPath && !logoUrl) {
-      // Branding bucket is public; build URL by convention. We could call
-      // a server action but a direct getPublicUrl call works too.
-      // For simplicity, just leave logoUrl null until user uploads anew.
-    }
-  }, [logoPath, logoUrl]);
 
   async function handleLogoFile(file: File) {
     if (DEMO_MODE) {

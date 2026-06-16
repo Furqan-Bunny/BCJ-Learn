@@ -60,34 +60,44 @@ export async function inviteUser(input: InviteUserInput) {
   const guard = await requireAdmin();
   if (!guard.ok) return { ok: false as const, error: guard.error };
 
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "";
+  if (!appUrl) {
+    return { ok: false as const, error: "NEXT_PUBLIC_APP_URL isn't set — invite links would be broken. Configure it before inviting." };
+  }
+
   const admin = createAdminClient();
+  const email = input.email.trim().toLowerCase();
+
+  // If a profile already exists for this email, DON'T hard-fail on createUser.
+  // A still-pending invite → just resend it; an active account → say so clearly.
+  const { data: existing } = await admin.from("profiles").select("id, status").ilike("email", email).maybeSingle();
+  const ex = existing as { id: string; status: string | null } | null;
+  if (ex) {
+    if (ex.status === "pending") {
+      const r = await resendInvite(ex.id);
+      return r.ok ? { ok: true as const, userId: ex.id } : { ok: false as const, error: r.error };
+    }
+    return { ok: false as const, error: "That email already has an account." };
+  }
 
   // Create the auth user WITHOUT a password and WITHOUT any Supabase email.
-  // We email our own branded /auth/accept-invite?token=… link via Resend; the
-  // invitee sets their password there (acceptInvite). Independent of any
-  // Supabase SMTP / email-link / redirect configuration.
+  // We email our own branded /auth/accept-invite?token=… link via Resend.
   const token = randomBytes(32).toString("hex");
   const { data, error } = await admin.auth.admin.createUser({
-    email: input.email,
+    email,
     email_confirm: true,
     user_metadata: { name: input.name, role: input.role },
   });
-
   if (error || !data?.user) {
     return { ok: false as const, error: error?.message ?? "Failed to create user" };
   }
+  const userId = data.user.id;
 
-  // The handle_new_user trigger created the profile with role from metadata.
-  // Update cohort + name, and mark the invite as pending with its 7-day window.
-  // Status flips to 'active' when the user accepts (accept-invite page + the
-  // track_last_active trigger on first sign-in).
   const invitedAt = new Date();
-  // Resolve markets: prefer the new array, fall back to the legacy single
-  // cohort for backwards-compatible callers.
   const markets = input.role === "manager"
     ? (input.markets?.length ? input.markets : input.cohort ? [input.cohort] : [])
     : [];
-  await admin
+  const { error: profErr } = await admin
     .from("profiles")
     .update({
       name: input.name,
@@ -99,33 +109,39 @@ export async function inviteUser(input: InviteUserInput) {
       invite_sent_at: invitedAt.toISOString(),
       invite_expires_at: new Date(invitedAt.getTime() + INVITE_TTL_MS).toISOString(),
     })
-    .eq("id", data.user.id);
+    .eq("id", userId);
+  // Roll back the just-created auth user so a failure never leaves an
+  // un-invitable, un-acceptable orphan account.
+  if (profErr) {
+    await admin.auth.admin.deleteUser(userId).catch(() => {});
+    return { ok: false as const, error: `Could not set up the invite: ${profErr.message}` };
+  }
 
-  // Deliver the branded invite via Resend with our own token link.
-  const inviteLink = `${process.env.NEXT_PUBLIC_APP_URL ?? ""}/auth/accept-invite?token=${token}`;
+  const inviteLink = `${appUrl}/auth/accept-invite?token=${token}`;
   const sent = await sendEmail({
-    to: input.email,
+    to: email,
     templateKey: "invite",
-    recipientUserId: data.user.id,
+    recipientUserId: userId,
     href: "/auth/accept-invite",
     variables: { name: input.name, invite_link: inviteLink },
   });
   if (!sent.ok) {
-    return { ok: false as const, error: sent.error ?? "Invite created but email failed — use Resend invite." };
+    await admin.auth.admin.deleteUser(userId).catch(() => {});
+    return { ok: false as const, error: sent.error ?? "Invite email failed — please try again." };
   }
 
   await logActivity(
     "user_added",
     guard.userId,
     `${guard.userName} invited ${input.name} (${input.email}) as ${input.role}${input.cohort ? ` to ${input.cohort}` : ""}`,
-    data.user.id,
+    userId,
   );
 
   revalidatePath("/admin/managers");
   revalidatePath("/admin/teachers");
   revalidatePath("/admin/admins");
 
-  return { ok: true as const, userId: data.user.id };
+  return { ok: true as const, userId };
 }
 
 // ─── B.2 bulkInviteUsers ──────────────────────────────────

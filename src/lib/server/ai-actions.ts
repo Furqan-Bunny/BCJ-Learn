@@ -213,12 +213,15 @@ async function insertDrafts(
   return created;
 }
 
+// Recompute BOTH counters from the live rows so the "X/Y approved" badge and the
+// publish-readiness gate never drift. (Approve/reject/regenerate/edit all change
+// the approved count — recomputing here keeps every caller honest.)
 async function refreshQuestionCounts(admin: ReturnType<typeof createAdminClient>, moduleSlug: string) {
-  const { count } = await admin
-    .from("questions")
-    .select("*", { count: "exact", head: true })
-    .eq("module_slug", moduleSlug);
-  await admin.from("modules").update({ questions_total: count ?? 0 }).eq("slug", moduleSlug);
+  const [{ count: total }, { count: approved }] = await Promise.all([
+    admin.from("questions").select("*", { count: "exact", head: true }).eq("module_slug", moduleSlug),
+    admin.from("questions").select("*", { count: "exact", head: true }).eq("module_slug", moduleSlug).in("status", ["approved", "edited"]),
+  ]);
+  await admin.from("modules").update({ questions_total: total ?? 0, questions_approved: approved ?? 0 }).eq("slug", moduleSlug);
   revalidatePath(`/teacher/modules/${moduleSlug}/questions`);
   revalidatePath(`/admin/modules/${moduleSlug}`);
   revalidatePath(`/admin/questions`);
@@ -643,8 +646,9 @@ export async function rejectQuestion(questionId: string): Promise<{ ok: boolean;
   const { error } = await admin.from("questions").update({ status: "rejected" }).eq("id", questionId);
   if (error) return { ok: false, error: error.message };
 
-  revalidatePath(`/teacher/modules/${slug}/questions`);
-  revalidatePath(`/admin/questions`);
+  // Rejecting an approved/edited question shrinks the live bank — recompute the
+  // approved count so the publish gate doesn't keep counting it.
+  await refreshQuestionCounts(admin, slug);
   return { ok: true };
 }
 
@@ -705,7 +709,8 @@ export async function regenerateQuestion(questionId: string): Promise<{ ok: bool
     })
     .eq("id", questionId);
 
-  // Replace options.
+  // Replace options. Check the insert so a failure can't leave the question
+  // with ZERO options (which would ship an unanswerable question into a quiz).
   await admin.from("question_options").delete().eq("question_id", questionId);
   const optionRows = draft.options.map((o, i) => ({
     question_id: questionId,
@@ -713,10 +718,11 @@ export async function regenerateQuestion(questionId: string): Promise<{ ok: bool
     correct: !!o.correct,
     order: i,
   }));
-  await admin.from("question_options").insert(optionRows);
+  const { error: optErr } = await admin.from("question_options").insert(optionRows);
+  if (optErr) return { ok: false, error: `Could not save the regenerated options: ${optErr.message}` };
 
-  revalidatePath(`/teacher/modules/${slug}/questions`);
-  revalidatePath(`/admin/questions`);
+  // Regenerate flips approved → pending, so the approved count must refresh.
+  await refreshQuestionCounts(admin, slug);
   return { ok: true };
 }
 
@@ -879,7 +885,8 @@ export async function editQuestion(input: EditQuestionInput): Promise<{ ok: bool
     })
     .eq("id", input.questionId);
 
-  // Replace options.
+  // Replace options. Check the insert so an edit can't leave the question with
+  // zero options (an unanswerable live quiz question).
   await admin.from("question_options").delete().eq("question_id", input.questionId);
   const optionRows = input.options.map((o, i) => ({
     question_id: input.questionId,
@@ -887,13 +894,14 @@ export async function editQuestion(input: EditQuestionInput): Promise<{ ok: bool
     correct: !!o.correct,
     order: i,
   }));
-  await admin.from("question_options").insert(optionRows);
+  const { error: optErr } = await admin.from("question_options").insert(optionRows);
+  if (optErr) return { ok: false, error: `Could not save the edited options: ${optErr.message}` };
 
   // The text changed — refresh the cached Spanish translation in the background.
   void translateQuestionToSpanish(input.questionId).catch(() => {});
 
-  revalidatePath(`/teacher/modules/${slug}/questions`);
-  revalidatePath(`/admin/questions`);
+  // 'edited' counts as approved — recompute counts so the publish gate is right.
+  await refreshQuestionCounts(admin, slug);
   return { ok: true };
 }
 

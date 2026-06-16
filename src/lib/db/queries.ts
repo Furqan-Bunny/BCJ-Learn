@@ -72,9 +72,11 @@ export async function programStats(range?: DateRange) {
   const failedAttempts = att.filter((a) => a.status === "failed").length;
   const totalAttempts = passedAttempts + failedAttempts;
   const passRate = totalAttempts ? Math.round((passedAttempts / totalAttempts) * 100) : 0;
-  const scored = att.filter((a) => a.score_pct > 0);
-  const avgScore = scored.length
-    ? Math.round(scored.reduce((s, a) => s + a.score_pct, 0) / scored.length)
+  // Average over real (submitted) attempts only — including genuine 0% fails, but
+  // never in-progress / scheduled placeholder rows.
+  const terminal = att.filter((a) => a.status === "passed" || a.status === "failed");
+  const avgScore = terminal.length
+    ? Math.round(terminal.reduce((s, a) => s + Number(a.score_pct), 0) / terminal.length)
     : 0;
 
   return {
@@ -119,7 +121,9 @@ export async function moduleProgressBreakdown(range?: DateRange) {
     return true;
   });
   return modules.map((mod) => {
-    const modAttempts = attempts.filter((a) => a.moduleSlug === mod.slug);
+    // Submitted attempts only — in-progress / scheduled rows must not inflate
+    // participation or dilute the average score.
+    const modAttempts = attempts.filter((a) => a.moduleSlug === mod.slug && (a.status === "passed" || a.status === "failed"));
     const passed = modAttempts.filter((a) => a.status === "passed").length;
     const failed = modAttempts.filter((a) => a.status === "failed").length;
     return {
@@ -145,7 +149,8 @@ export async function scoreDistribution(slug?: string) {
     { range: "85-94", count: 0 },
     { range: "95-100", count: 0 },
   ];
-  const list = slug ? attempts.filter((a) => a.moduleSlug === slug) : attempts;
+  const list = (slug ? attempts.filter((a) => a.moduleSlug === slug) : attempts)
+    .filter((a) => a.status === "passed" || a.status === "failed");
   for (const a of list) {
     const s = a.scorePct;
     if (s < 50) buckets[0].count++;

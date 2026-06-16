@@ -17,7 +17,7 @@ function fill(tpl: string, vars: Record<string, string>): string {
   return tpl.replace(/\{\{(\w+)\}\}/g, (_, k) => vars[k] ?? `{{${k}}}`);
 }
 
-export function CertificateSettingsView({ initial }: { initial: CertificateSettings }) {
+export function CertificateSettingsView({ initial, logoUrl }: { initial: CertificateSettings; logoUrl?: string | null }) {
   const router = useRouter();
   const [s, setS] = React.useState<CertificateSettings>(initial);
   const [saving, setSaving] = React.useState(false);
@@ -92,32 +92,39 @@ export function CertificateSettingsView({ initial }: { initial: CertificateSetti
           <Card className="sticky top-20">
             <CardHeader><CardTitle className="text-base">Live preview</CardTitle></CardHeader>
             <CardContent>
-              <div className="bg-white text-[#041D39] rounded-lg overflow-hidden border-4 border-double border-[#041D39] p-6 text-center text-sm">
-                <div className="h-1.5 -mx-6 -mt-6 mb-4 bg-[#25BCB9]" />
+              <div className="bg-white text-primary rounded-lg overflow-hidden border-4 border-double border-primary p-6 text-center text-sm">
+                <div className="h-1.5 -mx-6 -mt-6 mb-4 bg-[var(--gold)]" />
                 {s.showLogo && (
                   <div className="flex items-center justify-center gap-2 mb-4">
-                    <div className="size-7 rounded bg-[#041D39] text-white flex items-center justify-center"><Award className="size-4" /></div>
-                    <span className="font-bold">{s.orgName || "Organisation"}</span>
+                    {logoUrl ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={logoUrl} alt={s.orgName || "Logo"} className="h-8 object-contain" />
+                    ) : (
+                      <>
+                        <div className="size-7 rounded bg-primary text-white flex items-center justify-center"><Award className="size-4" /></div>
+                        <span className="font-bold">{s.orgName || "Organisation"}</span>
+                      </>
+                    )}
                   </div>
                 )}
-                <div className="text-[10px] uppercase tracking-[0.2em] text-[#041D39]/60">{fill(s.heading, vars)}</div>
-                <p className="mt-4 text-xs text-[#041D39]/70">{fill(s.introLine, vars)}</p>
+                <div className="text-[10px] uppercase tracking-[0.2em] text-primary/60">{fill(s.heading, vars)}</div>
+                <p className="mt-4 text-xs text-primary/70">{fill(s.introLine, vars)}</p>
                 <div className="text-xl font-bold mt-1">{vars.name}</div>
-                <p className="mt-3 text-xs text-[#041D39]/70">{fill(s.completionLine, vars)}</p>
+                <p className="mt-3 text-xs text-primary/70">{fill(s.completionLine, vars)}</p>
                 <div className="text-sm font-semibold mt-1">{vars.module}</div>
-                <div className="mt-4 inline-flex gap-4 rounded-md bg-[#041D39]/[0.04] px-4 py-2 text-xs">
+                <div className="mt-4 inline-flex gap-4 rounded-md bg-primary/[0.04] px-4 py-2 text-xs">
                   <span><b className="text-base">{vars.score}</b> score</span>
                   <span><b className="text-base">{vars.date}</b></span>
                 </div>
                 <div className="mt-6 text-left">
-                  <div className="h-px bg-[#041D39]/30 mb-1" />
+                  <div className="h-px bg-primary/30 mb-1" />
                   {s.signatoryName ? (
                     <>
                       <div className="text-xs font-semibold">{s.signatoryName}</div>
-                      {s.signatoryTitle && <div className="text-[10px] text-[#041D39]/60">{s.signatoryTitle}</div>}
+                      {s.signatoryTitle && <div className="text-[10px] text-primary/60">{s.signatoryTitle}</div>}
                     </>
                   ) : (
-                    <div className="text-[10px] text-[#041D39]/60">{fill(s.footer, vars)}</div>
+                    <div className="text-[10px] text-primary/60">{fill(s.footer, vars)}</div>
                   )}
                 </div>
               </div>

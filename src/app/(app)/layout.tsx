@@ -33,8 +33,10 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   const locale = user?.role === "manager" && user.locale === "es" ? "es" : "en";
 
   // Onboarding gate: block the app shell until any sign-up resources are signed.
-  // Skipped in demo mode (acknowledgements aren't persisted there).
-  const signupResources = user && !DEMO_MODE ? await listOutstandingSignupAcks() : [];
+  // EMPLOYEES (managers) only — never lock staff (admin/teacher) out of their
+  // panel (an admin could otherwise be unable to reach the page to un-flag the
+  // resource). Skipped in demo mode (acknowledgements aren't persisted there).
+  const signupResources = user && user.role === "manager" && !DEMO_MODE ? await listOutstandingSignupAcks() : [];
   if (signupResources.length > 0 && user) {
     return (
       <LocaleProvider locale={locale}>

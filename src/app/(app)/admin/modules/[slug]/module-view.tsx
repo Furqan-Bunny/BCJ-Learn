@@ -7,6 +7,7 @@ import { motion } from "framer-motion";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { Pagination, pageSlice } from "@/components/ui/pagination";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import {
@@ -109,70 +110,34 @@ export function AdminModuleView({
     toast.success(`Unlinked: ${sop.title}`);
   }
 
-  // Tab state — driven by a LOCAL state so the click switch happens
-  // instantly. `?tab=` is updated async in the background so deep-links +
-  // Back/Forward still work.
+  // Tab state — purely LOCAL for instant, smooth switching. The active tab is
+  // mirrored into the URL silently via history.replaceState (no Next navigation,
+  // so no re-render / loader / flicker), so a refresh or deep-link keeps the tab.
   const sp = useSearchParams();
   const router = useRouter();
-  const urlTab = sp?.get("tab") ?? "overview";
-  const [tab, setTabState] = React.useState(urlTab);
-  const [pending, setPending] = React.useState(false);
+  const [tab, setTabState] = React.useState(() => sp?.get("tab") ?? "overview");
 
   function setTab(v: string) {
     if (v === tab) return;
-    // Flip the visible tab AND start the spinner in the SAME render so
-    // there's no perceptible "stuck" gap between click and loader.
     setTabState(v);
-    setPending(true);
-    const p = new URLSearchParams(sp?.toString() ?? "");
-    p.set("tab", v);
-    router.replace(`?${p.toString()}`, { scroll: false });
+    if (typeof window !== "undefined") {
+      const p = new URLSearchParams(window.location.search);
+      p.set("tab", v);
+      window.history.replaceState(null, "", `${window.location.pathname}?${p.toString()}`);
+    }
   }
 
-  // Browser Back / Forward updates the URL; mirror that into local state.
-  React.useEffect(() => {
-    if (urlTab !== tab) {
-      setTabState(urlTab);
-      setPending(true);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [urlTab]);
-
-  // Auto-clear the spinner shortly after a switch.
-  React.useEffect(() => {
-    if (!pending) return;
-    const t = window.setTimeout(() => setPending(false), 320);
-    return () => window.clearTimeout(t);
-  }, [pending, tab]);
-
-  // While pending → spinner with "Loading…". When ready → the real children
-  // fade in. Keyed by tab so the animation replays on every switch.
-  const TabBody = ({ children }: { children: React.ReactNode }) => {
-    if (pending) {
-      return (
-        <motion.div
-          key={`${tab}-loading`}
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ duration: 0.12 }}
-          className="flex items-center justify-center gap-2 py-20 text-sm text-muted-foreground"
-        >
-          <Loader2 className="size-4 animate-spin text-primary" />
-          Loading…
-        </motion.div>
-      );
-    }
-    return (
-      <motion.div
-        key={tab}
-        initial={{ opacity: 0, y: 8 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.24, ease: [0.16, 1, 0.3, 1] }}
-      >
-        {children}
-      </motion.div>
-    );
-  };
+  // Content fades in on switch — no loader, it's already client-side.
+  const TabBody = ({ children }: { children: React.ReactNode }) => (
+    <motion.div
+      key={tab}
+      initial={{ opacity: 0, y: 6 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.18, ease: [0.16, 1, 0.3, 1] }}
+    >
+      {children}
+    </motion.div>
+  );
 
   const totalMinutes = mod.lessons.reduce((sum, l) => sum + l.durationMinutes, 0);
   const allContents = mod.lessons.flatMap((l) => l.contents);
@@ -558,7 +523,7 @@ export function AdminModuleView({
               </Link>
             </Button>
           </div>
-          {attempts.length === 0 ? (
+          {submittedAttempts.length === 0 ? (
             <Card>
               <CardContent className="py-10 text-center text-sm text-muted-foreground">
                 No attempts yet for this module.
@@ -579,7 +544,8 @@ export function AdminModuleView({
                     </tr>
                   </thead>
                   <tbody className="divide-y">
-                    {[...attempts]
+                    {/* Only real (submitted) attempts — never in-progress / scheduled placeholders. */}
+                    {[...submittedAttempts]
                       .sort((a, b) => +new Date(b.startedAt) - +new Date(a.startedAt))
                       .map((a) => {
                         const mgr = managersById[a.managerId];
@@ -707,6 +673,17 @@ function LessonsList({ lessons, onPreview }: { lessons: ModuleDef["lessons"]; on
 
 /** Read-only question-bank summary for the Questions tab. */
 function QuestionBankList({ questions }: { questions: Question[] }) {
+  const [pool, setPool] = React.useState<"all" | "first-attempt" | "retake">("all");
+  const [page, setPage] = React.useState(0);
+  const PER_PAGE = 10;
+
+  const firstCount = questions.filter((q) => q.pool === "first-attempt").length;
+  const retakeCount = questions.filter((q) => q.pool === "retake").length;
+  const filtered = pool === "all" ? questions : questions.filter((q) => q.pool === pool);
+
+  // Reset to the first page whenever the pool filter changes.
+  React.useEffect(() => { setPage(0); }, [pool]);
+
   if (questions.length === 0) {
     return (
       <div className="rounded-lg border-2 border-dashed p-8 text-center text-sm text-muted-foreground">
@@ -714,42 +691,63 @@ function QuestionBankList({ questions }: { questions: Question[] }) {
       </div>
     );
   }
-  const pools: { key: "first-attempt" | "retake"; label: string }[] = [
-    { key: "first-attempt", label: "First attempt" },
-    { key: "retake", label: "Retake" },
+
+  const chips: { key: "all" | "first-attempt" | "retake"; label: string; count: number }[] = [
+    { key: "all", label: "All", count: questions.length },
+    { key: "first-attempt", label: "First attempt", count: firstCount },
+    { key: "retake", label: "Retake", count: retakeCount },
   ];
+
   return (
-    <div className="space-y-6">
-      {pools.map(({ key, label }) => {
-        const list = questions.filter((q) => q.pool === key);
-        if (list.length === 0) return null;
-        return (
-          <div key={key}>
-            <div className="flex items-center gap-2 mb-2">
-              <h4 className="text-sm font-semibold">{label}</h4>
-              <Badge variant="outline" className="text-[10px]">{list.length}</Badge>
+    <div className="space-y-3">
+      {/* Pool filter — clearly separate first-attempt vs retake, paginated so a
+          big bank (e.g. 68 questions) never makes the page huge. */}
+      <div className="flex flex-wrap items-center gap-1.5">
+        {chips.map((c) => (
+          <button
+            key={c.key}
+            type="button"
+            onClick={() => setPool(c.key)}
+            className={cn(
+              "inline-flex items-center gap-1.5 rounded-md border px-2.5 py-1 text-xs font-medium transition-colors",
+              pool === c.key ? "bg-primary text-primary-foreground border-primary" : "bg-card hover:bg-accent text-muted-foreground",
+            )}
+          >
+            {c.label}
+            <span className={cn("rounded px-1 text-[10px] tabular-nums", pool === c.key ? "bg-white/20" : "bg-muted")}>{c.count}</span>
+          </button>
+        ))}
+        <span className="ml-auto text-xs text-muted-foreground">
+          {filtered.length} question{filtered.length === 1 ? "" : "s"}
+        </span>
+      </div>
+
+      <div className="space-y-1.5">
+        {pageSlice(filtered, page, PER_PAGE).map((q) => {
+          const live = q.status === "approved" || q.status === "edited";
+          return (
+            <div key={q.id} className="flex items-start gap-3 px-3 py-2 rounded-md border bg-card">
+              {live ? (
+                <CheckCircle2 className="size-4 text-emerald-500 shrink-0 mt-0.5" />
+              ) : (
+                <Clock className="size-4 text-muted-foreground/50 shrink-0 mt-0.5" />
+              )}
+              <div className="flex-1 min-w-0">
+                <div className="text-sm line-clamp-2">{q.text}</div>
+              </div>
+              <Badge
+                variant="outline"
+                className={cn("text-[10px] shrink-0", q.pool === "retake" ? "border-violet-500/40 text-violet-600 dark:text-violet-400" : "border-sky-500/40 text-sky-600 dark:text-sky-400")}
+              >
+                {q.pool === "retake" ? "Retake" : "First"}
+              </Badge>
+              <StatusBadge variant={q.status} />
             </div>
-            <div className="space-y-1.5">
-              {list.map((q) => {
-                const live = q.status === "approved" || q.status === "edited";
-                return (
-                  <div key={q.id} className="flex items-start gap-3 px-3 py-2 rounded-md border bg-card">
-                    {live ? (
-                      <CheckCircle2 className="size-4 text-emerald-500 shrink-0 mt-0.5" />
-                    ) : (
-                      <Clock className="size-4 text-muted-foreground/50 shrink-0 mt-0.5" />
-                    )}
-                    <div className="flex-1 min-w-0">
-                      <div className="text-sm line-clamp-2">{q.text}</div>
-                    </div>
-                    <StatusBadge variant={q.status} />
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        );
-      })}
+          );
+        })}
+      </div>
+
+      <Pagination page={page} total={filtered.length} pageSize={PER_PAGE} onPageChange={setPage} />
     </div>
   );
 }

@@ -22,6 +22,7 @@ interface RosterRow {
   module_slug: string;
   delivery_scheduled_date: string | null;
   latest_attempt_status: string | null;
+  profile_status: string | null;
 }
 
 export async function GET(request: Request) {
@@ -41,7 +42,7 @@ export async function GET(request: Request) {
   // Candidate overdue rows from the current-delivery roster view.
   const { data: rosterData, error: rosterErr } = await admin
     .from("module_roster_view")
-    .select("manager_id, name, email, module_slug, delivery_scheduled_date, latest_attempt_status");
+    .select("manager_id, name, email, module_slug, delivery_scheduled_date, latest_attempt_status, profile_status");
   if (rosterErr) {
     return NextResponse.json({ error: rosterErr.message }, { status: 500 });
   }
@@ -50,6 +51,10 @@ export async function GET(request: Request) {
   const overdueMs = rules.overdueDays * 24 * 60 * 60 * 1000;
   const candidates = ((rosterData ?? []) as RosterRow[]).filter((r) => {
     if (!r.delivery_scheduled_date || !r.email) return false;
+    // Never remind people who can't act on it: pending (never accepted the
+    // invite / no password) or deactivated. (opted-out invitees are already
+    // excluded by the roster view.)
+    if (r.profile_status === "pending" || r.profile_status === "inactive") return false;
     if (r.latest_attempt_status === "passed") return false;
     return new Date(r.delivery_scheduled_date).getTime() + overdueMs < now;
   });
