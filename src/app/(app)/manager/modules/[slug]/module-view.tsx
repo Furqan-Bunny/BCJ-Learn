@@ -249,7 +249,9 @@ export function ManagerModuleView({
                 <p className="text-sm text-muted-foreground mt-1">{lesson.description}</p>
 
                 <div className="mt-4 space-y-1.5">
-                  {lesson.contents.map((item) => {
+                  {/* Items the lead marked "hide from employee preview" are
+                      kept out of pre-study (they still play in the live seminar). */}
+                  {lesson.contents.filter((item) => !item.previewHidden).map((item) => {
                     const meta = TYPE_META[item.type];
                     const Icon = meta.icon;
                     return (

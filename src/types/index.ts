@@ -77,6 +77,10 @@ export interface LessonContent {
   // When true, this item is hidden from the live presenter playlist (still
   // available to employees as optional pre-study material).
   presentationHidden?: boolean;
+  // When true, this item is hidden from the employee pre-study preview (the
+  // module page) — it still appears in the live seminar presenter. Lets a lead
+  // keep seminar-only material out of what employees can see beforehand.
+  previewHidden?: boolean;
 }
 
 export interface Lesson {

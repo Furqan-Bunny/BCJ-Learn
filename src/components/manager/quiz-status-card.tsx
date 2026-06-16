@@ -145,11 +145,16 @@ export function QuizStatusCard({
         title={t("status.awaitingTitle", { date: fmtDate(state.seminarDate) }) + (timeStr ? t("status.awaitingTimeSuffix", { time: timeStr }) : "")}
         description={t("status.awaitingDesc")}
         primaryAction={
-          <Button asChild variant="outline">
-            <Link href={`/manager/modules/${mod.slug}#seminar-outline`}>
-              {t("status.reviewMaterials")} <ArrowRight className="size-4 ml-1" />
-            </Link>
-          </Button>
+          // On the module page (full) the materials are right below, so the
+          // button would just confuse — only show it on the compact dashboard
+          // card, where it navigates to the module.
+          variant === "compact" ? (
+            <Button asChild variant="outline">
+              <Link href={`/manager/modules/${mod.slug}#seminar-outline`}>
+                {t("status.reviewMaterials")} <ArrowRight className="size-4 ml-1" />
+              </Link>
+            </Button>
+          ) : null
         }
         meta={[
           { icon: Calendar, label: t("status.metaTrainingDay"), value: timeStr ? `${fmtDate(state.seminarDate)} · ${timeStr}` : fmtDate(state.seminarDate) },
@@ -240,11 +245,13 @@ export function QuizStatusCard({
       title={t("status.earlyTitle", { module: mod.title })}
       description={t("status.earlyDesc")}
       primaryAction={
-        <Button asChild variant="outline">
-          <Link href={`/manager/modules/${mod.slug}#seminar-outline`}>
-            {t("status.reviewMaterials")} <ArrowRight className="size-4 ml-1" />
-          </Link>
-        </Button>
+        variant === "compact" ? (
+          <Button asChild variant="outline">
+            <Link href={`/manager/modules/${mod.slug}#seminar-outline`}>
+              {t("status.reviewMaterials")} <ArrowRight className="size-4 ml-1" />
+            </Link>
+          </Button>
+        ) : null
       }
       meta={[
         { icon: UserCheck, label: t("status.metaCheckedIn"), value: t("status.metaYes") },

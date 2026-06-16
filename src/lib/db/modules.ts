@@ -54,6 +54,7 @@ interface LessonContentRow {
     fileName?: string;
     fileSize?: string;
     presentationHidden?: boolean;
+    previewHidden?: boolean;
   } | null;
   order: number;
 }
@@ -115,6 +116,7 @@ function rowToLessonContent(r: LessonContentRow, locale: Locale): LessonContent 
     fileSize: meta.fileSize,
     storagePath: r.storage_path ?? undefined,
     presentationHidden: meta.presentationHidden ?? undefined,
+    previewHidden: meta.previewHidden ?? undefined,
   };
 }
 

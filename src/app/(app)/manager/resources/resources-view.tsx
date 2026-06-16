@@ -173,7 +173,7 @@ export function ResourcesEmployeeView({ initialResources }: { initialResources: 
       })}
 
       <Dialog open={!!viewing} onOpenChange={(v) => { if (!v) setViewing(null); }}>
-        <DialogContent className="sm:max-w-2xl">
+        <DialogContent className="sm:max-w-5xl w-[96vw] max-h-[92vh] overflow-y-auto">
           <DialogHeader>
             <Badge variant="outline" className="w-fit text-[10px] uppercase tracking-wider">
               {viewing?.category}

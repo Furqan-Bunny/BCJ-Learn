@@ -149,6 +149,7 @@ export async function createModule(input: CreateModuleInput): Promise<{ ok: bool
           fileName: c.fileName,
           fileSize: c.fileSize,
           presentationHidden: c.presentationHidden ?? false,
+          previewHidden: c.previewHidden ?? false,
         },
         order: i,
       }));
@@ -273,6 +274,7 @@ async function replaceLessons(
           fileName: c.fileName,
           fileSize: c.fileSize,
           presentationHidden: c.presentationHidden ?? false,
+          previewHidden: c.previewHidden ?? false,
         },
         order: i,
       }));

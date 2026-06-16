@@ -329,6 +329,11 @@ export function LessonsBuilder({ lessons, onChange, moduleSlug }: LessonsBuilder
                                     <EyeOff className="size-2.5" /> Not on presentation day
                                   </Badge>
                                 )}
+                                {c.previewHidden && (
+                                  <Badge variant="outline" className="text-[9px] gap-0.5 px-1 py-0 shrink-0 border-amber-500/40 text-amber-600 dark:text-amber-400">
+                                    <EyeOff className="size-2.5" /> Hidden from employees
+                                  </Badge>
+                                )}
                               </div>
                               <div className="text-[11px] text-muted-foreground flex items-center gap-2 min-w-0">
                                 <span className="shrink-0">{meta.label}</span>
@@ -436,6 +441,7 @@ function EditContentDialog({
   const [duration, setDuration] = React.useState<number>(5);
   const [url, setUrl] = React.useState("");
   const [hidden, setHidden] = React.useState(false);
+  const [previewHidden, setPreviewHidden] = React.useState(false);
 
   React.useEffect(() => {
     if (open && content) {
@@ -443,6 +449,7 @@ function EditContentDialog({
       setDuration(content.durationMinutes ?? 5);
       setUrl(content.externalUrl ?? content.videoUrl ?? "");
       setHidden(!!content.presentationHidden);
+      setPreviewHidden(!!content.previewHidden);
     }
   }, [open, content]);
 
@@ -456,6 +463,7 @@ function EditContentDialog({
       title: title.trim() || content!.title,
       durationMinutes: duration,
       presentationHidden: hidden,
+      previewHidden,
     };
     if (hasUrl && url.trim()) {
       if (content!.type === "link") patch.externalUrl = url.trim();
@@ -508,7 +516,24 @@ function EditContentDialog({
                 {hidden ? <EyeOff className="size-3.5" /> : <Eye className="size-3.5" />} Don&rsquo;t show on presentation day
               </div>
               <div className="text-[11px] text-muted-foreground">
-                Managers can still review it as optional pre-study material.
+                Hidden from the live presenter; employees can still review it as pre-study (unless also hidden below).
+              </div>
+            </div>
+          </label>
+
+          <label className="flex items-center gap-3 rounded-md border p-3 cursor-pointer hover:bg-accent/30">
+            <input
+              type="checkbox"
+              checked={previewHidden}
+              onChange={(e) => setPreviewHidden(e.target.checked)}
+              className="size-4 accent-[var(--primary)]"
+            />
+            <div className="flex-1">
+              <div className="text-sm font-medium flex items-center gap-1.5">
+                {previewHidden ? <EyeOff className="size-3.5" /> : <Eye className="size-3.5" />} Hide from employee preview
+              </div>
+              <div className="text-[11px] text-muted-foreground">
+                Employees won&rsquo;t see this in their pre-study materials before the seminar. It still appears in the live presenter.
               </div>
             </div>
           </label>
