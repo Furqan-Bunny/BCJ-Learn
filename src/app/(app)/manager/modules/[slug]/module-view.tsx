@@ -41,6 +41,8 @@ export interface ManagerModuleViewProps {
   checkinOpen?: boolean;
   managerName?: string;
   moduleSops?: ModuleSopStatus[];
+  /** Where the "All modules" link goes — staff land here via "Take it yourself". */
+  backHref?: string;
 }
 
 export function ManagerModuleView({
@@ -55,6 +57,7 @@ export function ManagerModuleView({
   checkinOpen = false,
   managerName = "",
   moduleSops = [],
+  backHref = "/manager/modules",
 }: ManagerModuleViewProps) {
   const t = useT();
   const [previewing, setPreviewing] = React.useState<LessonContent | null>(null);
@@ -97,7 +100,7 @@ export function ManagerModuleView({
         />
       )}
       <Button asChild variant="ghost" size="sm" className="mb-4 -ml-2">
-        <Link href="/manager/modules"><ArrowLeft className="size-4 mr-1" /> All Modules</Link>
+        <Link href={backHref}><ArrowLeft className="size-4 mr-1" /> All Modules</Link>
       </Button>
 
       <PageHeader

@@ -1,5 +1,6 @@
 import { getModule } from "@/lib/db/modules";
 import { getAccessibleModuleOr404 } from "@/lib/auth/module-access";
+import { getCurrentUser } from "@/lib/supabase/current-user";
 import { listAttemptsForModule } from "@/lib/db/attempts";
 import { listAssignableUsers } from "@/lib/db/profiles";
 import { getAddableEmployees } from "@/lib/server/module-actions";
@@ -18,6 +19,10 @@ export async function generateMetadata(props: PageProps<"/teacher/modules/[slug]
 export default async function TeacherModulePage(props: PageProps<"/teacher/modules/[slug]">) {
   const { slug } = await props.params;
   const mod = await getAccessibleModuleOr404(slug);
+
+  // Present / preview are owner-scoped (admins present any). Gate the buttons.
+  const me = await getCurrentUser();
+  const owns = me?.role === "admin" || (!!me && mod.ownerTeacherIds.includes(me.id));
 
   const [attempts, allManagers, deliveries, roster, counts, currentDelivery] = await Promise.all([
     listAttemptsForModule(slug),
@@ -47,6 +52,7 @@ export default async function TeacherModulePage(props: PageProps<"/teacher/modul
       managersById={managersById}
       currentDeliveryStart={currentDelivery?.startedAt ?? null}
       addableManagers={addableManagers}
+      owns={owns}
     />
   );
 }

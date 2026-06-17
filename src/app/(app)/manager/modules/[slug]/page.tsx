@@ -40,6 +40,11 @@ export default async function ManagerModulePage(props: PageProps<"/manager/modul
 
   const totalMinutes = mod.lessons.reduce((sum, l) => sum + l.durationMinutes, 0);
 
+  // Staff reach this page via "Take it yourself" — send their "back" link to the
+  // right list (a lead's /manager/modules list is empty, so it must not go there).
+  const backHref =
+    me.role === "admin" ? "/admin/modules" : me.role === "teacher" ? "/teacher/modules" : "/manager/modules";
+
   // Primary teacher (first owner if any). Fetched via getModuleTrainer because
   // managers have no RLS read on staff profiles — it returns only name + bio.
   const primaryTeacherId = mod.ownerTeacherIds[0];
@@ -61,6 +66,7 @@ export default async function ManagerModulePage(props: PageProps<"/manager/modul
       checkinOpen={!!delivery?.checkinOpenedAt}
       managerName={me.name}
       moduleSops={moduleSops}
+      backHref={backHref}
     />
   );
 }

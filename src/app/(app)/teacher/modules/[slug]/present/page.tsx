@@ -1,4 +1,4 @@
-import { getAccessibleModuleOr404 } from "@/lib/auth/module-access";
+import { getOwnedModuleOr404 } from "@/lib/auth/module-access";
 import { getCurrentDelivery } from "@/lib/db/deliveries";
 import { ensurePresentableContent, attachSignedMedia } from "@/lib/server/present-content";
 import { getViewedContentIds } from "@/lib/server/content-views";
@@ -12,7 +12,7 @@ export default async function PresenterPage(props: PageProps<"/teacher/modules/[
   const preview = sp?.preview === "1";
 
   // Only an owning lead (or admin) may present this module.
-  const mod = await getAccessibleModuleOr404(slug);
+  const mod = await getOwnedModuleOr404(slug);
 
   // Extract & cache real text for uploaded documents + slides (first present
   // only) so they render their actual content instead of a placeholder.

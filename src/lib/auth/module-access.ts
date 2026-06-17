@@ -19,3 +19,15 @@ export async function getAccessibleModuleOr404(slug: string): Promise<ModuleDef>
   if (me && me.role !== "admin" && me.role !== "teacher") notFound();
   return mod;
 }
+
+// Stricter guard for OWNER-only surfaces (present + results): an admin passes,
+// a Department Lead passes only for a module they own. A non-owning lead is 404'd
+// even via a direct URL — so "Present" / "See results" are truly scoped to the
+// modules assigned to that lead (the buttons are also hidden in their list).
+export async function getOwnedModuleOr404(slug: string): Promise<ModuleDef> {
+  const [mod, me] = await Promise.all([getModule(slug), getCurrentUser()]);
+  if (!mod || !me) notFound();
+  if (me.role === "admin") return mod;
+  if (me.role === "teacher" && mod.ownerTeacherIds.includes(me.id)) return mod;
+  notFound();
+}

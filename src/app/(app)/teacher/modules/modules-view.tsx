@@ -39,7 +39,7 @@ export function TeacherModulesView({ me, myModules, ownedSlugs, teachers, defaul
       <PageHeader
         eyebrow="My library"
         title="Modules"
-        description="Every module. Present any of them, take the quiz yourself, or check results. Edit controls show on the modules you own."
+        description="Every module — take any quiz yourself. Present, edit, and see results on the modules assigned to you."
         actions={<AddModuleSheet teachers={teachers} defaultNumber={defaultNumber} lockedOwnerId={me.id} />}
       />
 
@@ -90,12 +90,16 @@ function ModuleCard({ m, owns }: { m: ModuleDef; owns: boolean }) {
         </div>
 
         <div className="mt-auto pt-4 grid grid-cols-2 gap-2">
-          <Button asChild size="sm" className="col-span-2">
-            <Link href={`/teacher/modules/${m.slug}/present`}>
-              <PresentationIcon className="mr-1.5 size-3.5" /> Present in seminar
-            </Link>
-          </Button>
-          {/* Take the module yourself — content, check-in and the quiz, like a manager. */}
+          {/* Present is scoped to the modules a lead owns (admins present any). */}
+          {owns && (
+            <Button asChild size="sm" className="col-span-2">
+              <Link href={`/teacher/modules/${m.slug}/present`}>
+                <PresentationIcon className="mr-1.5 size-3.5" /> Present in seminar
+              </Link>
+            </Button>
+          )}
+          {/* Take the module yourself — content, check-in and the quiz, like a manager.
+              Available for every module. */}
           <Button asChild variant="outline" size="sm" className="col-span-2">
             <Link href={`/manager/modules/${m.slug}`}>
               <GraduationCap className="mr-1.5 size-3.5" /> Take it yourself
@@ -113,13 +117,13 @@ function ModuleCard({ m, owns }: { m: ModuleDef; owns: boolean }) {
                   <ListChecks className="mr-1.5 size-3.5" /> Questions
                 </Link>
               </Button>
+              <Button asChild variant="outline" size="sm" className="col-span-2">
+                <Link href={`/teacher/modules/${m.slug}/results`}>
+                  <BarChart3 className="mr-1.5 size-3.5" /> See results
+                </Link>
+              </Button>
             </>
           )}
-          <Button asChild variant="outline" size="sm" className={owns ? "col-span-2" : "col-span-2"}>
-            <Link href={`/teacher/modules/${m.slug}/results`}>
-              <BarChart3 className="mr-1.5 size-3.5" /> See results
-            </Link>
-          </Button>
         </div>
       </CardContent>
     </Card>

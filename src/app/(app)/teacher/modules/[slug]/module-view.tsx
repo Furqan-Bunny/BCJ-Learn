@@ -24,6 +24,8 @@ export interface TeacherModuleViewProps {
   managersById: Record<string, Pick<Manager, "id" | "name" | "avatarColor" | "cohort">>;
   currentDeliveryStart: string | null;
   addableManagers?: AddableManager[];
+  /** Admin or the owning lead — gates the present / preview controls. */
+  owns?: boolean;
 }
 
 export function TeacherModuleView({
@@ -35,6 +37,7 @@ export function TeacherModuleView({
   managersById,
   currentDeliveryStart,
   addableManagers = [],
+  owns = false,
 }: TeacherModuleViewProps) {
   const slug = mod.slug;
   const totalMinutes = mod.lessons.reduce((sum, l) => sum + l.durationMinutes, 0);
@@ -115,16 +118,20 @@ export function TeacherModuleView({
                   <GraduationCap className="mr-2 size-3.5" /> Take it yourself
                 </Link>
               </Button>
-              <Button asChild variant="outline" size="sm">
-                <Link href={`/teacher/modules/${slug}/present?preview=1`}>
-                  <Eye className="mr-2 size-3.5" /> Preview
-                </Link>
-              </Button>
-              <Button asChild size="sm">
-                <Link href={`/teacher/modules/${slug}/present`}>
-                  <PresentationIcon className="mr-2 size-3.5" /> Present
-                </Link>
-              </Button>
+              {owns && (
+                <>
+                  <Button asChild variant="outline" size="sm">
+                    <Link href={`/teacher/modules/${slug}/present?preview=1`}>
+                      <Eye className="mr-2 size-3.5" /> Preview
+                    </Link>
+                  </Button>
+                  <Button asChild size="sm">
+                    <Link href={`/teacher/modules/${slug}/present`}>
+                      <PresentationIcon className="mr-2 size-3.5" /> Present
+                    </Link>
+                  </Button>
+                </>
+              )}
             </div>
           </div>
           <ul className="space-y-2">

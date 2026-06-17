@@ -1,4 +1,4 @@
-import { getAccessibleModuleOr404 } from "@/lib/auth/module-access";
+import { getOwnedModuleOr404 } from "@/lib/auth/module-access";
 import { listAttemptsForModule } from "@/lib/db/attempts";
 import { listQuestionsForModule } from "@/lib/db/questions";
 import { listManagers } from "@/lib/db/profiles";
@@ -9,7 +9,8 @@ import type { Manager } from "@/types";
 
 export default async function TeacherModuleResultsPage(props: PageProps<"/teacher/modules/[slug]/results">) {
   const { slug } = await props.params;
-  const mod = await getAccessibleModuleOr404(slug);
+  // Owner-only (or admin) — leads see results for their own modules.
+  const mod = await getOwnedModuleOr404(slug);
 
   const [attempts, questions, managers, distribution, roster, counts] = await Promise.all([
     listAttemptsForModule(slug),
