@@ -22,6 +22,8 @@ interface RosterRow {
   module_slug: string;
   delivery_scheduled_date: string | null;
   latest_attempt_status: string | null;
+  latest_attempt_at: string | null;
+  failed_count: number | null;
   profile_status: string | null;
 }
 
@@ -42,25 +44,60 @@ export async function GET(request: Request) {
   // Candidate overdue rows from the current-delivery roster view.
   const { data: rosterData, error: rosterErr } = await admin
     .from("module_roster_view")
-    .select("manager_id, name, email, module_slug, delivery_scheduled_date, latest_attempt_status, profile_status");
+    .select("manager_id, name, email, module_slug, delivery_scheduled_date, latest_attempt_status, latest_attempt_at, failed_count, profile_status");
   if (rosterErr) {
     return NextResponse.json({ error: rosterErr.message }, { status: 500 });
   }
 
   const now = Date.now();
   const overdueMs = rules.overdueDays * 24 * 60 * 60 * 1000;
-  const candidates = ((rosterData ?? []) as RosterRow[]).filter((r) => {
-    if (!r.delivery_scheduled_date || !r.email) return false;
-    // Never remind people who can't act on it: pending (never accepted the
-    // invite / no password) or deactivated. (opted-out invitees are already
-    // excluded by the roster view.)
-    if (r.profile_status === "pending" || r.profile_status === "inactive") return false;
-    if (r.latest_attempt_status === "passed") return false;
-    return new Date(r.delivery_scheduled_date).getTime() + overdueMs < now;
+  const allRows = (rosterData ?? []) as RosterRow[];
+
+  // Shared "can we even remind this person" gate.
+  const reachable = (r: RosterRow) =>
+    !!r.email &&
+    r.profile_status !== "pending" &&
+    r.profile_status !== "inactive" &&
+    r.latest_attempt_status !== "passed";
+
+  // (1) Initial overdue — invited, seminar date passed by overdue_days, not passed.
+  const overdueCandidates = allRows.filter(
+    (r) => reachable(r) && !!r.delivery_scheduled_date &&
+      new Date(r.delivery_scheduled_date!).getTime() + overdueMs < now,
+  );
+
+  // (2) Overdue RETAKE — failed and hasn't retaken within retake_overdue_days.
+  // Only failures that still leave attempts (1-2; >=3 is locked, needs an admin
+  // unlock, so we don't nag them). Flagged at-risk + reminded.
+  const retakeMs = rules.retakeOverdueDays * 24 * 60 * 60 * 1000;
+  const retakeCandidates = allRows.filter(
+    (r) => reachable(r) && r.latest_attempt_status === "failed" &&
+      (r.failed_count ?? 0) >= 1 && (r.failed_count ?? 0) < 3 &&
+      !!r.latest_attempt_at && new Date(r.latest_attempt_at!).getTime() + retakeMs < now,
+  );
+
+  // Flag overdue-retake managers at-risk (idempotent — only those not already).
+  const toFlag = [...new Set(retakeCandidates.map((r) => r.manager_id))];
+  if (toFlag.length > 0) {
+    await admin
+      .from("profiles")
+      .update({ status: "at-risk" })
+      .in("id", toFlag)
+      .eq("role", "manager")
+      .eq("status", "active");
+  }
+
+  // Merge the two reminder lists (dedup by manager+module).
+  const seenKey = new Set<string>();
+  const candidates = [...overdueCandidates, ...retakeCandidates].filter((r) => {
+    const k = `${r.manager_id}:${r.module_slug}`;
+    if (seenKey.has(k)) return false;
+    seenKey.add(k);
+    return true;
   });
 
   if (candidates.length === 0) {
-    return NextResponse.json({ ok: true, sent: 0, candidates: 0 });
+    return NextResponse.json({ ok: true, sent: 0, candidates: 0, flagged: toFlag.length });
   }
 
   // Dedup: anyone already reminded in the last ~20h is skipped.
@@ -98,7 +135,8 @@ export async function GET(request: Request) {
       variables: {
         name: c.name,
         module_title: moduleTitle,
-        due_date: c.delivery_scheduled_date ?? "soon",
+        // A failed manager's "due date" is just "now" — the seminar already happened.
+        due_date: c.latest_attempt_status === "failed" ? "as soon as possible" : (c.delivery_scheduled_date ?? "soon"),
         quiz_link: `${appUrl}/manager/modules/${c.module_slug}/quiz`,
       },
     });
@@ -109,5 +147,5 @@ export async function GET(request: Request) {
     }
   }
 
-  return NextResponse.json({ ok: true, sent, skipped, candidates: candidates.length });
+  return NextResponse.json({ ok: true, sent, skipped, candidates: candidates.length, flagged: toFlag.length });
 }

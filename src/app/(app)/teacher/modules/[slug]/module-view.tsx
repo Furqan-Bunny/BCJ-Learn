@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, ArrowRight, FileText, Layers, PlayCircle, ListChecks, BarChart3, Link2, BookOpen, PresentationIcon, Users, GraduationCap } from "lucide-react";
+import { ArrowLeft, ArrowRight, FileText, Layers, PlayCircle, ListChecks, BarChart3, Link2, BookOpen, PresentationIcon, Users, GraduationCap, Eye } from "lucide-react";
 import { PageHeader } from "@/components/shared/page-header";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { ModuleRoster, type AddableManager } from "@/components/shared/module-roster";
@@ -113,6 +113,11 @@ export function TeacherModuleView({
               <Button asChild variant="outline" size="sm">
                 <Link href={`/manager/modules/${slug}`}>
                   <GraduationCap className="mr-2 size-3.5" /> Take it yourself
+                </Link>
+              </Button>
+              <Button asChild variant="outline" size="sm">
+                <Link href={`/teacher/modules/${slug}/present?preview=1`}>
+                  <Eye className="mr-2 size-3.5" /> Preview
                 </Link>
               </Button>
               <Button asChild size="sm">

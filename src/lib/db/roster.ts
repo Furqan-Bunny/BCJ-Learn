@@ -17,6 +17,10 @@ export interface RosterRow {
   status: RosterStatus;
   bestScore: number | null;
   attemptCount: number;
+  /** Failures since the effective cutoff (the live strike count). */
+  failedCount: number;
+  /** Used all 3 strikes on the current delivery — needs an admin unlock. */
+  locked: boolean;
   checkedIn: boolean;
   checkedInAt?: string;
 }
@@ -51,6 +55,8 @@ interface RosterViewRow {
   latest_attempt_status: string | null;
   latest_score_pct: number | null;
   latest_pool: string | null;
+  latest_attempt_at: string | null;
+  failed_count: number | null;
   checked_in: boolean;
   checked_in_at: string | null;
 }
@@ -88,11 +94,15 @@ function viewRowToRoster(r: RosterViewRow): RosterRow {
     flaggedReasons: [],
   };
 
+  const failedCount = r.failed_count ?? 0;
+
   return {
     manager,
     status,
     bestScore: r.latest_score_pct != null ? Number(r.latest_score_pct) : null,
     attemptCount: took ? 1 : 0,
+    failedCount,
+    locked: failedCount >= 3,
     checkedIn: r.checked_in,
     checkedInAt: r.checked_in_at ?? undefined,
   };

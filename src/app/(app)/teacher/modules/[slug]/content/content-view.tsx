@@ -9,7 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import {
   Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
 } from "@/components/ui/dialog";
-import { ArrowLeft, PresentationIcon, Save, Sparkles, Loader2, History, RotateCcw } from "lucide-react";
+import { ArrowLeft, PresentationIcon, Save, Sparkles, Loader2, History, RotateCcw, Eye } from "lucide-react";
 import { PageHeader } from "@/components/shared/page-header";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { LessonsBuilder } from "@/components/admin/lessons-builder";
@@ -88,6 +88,11 @@ export function TeacherContentView({ mod }: { mod: ModuleDef }) {
           <div className="flex items-center gap-2">
             <Button variant="outline" onClick={() => setHistoryOpen(true)}>
               <History className="mr-2 size-4" /> Version history
+            </Button>
+            <Button asChild variant="outline">
+              <Link href={`/teacher/modules/${slug}/present?preview=1`}>
+                <Eye className="mr-2 size-4" /> Preview presentation
+              </Link>
             </Button>
             <Button asChild variant="outline">
               <Link href={`/teacher/modules/${slug}/present`}>

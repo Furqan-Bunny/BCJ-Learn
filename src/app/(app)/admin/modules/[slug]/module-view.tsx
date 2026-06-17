@@ -13,7 +13,7 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import {
   ArrowLeft, ArrowUpRight, Calendar, Clock, Layers, Target, FileText, PlayCircle,
   Link2, ListChecks, BarChart3, Trophy, Users, AlertTriangle, PresentationIcon, Sparkles, Loader2,
-  Pencil, CheckCircle2, GraduationCap,
+  Pencil, CheckCircle2, GraduationCap, Eye,
 } from "lucide-react";
 import { PageHeader } from "@/components/shared/page-header";
 import { StatusBadge } from "@/components/shared/status-badge";
@@ -190,6 +190,11 @@ export function AdminModuleView({
             <Button asChild variant="outline">
               <Link href={`/manager/modules/${slug}`}>
                 <GraduationCap className="mr-2 size-4" /> Take it yourself
+              </Link>
+            </Button>
+            <Button asChild variant="outline">
+              <Link href={`/teacher/modules/${slug}/present?preview=1`}>
+                <Eye className="mr-2 size-4" /> Preview presentation
               </Link>
             </Button>
             <Button asChild>

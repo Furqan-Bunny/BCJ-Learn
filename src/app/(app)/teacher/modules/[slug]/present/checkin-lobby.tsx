@@ -10,7 +10,7 @@ import * as React from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { ArrowLeft, ArrowRight, Lock, Users, CheckCircle2, Loader2, Clock, RefreshCw } from "lucide-react";
+import { ArrowLeft, ArrowRight, Lock, Users, CheckCircle2, Loader2, Clock, RefreshCw, Eye } from "lucide-react";
 import { toast } from "sonner";
 import type { ModuleDef, CheckinState } from "@/types";
 import { openCheckIn, regenerateCheckinCode, getCheckinState } from "@/lib/server/module-actions";
@@ -119,6 +119,13 @@ export function CheckinLobby({ mod, onStart }: { mod: ModuleDef; onStart: () => 
               {opening ? <Loader2 className="size-5 mr-2 animate-spin" /> : null}
               {canOpen ? "Open check-in" : `Opens at ${mod.scheduledTime ? fmtTime12(mod.scheduledTime) : "start time"}`}
             </Button>
+            <div>
+              <Button asChild variant="ghost" size="sm" className="text-slate-300 hover:text-white hover:bg-white/10">
+                <Link href={`/teacher/modules/${mod.slug}/present?preview=1`}>
+                  <Eye className="size-4 mr-1.5" /> Preview the slides first
+                </Link>
+              </Button>
+            </div>
           </div>
         ) : (
           // ─── Check-in open: code + live roster ─────────────────────

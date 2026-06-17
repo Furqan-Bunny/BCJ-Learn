@@ -17,10 +17,12 @@ export default async function AtRiskPage() {
     const failedFirstAttempts = mine.filter((a) => a.status === "failed" && a.pool === "first-attempt").length;
     const passed = mine.filter((a) => a.status === "passed");
     const lowFirstAttempts = mine.filter((a) => a.pool === "first-attempt" && a.scorePct > 0 && a.scorePct < 70).length;
+    // Has the manager actually started a retake (a scheduled placeholder doesn't count)?
+    const retakeTaken = mine.some((a) => a.pool === "retake" && a.status !== "scheduled");
 
     const reasons: string[] = [];
     if (failedRetakes > 0) reasons.push(`Failed retake on ${failedRetakes} module${failedRetakes === 1 ? "" : "s"}`);
-    if (failedFirstAttempts > 0 && failedRetakes === 0) reasons.push(`Failed first attempt — retake auto-scheduled`);
+    if (failedFirstAttempts > 0 && failedRetakes === 0 && !retakeTaken) reasons.push("Overdue retake — failed but hasn't retaken yet");
     if (lowFirstAttempts > 0) reasons.push(`First attempt below 70% on ${lowFirstAttempts} module${lowFirstAttempts === 1 ? "" : "s"}`);
     if (mine.length === 0) reasons.push("No quiz attempts logged yet");
     const lastActiveMs = new Date(m.lastActiveAt).getTime();

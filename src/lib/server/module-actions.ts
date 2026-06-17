@@ -432,25 +432,9 @@ export async function unpublishModule(slug: string): Promise<{ ok: boolean; erro
   return { ok: true };
 }
 
-// ─── scheduleRedelivery (wraps RPC) ────────────────────────────────────
-
-export async function scheduleRedelivery(slug: string, newDate: string | null): Promise<{ ok: boolean; error?: string }> {
-  const guard = await requireAdminOrModuleOwner(slug);
-  if (!guard.ok) return { ok: false, error: guard.error };
-
-  if (DEMO_MODE) return { ok: true };
-
-  const sb = await createClient();
-  const { error } = await sb.rpc("schedule_redelivery", {
-    p_module_slug: slug,
-    p_new_start_date: newDate,
-  });
-  if (error) return { ok: false, error: error.message };
-
-  revalidatePath(`/admin/modules/${slug}`);
-  revalidatePath(`/teacher/modules/${slug}`);
-  return { ok: true };
-}
+// NOTE: the old `scheduleRedelivery` wrapper + its `schedule_redelivery` RPC are
+// retired — the live "schedule a new delivery" path is scheduleSeminar() below
+// (used by the ScheduleRedelivery UI component). The RPC remains dormant in the DB.
 
 // ─── editable seminar roster: add / remove an invitee ──────────────────
 
@@ -944,6 +928,16 @@ export async function resetManagerForModule(
     reason: reason ?? null,
   });
   if (error) return { ok: false, error: error.message };
+
+  // Truly unlock: clear an at-risk flag and remove stale non-terminal attempts so
+  // they can't resurrect. The strike count is cutoff-scoped (the reset_at just
+  // inserted moves the cutoff), so prior failures stop counting and the manager
+  // gets a fresh set of attempts.
+  await admin.from("profiles").update({ status: "active" })
+    .eq("id", managerId).eq("role", "manager").eq("status", "at-risk");
+  await admin.from("attempts").delete()
+    .eq("manager_id", managerId).eq("module_slug", moduleSlug)
+    .in("status", ["scheduled", "in-progress"]);
 
   await admin.from("activity").insert({
     kind: "retake_scheduled",

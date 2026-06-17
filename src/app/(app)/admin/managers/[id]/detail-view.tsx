@@ -8,7 +8,6 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   ArrowLeft,
   Bell,
-  RefreshCcw,
   Trash2,
   Ban,
   Mail,
@@ -26,7 +25,6 @@ import { initials, fmtDate, fmtRelative, fmtPct, fmtDuration } from "@/lib/forma
 import { toast } from "sonner";
 import { deactivateUser, reactivateUser, forceResetPassword, resendInvite, deleteUser } from "@/lib/server/admin-actions";
 import { sendReminder } from "@/lib/server/reminder-actions";
-import { resetManagerForModule } from "@/lib/server/module-actions";
 import { useRouter } from "next/navigation";
 import * as React from "react";
 import type { Manager, ModuleDef, Attempt } from "@/types";
@@ -118,24 +116,6 @@ export function ManagerDetailView({ m, modules, myAttempts, deliveriesByModule, 
     router.refresh();
   }
 
-  async function handleReassignRetake() {
-    // Reset the most recent module they failed (or the latest active one).
-    const failed = myAttempts.find((a) => a.status === "failed");
-    if (!failed) {
-      toast.error("No failed attempts to reset");
-      return;
-    }
-    setBusy(true);
-    const res = await resetManagerForModule(m.id, failed.moduleSlug);
-    setBusy(false);
-    if (!res.ok) {
-      toast.error(res.error ?? "Could not schedule retake");
-      return;
-    }
-    toast.success(`Retake scheduled for ${m.name}`);
-    router.refresh();
-  }
-
   function deliveryLabelFor(moduleSlug: string, attemptStartedAt: string): { label: string; index: number; isCurrent: boolean } | null {
     const deliveries = deliveriesByModule[moduleSlug] ?? [];
     const ts = new Date(attemptStartedAt).getTime();
@@ -188,9 +168,6 @@ export function ManagerDetailView({ m, modules, myAttempts, deliveriesByModule, 
             </Button>
             <Button variant="outline" onClick={handleSendReset}>
               <Mail className="mr-2 size-4" /> Send reset link
-            </Button>
-            <Button variant="outline" onClick={handleReassignRetake} disabled={busy}>
-              <RefreshCcw className="mr-2 size-4" /> Reassign retake
             </Button>
             <Button variant="outline" className="text-rose-600" onClick={handleDeactivate}>
               <Ban className="mr-2 size-4" /> {m.status === "inactive" ? "Reactivate" : "Deactivate"}

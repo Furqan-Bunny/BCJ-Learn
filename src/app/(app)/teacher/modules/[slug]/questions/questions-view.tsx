@@ -37,6 +37,7 @@ import {
   getQuestionResponders,
   backfillModuleSpanish,
   deleteOlderContentQuestions,
+  deleteRejectedQuestions,
   type QuestionResponder,
 } from "@/lib/server/ai-actions";
 import { publishModule } from "@/lib/server/module-actions";
@@ -58,6 +59,7 @@ export function TeacherQuestionsView({ mod, initialQuestions }: TeacherQuestions
   const [selected, setSelected] = React.useState<string | null>(initialQuestions[0]?.id ?? null);
   const [generating, setGenerating] = React.useState(false);
   const [deletingOlder, setDeletingOlder] = React.useState(false);
+  const [deletingRejected, setDeletingRejected] = React.useState(false);
   const [translating, setTranslating] = React.useState(false);
   const [busyId, setBusyId] = React.useState<string | null>(null);
   const [editOpen, setEditOpen] = React.useState(false);
@@ -203,6 +205,20 @@ export function TeacherQuestionsView({ mod, initialQuestions }: TeacherQuestions
     router.refresh();
   }
 
+  async function handleDeleteRejected() {
+    if (counts.rejected === 0) return;
+    if (!window.confirm(
+      `Permanently delete all ${counts.rejected} rejected question${counts.rejected === 1 ? "" : "s"} for this module? Rejected questions never appear on the quiz; this just clears them from review. This can't be undone.`,
+    )) return;
+    setDeletingRejected(true);
+    const res = await deleteRejectedQuestions(mod.slug);
+    setDeletingRejected(false);
+    if (!res.ok) { toast.error(res.error ?? "Could not delete"); return; }
+    if (statusFilter === "rejected") setStatusFilter("all");
+    toast.success(`Removed ${res.removed ?? 0} rejected question${(res.removed ?? 0) === 1 ? "" : "s"}`);
+    router.refresh();
+  }
+
   async function handleTranslate() {
     if (DEMO_MODE) {
       toast.success("Demo mode: skipping Spanish translation (no API call)");
@@ -260,6 +276,17 @@ export function TeacherQuestionsView({ mod, initialQuestions }: TeacherQuestions
               >
                 {deletingOlder ? <Loader2 className="size-4 animate-spin" /> : <Trash2 className="size-4" />}
                 Delete older content ({olderCount})
+              </Button>
+            )}
+            {counts.rejected > 0 && (
+              <Button
+                variant="outline"
+                onClick={handleDeleteRejected}
+                disabled={deletingRejected}
+                className="gap-2 text-destructive hover:text-destructive border-destructive/30 hover:bg-destructive/5"
+              >
+                {deletingRejected ? <Loader2 className="size-4 animate-spin" /> : <Trash2 className="size-4" />}
+                Delete rejected ({counts.rejected})
               </Button>
             )}
             {SHOW_SPANISH && (
@@ -329,6 +356,7 @@ export function TeacherQuestionsView({ mod, initialQuestions }: TeacherQuestions
             <TabsTrigger value="all">Any status</TabsTrigger>
             <TabsTrigger value="pending">Pending</TabsTrigger>
             <TabsTrigger value="approved">Approved</TabsTrigger>
+            <TabsTrigger value="rejected">Rejected</TabsTrigger>
           </TabsList>
         </Tabs>
         {olderCount > 0 && (

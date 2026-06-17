@@ -64,6 +64,7 @@ export function NotificationsView({ recent, initialRules, profilesById, template
   const [activeTpl, setActiveTpl] = React.useState<string>(templates[0]?.key ?? "");
   const [autoReminders, setAutoReminders] = React.useState(initialRules.autoReminders);
   const [overdueDays, setOverdueDays] = React.useState(initialRules.overdueDays);
+  const [retakeOverdueDays, setRetakeOverdueDays] = React.useState(initialRules.retakeOverdueDays);
   const [saving, setSaving] = React.useState(false);
   const [savingRules, setSavingRules] = React.useState(false);
   const [testing, setTesting] = React.useState(false);
@@ -180,7 +181,7 @@ export function NotificationsView({ recent, initialRules, profilesById, template
 
   async function handleSaveRules() {
     setSavingRules(true);
-    const result = await updateReminderRules({ autoReminders, overdueDays });
+    const result = await updateReminderRules({ autoReminders, overdueDays, retakeOverdueDays });
     setSavingRules(false);
     if (!result.ok) {
       toast.error(result.error ?? "Could not save");
@@ -347,6 +348,22 @@ export function NotificationsView({ recent, initialRules, profilesById, template
                   max={30}
                   value={overdueDays}
                   onChange={(e) => setOverdueDays(Number(e.target.value))}
+                  className="w-24"
+                />
+              </div>
+              <div className="flex items-center justify-between gap-4">
+                <div>
+                  <Label className="font-medium">Remind about retakes after (days)</Label>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    A manager who failed but hasn&rsquo;t retaken within {retakeOverdueDays} days is flagged at-risk and reminded.
+                  </p>
+                </div>
+                <Input
+                  type="number"
+                  min={1}
+                  max={90}
+                  value={retakeOverdueDays}
+                  onChange={(e) => setRetakeOverdueDays(Number(e.target.value))}
                   className="w-24"
                 />
               </div>

@@ -143,16 +143,18 @@ export function ModuleRoster({
     router.refresh();
   }
 
-  async function handleReset(managerId: string, name: string) {
+  async function handleReset(managerId: string, name: string, unlock = false) {
     setBusy(managerId);
-    const res = await resetManagerForModule(managerId, moduleSlug);
+    const res = await resetManagerForModule(managerId, moduleSlug, unlock ? "Unlocked after 3 attempts" : undefined);
     setBusy(null);
     if (!res.ok) {
       toast.error(res.error ?? "Failed to reset");
       return;
     }
-    toast.success(`${name} reset for next delivery`, {
-      description: "Their past attempts stay in history. Status is now Awaiting.",
+    toast.success(unlock ? `${name} unlocked — fresh attempts granted` : `${name} reset for next delivery`, {
+      description: unlock
+        ? "Their past attempts stay in history. They can take the quiz again now."
+        : "Their past attempts stay in history. Status is now Awaiting.",
     });
     router.refresh();
   }
@@ -482,17 +484,19 @@ export function ModuleRoster({
                         <DropdownMenuItem asChild>
                           <Link href={`${managerLinkBase}/${r.manager.id}`}>View profile</Link>
                         </DropdownMenuItem>
-                        {r.status === "didnt-attempt" && (
+                        {/* Failed managers retake themselves any time — admins just nudge
+                            them. The only retake-control is "unlock" for the locked case. */}
+                        {(r.status === "didnt-attempt" || (r.status === "failed" && !r.locked)) && (
                           <DropdownMenuItem onClick={() => handleRemindOne(r.manager.id, r.manager.name)}>
                             <Bell className="mr-2 size-4" /> Send reminder
                           </DropdownMenuItem>
                         )}
-                        {r.status === "failed" && (
-                          <DropdownMenuItem onClick={() => handleReset(r.manager.id, r.manager.name)}>
-                            <RefreshCcw className="mr-2 size-4" /> Schedule retake
+                        {r.locked && (
+                          <DropdownMenuItem onClick={() => handleReset(r.manager.id, r.manager.name, true)}>
+                            <RefreshCcw className="mr-2 size-4" /> Reset attempts (unlock)
                           </DropdownMenuItem>
                         )}
-                        {(r.status === "passed" || r.status === "failed" || r.status === "didnt-attempt") && (
+                        {r.status === "passed" && (
                           <DropdownMenuItem onClick={() => handleReset(r.manager.id, r.manager.name)}>
                             <RotateCcw className="mr-2 size-4" /> Reset for next delivery
                           </DropdownMenuItem>

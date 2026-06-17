@@ -32,27 +32,39 @@ const TYPE_META: Record<ContentType, { icon: React.ComponentType<{ className?: s
   link:     { icon: Link2,      label: "Link",     tint: "text-violet-400 bg-violet-500/15" },
 };
 
+// Lets the global "F" key fullscreen the SAME element the per-document Fullscreen
+// button does. The active file viewer registers its element here; if none is
+// mounted (e.g. a text slide), F falls back to fullscreening the whole stage.
+const ViewerFullscreenContext = React.createContext<React.MutableRefObject<HTMLElement | null> | null>(null);
+
 export function PresenterView({
   mod,
   startInPresentation = false,
   initialViewedContentIds = [],
+  preview = false,
 }: {
   mod: ModuleDef;
   startInPresentation?: boolean;
   initialViewedContentIds?: string[];
+  // Read-only preview: render the live stage but skip the lobby, never start/end
+  // a session, and never record content views. Pure look-and-feel, zero writes.
+  preview?: boolean;
 }) {
   const slug = mod.slug;
   const router = useRouter();
 
-  // Phase 1 = check-in lobby, Phase 2 = presentation. Start in the lobby unless
-  // the session was already begun.
-  const [phase, setPhase] = React.useState<"lobby" | "presenting">(startInPresentation ? "presenting" : "lobby");
+  // Phase 1 = check-in lobby, Phase 2 = presentation. Preview jumps straight to
+  // the stage; otherwise start in the lobby unless the session already began.
+  const [phase, setPhase] = React.useState<"lobby" | "presenting">(
+    preview || startInPresentation ? "presenting" : "lobby",
+  );
 
   // Content items the user has already viewed in this delivery. Hydrated from
   // `content_views` on mount so completion persists across reloads / Back.
   const [viewed, setViewed] = React.useState<Set<string>>(() => new Set(initialViewedContentIds));
 
   function markViewed(contentId: string) {
+    if (preview) return; // preview records nothing (no views, no strike-throughs)
     setViewed((prev) => {
       if (prev.has(contentId)) return prev;
       const next = new Set(prev);
@@ -83,6 +95,9 @@ export function PresenterView({
   const [navOpen, setNavOpen] = React.useState(false);
   const [isFullscreen, setIsFullscreen] = React.useState(false);
   const stageRef = React.useRef<HTMLDivElement | null>(null);
+  // The currently-mounted file viewer's element (set by FullscreenFrame), so the
+  // F key can fullscreen the document itself rather than the whole stage.
+  const viewerElRef = React.useRef<HTMLElement | null>(null);
 
   React.useEffect(() => {
     function onChange() {
@@ -117,10 +132,21 @@ export function PresenterView({
     else enterFullscreen();
   }
 
+  // F key: fullscreen the active document viewer (identical to its own Fullscreen
+  // button). Falls back to the whole stage when the current item isn't a file viewer.
+  function toggleContentFullscreen() {
+    if (typeof document === "undefined") return;
+    if (document.fullscreenElement) { void document.exitFullscreen(); return; }
+    const el = viewerElRef.current;
+    if (el) el.requestFullscreen().catch(() => { void enterFullscreen(); });
+    else void enterFullscreen();
+  }
+
   async function startPresentation() {
     setPhase("presenting");
     setRunning(true);
     void enterFullscreen();
+    if (preview) return; // preview never goes live (safety belt — lobby is skipped anyway)
     const res = await startSessionAction(slug);
     if (!res.ok) toast.error(res.error ?? "Could not start session");
   }
@@ -141,7 +167,7 @@ export function PresenterView({
       else if (e.key === "ArrowLeft" || e.key === "PageUp") { e.preventDefault(); prev(); }
       else if (e.key === " ") { e.preventDefault(); setRunning((r) => !r); }
       else if (e.key === "Escape" && navOpen) { setNavOpen(false); }
-      else if (e.key === "f" || e.key === "F") { e.preventDefault(); toggleFullscreen(); }
+      else if (e.key === "f" || e.key === "F") { e.preventDefault(); toggleContentFullscreen(); }
     }
     document.addEventListener("keydown", handler);
     return () => document.removeEventListener("keydown", handler);
@@ -211,11 +237,15 @@ export function PresenterView({
           </Link>
         </Button>
         <div className="ml-2 flex items-center gap-2">
-          <Badge className="bg-[var(--gold)] text-slate-900 border-transparent uppercase tracking-wider text-[10px]">
-            Presenter
+          <Badge className={cn(
+            "border-transparent uppercase tracking-wider text-[10px] text-slate-900",
+            preview ? "bg-amber-400" : "bg-[var(--gold)]",
+          )}>
+            {preview ? "Preview" : "Presenter"}
           </Badge>
           <span className="text-sm font-medium">{mod.title}</span>
           <span className="text-xs text-slate-400">— Module {mod.number}</span>
+          {preview && <span className="text-[11px] text-amber-300/90">Not live — nothing is recorded</span>}
         </div>
 
         <div className="flex-1 mx-6 max-w-2xl">
@@ -344,17 +374,23 @@ export function PresenterView({
           })}
         </aside>
 
-        <main className="overflow-y-auto p-8 flex flex-col">
-          {current && (
-            <ContentStage
-              content={current.content}
-              lessonTitle={current.lesson.title}
-              onVideoEnd={next}
-              autoplay={running}
-            />
-          )}
+        <main className="flex flex-col min-h-0">
+          <ViewerFullscreenContext.Provider value={viewerElRef}>
+            <div className="flex-1 overflow-y-auto p-8">
+              {current && (
+                <ContentStage
+                  content={current.content}
+                  lessonTitle={current.lesson.title}
+                  onVideoEnd={next}
+                  autoplay={running}
+                />
+              )}
+            </div>
+          </ViewerFullscreenContext.Provider>
 
-          <div className="mt-auto pt-6 flex items-center justify-between gap-4 sticky bottom-0 -mx-8 px-8 py-4 bg-gradient-to-t from-slate-950 via-slate-950 to-transparent">
+          {/* Solid footer bar — sits BELOW the scrollable content (never overlaps
+              the document, so the page is never cut at the bottom). */}
+          <div className="shrink-0 flex items-center justify-between gap-4 border-t border-white/10 bg-slate-950 px-8 py-4">
             <Button
               variant="outline"
               onClick={prev}
@@ -363,16 +399,31 @@ export function PresenterView({
             >
               <ArrowLeft className="size-4 mr-1.5" /> Previous
             </Button>
-            <div className="text-xs text-slate-400 tabular-nums">
-              Item {idx + 1} of {playlist.length}
+            <div className="flex flex-col items-center gap-1">
+              <div className="text-xs text-slate-400 tabular-nums">
+                Item {idx + 1} of {playlist.length}
+              </div>
+              <div className="hidden md:flex items-center gap-3 text-[10px] text-slate-500">
+                <span><kbd className="px-1.5 py-0.5 rounded bg-white/10 border border-white/20">←</kbd> <kbd className="px-1.5 py-0.5 rounded bg-white/10 border border-white/20">→</kbd> navigate</span>
+                <span><kbd className="px-1.5 py-0.5 rounded bg-white/10 border border-white/20">space</kbd> play/pause</span>
+                <span><kbd className="px-1.5 py-0.5 rounded bg-white/10 border border-white/20">F</kbd> fullscreen</span>
+              </div>
             </div>
             {idx === playlist.length - 1 ? (
-              <Button
-                onClick={endSession}
-                className="bg-emerald-500 hover:bg-emerald-600 text-white"
-              >
-                <GraduationCap className="size-4 mr-1.5" /> End session — open quiz
-              </Button>
+              preview ? (
+                <Button asChild className="bg-slate-700 hover:bg-slate-600 text-white">
+                  <Link href={`/teacher/modules/${slug}`}>
+                    <ArrowLeft className="size-4 mr-1.5" /> Exit preview
+                  </Link>
+                </Button>
+              ) : (
+                <Button
+                  onClick={endSession}
+                  className="bg-emerald-500 hover:bg-emerald-600 text-white"
+                >
+                  <GraduationCap className="size-4 mr-1.5" /> End session — open quiz
+                </Button>
+              )
             ) : (
               <Button
                 onClick={next}
@@ -385,11 +436,6 @@ export function PresenterView({
         </main>
       </div>
 
-      <div className="absolute bottom-4 right-6 text-[10px] text-slate-500 flex items-center gap-3">
-        <span><kbd className="px-1.5 py-0.5 rounded bg-white/10 border border-white/20">←</kbd> <kbd className="px-1.5 py-0.5 rounded bg-white/10 border border-white/20">→</kbd> navigate</span>
-        <span><kbd className="px-1.5 py-0.5 rounded bg-white/10 border border-white/20">space</kbd> play/pause</span>
-        <span><kbd className="px-1.5 py-0.5 rounded bg-white/10 border border-white/20">F</kbd> fullscreen</span>
-      </div>
     </div>
   );
 }
@@ -412,7 +458,7 @@ function ContentStage({
   // text-style content stays narrower for readability.
   const wide = content.type === "slides" || content.type === "video" || !!content.storagePath;
   return (
-    <div className={cn("mx-auto w-full", wide ? "max-w-6xl" : "max-w-4xl")}>
+    <div className={cn("mx-auto w-full pb-2", wide ? "max-w-6xl" : "max-w-4xl")}>
       <div className="flex items-center gap-2 mb-3">
         <span className={cn("size-7 rounded flex items-center justify-center", meta.tint)}>
           <Icon className="size-4" />
@@ -559,18 +605,28 @@ function StoredFilePresenter({
     );
   }
   if (ext === "pdf") {
-    return <iframe src={url} loading="eager" className="w-full h-[80vh] border-0 bg-white" title={content.title} />;
+    return (
+      <FullscreenFrame>
+        <iframe src={url} loading="eager" className="w-full h-full border-0 bg-white" title={content.title} />
+      </FullscreenFrame>
+    );
   }
   if (RAW_IMAGE_EXTS.includes(ext)) {
     return (
-      <div className="bg-slate-950 flex items-center justify-center p-4 max-h-[80vh] overflow-auto">
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src={url} alt={content.title} className="max-w-full max-h-[76vh] object-contain" />
-      </div>
+      <FullscreenFrame>
+        <div className="w-full h-full bg-slate-950 flex items-center justify-center p-4 overflow-auto">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={url} alt={content.title} className="max-w-full max-h-full object-contain" />
+        </div>
+      </FullscreenFrame>
     );
   }
   if (RAW_OFFICE_EXTS.includes(ext) && content.storagePath) {
-    return <OfficeEmbed path={content.storagePath} initialUrl={url} title={content.title} className="w-full h-[80vh] border-0 bg-white" />;
+    return (
+      <FullscreenFrame>
+        <OfficeEmbed path={content.storagePath} initialUrl={url} title={content.title} className="w-full h-full border-0 bg-white" />
+      </FullscreenFrame>
+    );
   }
   return (
     <div className="p-12 text-center">
@@ -581,6 +637,63 @@ function StoredFilePresenter({
           <Download className="size-4 mr-1.5" /> Download
         </a>
       </Button>
+    </div>
+  );
+}
+
+/**
+ * Wraps a file viewer (PDF / Office / image) with a thin toolbar that has a
+ * dedicated "Fullscreen" toggle so the document can fill the whole screen on its
+ * own (independent of the presenter's global fullscreen). Normal height is 80vh;
+ * fullscreen makes the viewer fill the screen via the Fullscreen API.
+ */
+function FullscreenFrame({ children }: { children: React.ReactNode }) {
+  const ref = React.useRef<HTMLDivElement | null>(null);
+  const [fs, setFs] = React.useState(false);
+  const reg = React.useContext(ViewerFullscreenContext);
+
+  React.useEffect(() => {
+    function onChange() {
+      setFs(typeof document !== "undefined" && document.fullscreenElement === ref.current);
+    }
+    document.addEventListener("fullscreenchange", onChange);
+    return () => document.removeEventListener("fullscreenchange", onChange);
+  }, []);
+
+  // Register this viewer as the F-key fullscreen target while it's mounted.
+  React.useEffect(() => {
+    if (!reg) return;
+    reg.current = ref.current;
+    return () => { if (reg.current === ref.current) reg.current = null; };
+  }, [reg]);
+
+  async function toggle() {
+    if (typeof document === "undefined") return;
+    try {
+      if (document.fullscreenElement) await document.exitFullscreen();
+      else await ref.current?.requestFullscreen();
+    } catch {
+      // Browser refused (no user gesture / unsupported) — non-fatal.
+    }
+  }
+
+  return (
+    <div
+      ref={ref}
+      className={cn("relative flex flex-col bg-slate-900", fs ? "h-screen w-screen" : "h-[72vh]")}
+    >
+      <div className="flex items-center justify-between gap-2 px-3 py-1.5 shrink-0 bg-slate-900 text-slate-300">
+        <span className="text-[11px] uppercase tracking-wider text-slate-500">Document</span>
+        <button
+          onClick={toggle}
+          title={fs ? "Exit fullscreen (Esc)" : "Fullscreen this document"}
+          className="inline-flex items-center gap-1.5 rounded-md border border-white/15 bg-white/5 hover:bg-white/15 text-white text-xs px-2.5 py-1 transition-colors"
+        >
+          {fs ? <Minimize2 className="size-3.5" /> : <Maximize2 className="size-3.5" />}
+          {fs ? "Exit fullscreen" : "Fullscreen"}
+        </button>
+      </div>
+      <div className="flex-1 min-h-0">{children}</div>
     </div>
   );
 }

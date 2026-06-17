@@ -102,6 +102,7 @@ export async function updateCertificateSettings(input: UpdateCertificateInput): 
 export interface UpdateReminderRulesInput {
   autoReminders: boolean;
   overdueDays: number;
+  retakeOverdueDays: number;
 }
 
 export async function updateReminderRules(input: UpdateReminderRulesInput): Promise<{ ok: boolean; error?: string }> {
@@ -110,6 +111,9 @@ export async function updateReminderRules(input: UpdateReminderRulesInput): Prom
 
   if (input.overdueDays < 1 || input.overdueDays > 30) {
     return { ok: false, error: "Threshold must be between 1 and 30 days" };
+  }
+  if (input.retakeOverdueDays < 1 || input.retakeOverdueDays > 90) {
+    return { ok: false, error: "Retake reminder must be between 1 and 90 days" };
   }
 
   if (DEMO_MODE) return { ok: true };
@@ -120,6 +124,7 @@ export async function updateReminderRules(input: UpdateReminderRulesInput): Prom
     .update({
       auto_reminders: input.autoReminders,
       overdue_days: input.overdueDays,
+      retake_overdue_days: input.retakeOverdueDays,
       updated_by: guard.userId,
     })
     .eq("id", "global");

@@ -27,7 +27,6 @@ import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 import * as React from "react";
 import { sendReminder } from "@/lib/server/reminder-actions";
-import { resetManagerForModule } from "@/lib/server/module-actions";
 import type { Attempt, Manager, ModuleDef, Question } from "@/types";
 import type { DeliveryRecord } from "@/lib/db/deliveries";
 
@@ -67,15 +66,6 @@ export function AttemptDetailView({ attempt, m, mod, questions, deliveries }: At
     router.refresh();
   }
 
-  async function handleScheduleRetake() {
-    setBusy(true);
-    const res = await resetManagerForModule(m.id, mod.slug);
-    setBusy(false);
-    if (!res.ok) { toast.error(res.error ?? "Could not schedule retake"); return; }
-    toast.success(`Retake scheduled for ${m.name}`);
-    router.refresh();
-  }
-
   const questionsById = new Map(questions.map((q) => [q.id, q]));
   const answeredQuestions = attempt.answers
     .map((ans) => {
@@ -106,11 +96,6 @@ export function AttemptDetailView({ attempt, m, mod, questions, deliveries }: At
             <Button variant="outline" onClick={handleSendReminder} disabled={busy}>
               <Bell className="mr-2 size-4" /> Send reminder
             </Button>
-            {!passed && (
-              <Button variant="outline" onClick={handleScheduleRetake} disabled={busy}>
-                <RefreshCcw className="mr-2 size-4" /> Schedule retake
-              </Button>
-            )}
           </div>
         }
       />
@@ -210,12 +195,11 @@ export function AttemptDetailView({ attempt, m, mod, questions, deliveries }: At
           <CardContent className="p-5 flex items-start gap-3">
             <RefreshCcw className="size-5 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
             <div className="flex-1">
-              <div className="font-semibold">Retake automatically scheduled</div>
+              <div className="font-semibold">Retake available any time</div>
               <p className="text-sm text-muted-foreground mt-0.5">
-                Because {m.name.split(" ")[0]} didn&rsquo;t pass, BCJ Learn has scheduled a retake using the easier question pool. They&rsquo;ll receive an email with the new date.
+                Because {m.name.split(" ")[0]} didn&rsquo;t pass, they can retake the quiz any time using the easier question pool — no new seminar needed. If they don&rsquo;t retake within a week they&rsquo;re flagged at-risk and reminded automatically. After 3 failed attempts they&rsquo;re locked and an admin must reset their attempts to unlock them.
               </p>
             </div>
-            {/* Override flow deferred to v1.1 — admin still has Reassign/Send reminder. */}
           </CardContent>
         </Card>
       )}

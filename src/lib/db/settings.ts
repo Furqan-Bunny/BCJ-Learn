@@ -14,6 +14,7 @@ export interface BrandingSettings {
 export interface ReminderRules {
   autoReminders: boolean;
   overdueDays: number;
+  retakeOverdueDays: number;
   updatedAt: string;
 }
 
@@ -31,6 +32,7 @@ interface ReminderRow {
   id: string;
   auto_reminders: boolean;
   overdue_days: number;
+  retake_overdue_days: number;
   updated_at: string;
 }
 
@@ -46,6 +48,7 @@ const DEFAULT_BRANDING: BrandingSettings = {
 const DEFAULT_REMINDERS: ReminderRules = {
   autoReminders: true,
   overdueDays: 3,
+  retakeOverdueDays: 7,
   updatedAt: new Date().toISOString(),
 };
 
@@ -114,6 +117,7 @@ export async function getReminderRules(): Promise<ReminderRules> {
   return {
     autoReminders: r.auto_reminders,
     overdueDays: r.overdue_days,
+    retakeOverdueDays: r.retake_overdue_days ?? 7,
     updatedAt: r.updated_at,
   };
 }

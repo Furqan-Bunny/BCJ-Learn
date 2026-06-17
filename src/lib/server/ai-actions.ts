@@ -433,6 +433,31 @@ export async function deleteOlderContentQuestions(
   return { ok: true, removed: count ?? 0 };
 }
 
+// Permanently delete every REJECTED question for a module. Rejected questions
+// never go live (only approved/edited are served), so this is safe — it just
+// clears the review screen of questions the owner has already discarded. Deletes
+// all rejected rows regardless of generated_by_ai (a manually-added, then-rejected
+// question goes too). question_options / attempt_answers cascade on delete.
+export async function deleteRejectedQuestions(
+  moduleSlug: string,
+): Promise<{ ok: boolean; error?: string; removed?: number }> {
+  const guard = await requireAdminOrModuleOwner(moduleSlug);
+  if (!guard.ok) return { ok: false, error: guard.error };
+  if (DEMO_MODE) return { ok: true, removed: 0 };
+
+  const admin = createAdminClient();
+  const { count, error } = await admin
+    .from("questions")
+    .delete({ count: "exact" })
+    .eq("module_slug", moduleSlug)
+    .eq("status", "rejected");
+  if (error) return { ok: false, error: error.message };
+
+  // Recompute counts (total drops; approved is unchanged) + revalidate pages.
+  await refreshQuestionCounts(admin, moduleSlug);
+  return { ok: true, removed: count ?? 0 };
+}
+
 // Returns drafts WITHOUT inserting — powers the interactive one-by-one review.
 export async function generateQuestionDrafts(
   moduleSlug: string,

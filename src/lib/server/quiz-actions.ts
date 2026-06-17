@@ -65,14 +65,34 @@ export async function startQuiz(moduleSlug: string): Promise<StartQuizResult> {
     return { ok: false, error: "Please read and acknowledge the required resources for this module before taking the quiz." };
   }
 
-  // Already-passed guard — block opening the quiz a second time.
-  const { data: priorAttempts, error: attemptsError } = await sb
+  // Scope the pass/lock decision to the CURRENT delivery and any admin reset, so a
+  // reset (or a new delivery) genuinely grants fresh attempts — and the open-gate
+  // count stays consistent with submit_quiz_attempt (which is cutoff-scoped). Without
+  // this, the lock counts failures all-time and an admin "unlock" never takes effect.
+  const [{ data: del }, { data: lastReset }] = await Promise.all([
+    sb.from("module_deliveries").select("started_at").eq("module_slug", moduleSlug).is("ended_at", null)
+      .order("delivery_index", { ascending: false }).limit(1).maybeSingle(),
+    sb.from("module_member_resets").select("reset_at").eq("manager_id", user.id).eq("module_slug", moduleSlug)
+      .order("reset_at", { ascending: false }).limit(1).maybeSingle(),
+  ]);
+  const cutoffTimes = [
+    (del as { started_at?: string } | null)?.started_at,
+    (lastReset as { reset_at?: string } | null)?.reset_at,
+  ].filter(Boolean) as string[];
+  const cutoffIso = cutoffTimes.length
+    ? new Date(Math.max(...cutoffTimes.map((t) => new Date(t).getTime()))).toISOString()
+    : null;
+
+  // Pass/lock guard — only attempts since the cutoff count.
+  let attemptsQuery = sb
     .from("attempts")
     .select("pool, status, started_at")
     .eq("manager_id", user.id)
     .eq("module_slug", moduleSlug)
     .order("started_at", { ascending: false })
     .limit(10);
+  if (cutoffIso) attemptsQuery = attemptsQuery.gte("started_at", cutoffIso);
+  const { data: priorAttempts, error: attemptsError } = await attemptsQuery;
 
   if (attemptsError) return { ok: false, error: attemptsError.message };
 
