@@ -46,19 +46,22 @@ const STATUS_BADGE: Record<CardStatus["kind"], { label: string; cls: string; ico
   "not-started": { label: "Available now", cls: "border-primary/40 text-primary bg-primary/[0.04]", icon: Sparkles },
 };
 
-type FilterKey = "all" | "todo" | "passed" | "action";
-const FILTERS: { key: FilterKey; label: string }[] = [
-  { key: "all", label: "All" },
-  { key: "todo", label: "To do" },
-  { key: "action", label: "Needs action" },
-  { key: "passed", label: "Passed" },
+type FilterKey = "all" | "todo" | "failed" | "passed";
+const FILTERS: { key: FilterKey }[] = [
+  { key: "all" },
+  { key: "todo" },
+  { key: "failed" },
+  { key: "passed" },
 ];
 
 function matchesFilter(status: CardStatus, filter: FilterKey): boolean {
   switch (filter) {
     case "all": return true;
     case "passed": return status.kind === "passed";
-    case "action": return status.kind === "retake" || status.kind === "locked";
+    // "Failed" = any module the manager attempted and didn't pass (whether they
+    // still have retakes left or have run out of attempts).
+    case "failed": return status.kind === "retake" || status.kind === "locked";
+    // "To do" = not yet attempted, or an attempt left in progress.
     case "todo": return status.kind === "not-started" || status.kind === "in-progress";
   }
 }
@@ -94,13 +97,12 @@ export function ManagerModulesView({ modules, myAttempts }: ManagerModulesViewPr
     }
     return map;
   }, [myAttempts]);
-  // Every published module is unlocked — no sequential gating. Show only
-  // published modules, ordered by scheduled training day (soonest first).
+  // No sequential gating — every visible module is open. The page already decided
+  // what's visible (published modules + any the manager has engaged with), so we
+  // just order by scheduled training day (soonest first), then module number.
   const orderKey = (m: (typeof modules)[number]) =>
     m.scheduledDate ? new Date(m.scheduledDate).getTime() : Number.MAX_SAFE_INTEGER;
-  const ordered = modules
-    .filter((m) => m.status === "published")
-    .sort((a, b) => orderKey(a) - orderKey(b) || a.number - b.number);
+  const ordered = [...modules].sort((a, b) => orderKey(a) - orderKey(b) || a.number - b.number);
   const nextModule = ordered.find((m) => !passedSlugs.has(m.slug));
 
   const t = useT();
@@ -115,11 +117,11 @@ export function ManagerModulesView({ modules, myAttempts }: ManagerModulesViewPr
   );
 
   const filterCounts = React.useMemo(() => {
-    const c: Record<FilterKey, number> = { all: ordered.length, todo: 0, action: 0, passed: 0 };
+    const c: Record<FilterKey, number> = { all: ordered.length, todo: 0, failed: 0, passed: 0 };
     for (const m of ordered) {
       const st = statusFor(m.slug);
       if (matchesFilter(st, "todo")) c.todo++;
-      if (matchesFilter(st, "action")) c.action++;
+      if (matchesFilter(st, "failed")) c.failed++;
       if (matchesFilter(st, "passed")) c.passed++;
     }
     return c;
@@ -281,7 +283,9 @@ export function ManagerModulesView({ modules, myAttempts }: ManagerModulesViewPr
             exit={{ opacity: 0 }}
             className="text-center py-16 text-muted-foreground"
           >
-            {t("modules.noMatch", { q: query })}
+            {ordered.length === 0 && !query
+              ? t("modules.nonePublished")
+              : t("modules.noMatch", { q: query })}
           </motion.div>
         )}
       </AnimatePresence>

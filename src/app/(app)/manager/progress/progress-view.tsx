@@ -22,6 +22,8 @@ export interface ManagerProgressViewProps {
   };
   modules: ModuleDef[];
   myAttempts: Attempt[];
+  /** One per passed module — drives the downloadable certificate list. */
+  certificates: { slug: string; title: string; number: number | null }[];
 }
 
 // 12-hour date+time from one timestamp (date-fns "h:mm a" is always 12-hour).
@@ -36,7 +38,7 @@ function fmtDuration(sec?: number): string | null {
   return m > 0 ? `${m}m ${s}s` : `${s}s`;
 }
 
-export function ManagerProgressView({ me, modules, myAttempts }: ManagerProgressViewProps) {
+export function ManagerProgressView({ me, modules, myAttempts, certificates }: ManagerProgressViewProps) {
   const t = useT();
   const ordered = [...modules].sort((a, b) => a.number - b.number);
   const moduleBySlug = new Map(modules.map((m) => [m.slug, m]));
@@ -48,10 +50,6 @@ export function ManagerProgressView({ me, modules, myAttempts }: ManagerProgress
   const HISTORY_PER_PAGE = 10;
   const [historyPage, setHistoryPage] = React.useState(0);
 
-  // Modules this employee has passed — each earns a downloadable certificate.
-  const passedModules = ordered.filter((m) =>
-    myAttempts.some((a) => a.moduleSlug === m.slug && a.status === "passed"),
-  );
 
   return (
     <>
@@ -88,7 +86,7 @@ export function ManagerProgressView({ me, modules, myAttempts }: ManagerProgress
       </div>
 
       {/* ─── Certificates (one per passed module) ──────────────────── */}
-      {passedModules.length > 0 && (
+      {certificates.length > 0 && (
         <Card className="mb-8 border-[var(--gold)]/30 bg-[var(--gold)]/5">
           <CardHeader>
             <CardTitle className="text-base flex items-center gap-2">
@@ -97,13 +95,13 @@ export function ManagerProgressView({ me, modules, myAttempts }: ManagerProgress
           </CardHeader>
           <CardContent>
             <ul className="grid sm:grid-cols-2 gap-2">
-              {passedModules.map((m) => (
+              {certificates.map((m) => (
                 <li key={m.slug} className="flex items-center gap-3 rounded-md border bg-card px-3 py-2.5">
                   <div className="size-9 rounded-md bg-emerald-100 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0">
                     <Award className="size-4" />
                   </div>
                   <div className="flex-1 min-w-0">
-                    <div className="text-sm font-medium truncate">M{m.number}: {m.title}</div>
+                    <div className="text-sm font-medium truncate">{m.number ? `M${m.number}: ` : ""}{m.title}</div>
                     <div className="text-[11px] text-muted-foreground">{t("progress.certificateEarned")}</div>
                   </div>
                   <Button asChild size="sm" variant="outline" className="shrink-0">

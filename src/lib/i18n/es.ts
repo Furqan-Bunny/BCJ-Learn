@@ -58,6 +58,7 @@ export const es: Record<string, string> = {
   "modules.filter.all": "Todos",
   "modules.filter.todo": "Pendientes",
   "modules.filter.action": "Requiere acción",
+  "modules.filter.failed": "Reprobados",
   "modules.filter.passed": "Aprobados",
   "modules.status.passed": "Aprobado",
   "modules.status.retake": "Reintentar",
@@ -73,6 +74,7 @@ export const es: Record<string, string> = {
   "modules.retakeBtn": "Reintentar",
   "modules.view": "Ver",
   "modules.noMatch": "Ningún módulo coincide con “{q}”.",
+  "modules.nonePublished": "Aún no se ha publicado ningún módulo de capacitación. Aparecerán aquí en cuanto su liderazgo los publique.",
 
   // ── module detail ──
   "module.trainingDay": "Día de capacitación",

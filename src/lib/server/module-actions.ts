@@ -982,14 +982,22 @@ export async function resetManagerForModule(
 // their own modules (migration 0048). Any role can be assigned (per 0043).
 export async function getAddableEmployees(
   moduleSlug: string,
-): Promise<{ id: string; name: string }[]> {
+): Promise<{ id: string; name: string; email: string; markets: string[] }[]> {
   const guard = await requireAdminOrModuleOwner(moduleSlug);
   if (!guard.ok) return [];
   const admin = createAdminClient();
-  const { data } = await admin.from("profiles").select("id, name, status").order("name");
-  return ((data ?? []) as { id: string; name: string; status: string | null }[])
+  const { data } = await admin.from("profiles").select("id, name, email, cohort, markets, status").order("name");
+  return ((data ?? []) as {
+    id: string; name: string; email: string | null;
+    cohort: string | null; markets: string[] | null; status: string | null;
+  }[])
     .filter((p) => p.status !== "inactive" && p.status !== "pending")
-    .map((p) => ({ id: p.id, name: p.name }));
+    .map((p) => ({
+      id: p.id,
+      name: p.name,
+      email: p.email ?? "",
+      markets: p.markets && p.markets.length > 0 ? p.markets : p.cohort ? [p.cohort] : [],
+    }));
 }
 
 // ─── updateModuleMetadata (admin) ──────────────────────────────────────

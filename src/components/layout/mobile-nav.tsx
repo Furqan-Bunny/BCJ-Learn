@@ -15,11 +15,17 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet";
 import { useRoleStore } from "@/store/role-store";
+import { useCurrentUser } from "@/lib/supabase/use-user";
 import { cn } from "@/lib/utils";
 import { NAV_BY_ROLE, ROLE_ICON, isActive } from "./sidebar";
 
+const DEMO_MODE = process.env.NEXT_PUBLIC_DEMO_MODE === "true";
+
 export function MobileNav({ brandName = "BCJ Learn" }: { brandName?: string }) {
-  const role = useRoleStore((s) => s.role);
+  // Real authenticated role drives the nav (not the persisted client store).
+  const { user } = useCurrentUser();
+  const storeRole = useRoleStore((s) => s.role);
+  const role = !DEMO_MODE && user?.role ? user.role : storeRole;
   const pathname = usePathname();
   const [open, setOpen] = React.useState(false);
 

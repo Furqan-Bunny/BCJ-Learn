@@ -84,15 +84,15 @@ export function RescheduleSeminar({ moduleSlug, moduleTitle, attendeeCount = 0, 
           </Button>
         )}
       </DialogTrigger>
-      <DialogContent className="sm:max-w-md">
-        <DialogHeader>
+      <DialogContent className="sm:max-w-md max-h-[90vh] flex flex-col">
+        <DialogHeader className="shrink-0">
           <DialogTitle>Reschedule seminar — {moduleTitle}</DialogTitle>
           <DialogDescription>
             Move this seminar to a new date. The same attendees stay invited and get an email about the new date.
           </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-4 py-1">
+        <div className="flex-1 min-h-0 overflow-y-auto space-y-4 py-1">
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
               <Label htmlFor="reschedule-date">New date</Label>
@@ -134,7 +134,7 @@ export function RescheduleSeminar({ moduleSlug, moduleTitle, attendeeCount = 0, 
           </div>
         )}
 
-        <DialogFooter>
+        <DialogFooter className="shrink-0">
           <Button variant="outline" onClick={() => setOpen(false)} disabled={submitting}>Cancel</Button>
           <Button onClick={handleConfirm} disabled={!date || submitting}>
             {submitting ? (

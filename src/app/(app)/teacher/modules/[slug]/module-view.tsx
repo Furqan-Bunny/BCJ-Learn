@@ -3,10 +3,10 @@
 import Link from "next/link";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, ArrowRight, FileText, Layers, PlayCircle, ListChecks, BarChart3, Link2, BookOpen, PresentationIcon, Users } from "lucide-react";
+import { ArrowLeft, ArrowRight, FileText, Layers, PlayCircle, ListChecks, BarChart3, Link2, BookOpen, PresentationIcon, Users, GraduationCap } from "lucide-react";
 import { PageHeader } from "@/components/shared/page-header";
 import { StatusBadge } from "@/components/shared/status-badge";
-import { ModuleRoster } from "@/components/shared/module-roster";
+import { ModuleRoster, type AddableManager } from "@/components/shared/module-roster";
 import { DeliveryHistory } from "@/components/shared/delivery-history";
 import { ScheduleRedelivery } from "@/components/admin/schedule-redelivery";
 import { RescheduleSeminar } from "@/components/admin/reschedule-seminar";
@@ -23,7 +23,7 @@ export interface TeacherModuleViewProps {
   deliveries: DeliveryRecord[];
   managersById: Record<string, Pick<Manager, "id" | "name" | "avatarColor" | "cohort">>;
   currentDeliveryStart: string | null;
-  addableManagers?: { id: string; name: string }[];
+  addableManagers?: AddableManager[];
 }
 
 export function TeacherModuleView({
@@ -108,6 +108,11 @@ export function TeacherModuleView({
               <Button asChild variant="outline" size="sm">
                 <Link href={`/teacher/modules/${slug}/content`}>
                   <BookOpen className="mr-2 size-3.5" /> Edit content
+                </Link>
+              </Button>
+              <Button asChild variant="outline" size="sm">
+                <Link href={`/manager/modules/${slug}`}>
+                  <GraduationCap className="mr-2 size-3.5" /> Take it yourself
                 </Link>
               </Button>
               <Button asChild size="sm">

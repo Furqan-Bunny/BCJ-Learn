@@ -25,7 +25,10 @@ export const useRoleStore = create<RoleState>()(
       authedUserId: ROLE_DEFAULT_USER.admin,
       setRole: (role) => set({ role, authedUserId: ROLE_DEFAULT_USER[role] }),
       setAuthedUserId: (id) => set({ authedUserId: id }),
-      logout: () => set({ role: "admin", authedUserId: null }),
+      // Sign-out must NOT reveal a higher-privilege view: reset to the LEAST
+      // privileged role (manager), never admin. The nav also derives from the
+      // real session now, so this is only a fallback for the signed-out instant.
+      logout: () => set({ role: "manager", authedUserId: null }),
     }),
     {
       name: "bcj-learn:role",

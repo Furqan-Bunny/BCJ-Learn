@@ -16,6 +16,10 @@ import { Badge } from "@/components/ui/badge";
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger,
+} from "@/components/ui/dialog";
+import { Checkbox } from "@/components/ui/checkbox";
 import { fmtPct, fmtRelative, initials } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
@@ -63,6 +67,14 @@ const STATUS_META: Record<RosterStatus, {
 
 type FilterKey = "all" | RosterStatus;
 
+/** An active person eligible to be added to the seminar roster. */
+export interface AddableManager {
+  id: string;
+  name: string;
+  email: string;
+  markets: string[];
+}
+
 interface ModuleRosterProps {
   moduleSlug: string;
   roster: RosterRow[];
@@ -72,8 +84,8 @@ interface ModuleRosterProps {
   managerLinkBase?: string;
   /** When true, show controls to add/remove people from the current seminar. */
   manageable?: boolean;
-  /** Active employees not currently on the roster — used by the "Add employee" picker. */
-  addableManagers?: { id: string; name: string }[];
+  /** Active employees not currently on the roster — used by the "Add managers" picker. */
+  addableManagers?: AddableManager[];
 }
 
 export function ModuleRoster({
@@ -145,15 +157,78 @@ export function ModuleRoster({
     router.refresh();
   }
 
-  async function handleAddInvitee(managerId: string, name: string) {
-    setBusy("add:" + managerId);
-    const res = await addInvitee(moduleSlug, managerId);
-    setBusy(null);
-    if (!res.ok) {
-      toast.error(res.error ?? "Could not add to seminar");
-      return;
+  // ─── "Add managers" picker modal: search + market filter + sort + multi-select ──
+  const [addOpen, setAddOpen] = React.useState(false);
+  const [addSearch, setAddSearch] = React.useState("");
+  const [addMarket, setAddMarket] = React.useState<string>("all");
+  const [addSort, setAddSort] = React.useState<"name-asc" | "name-desc" | "market">("name-asc");
+  const [addSelected, setAddSelected] = React.useState<Set<string>>(new Set());
+  const [adding, setAdding] = React.useState(false);
+
+  // Markets present among the addable people — drives the filter chips.
+  const addMarkets = React.useMemo(() => {
+    const s = new Set<string>();
+    addableManagers.forEach((m) => m.markets.forEach((mk) => mk && s.add(mk)));
+    return Array.from(s).sort();
+  }, [addableManagers]);
+
+  const addFiltered = React.useMemo(() => {
+    const list = addableManagers.filter((m) => {
+      if (addMarket !== "all" && !m.markets.includes(addMarket)) return false;
+      if (addSearch) {
+        const hay = `${m.name} ${m.email} ${m.markets.join(" ")}`.toLowerCase();
+        if (!hay.includes(addSearch.toLowerCase())) return false;
+      }
+      return true;
+    });
+    return [...list].sort((a, b) => {
+      if (addSort === "name-desc") return b.name.localeCompare(a.name);
+      if (addSort === "market") return (a.markets[0] ?? "").localeCompare(b.markets[0] ?? "") || a.name.localeCompare(b.name);
+      return a.name.localeCompare(b.name);
+    });
+  }, [addableManagers, addMarket, addSearch, addSort]);
+
+  const allFilteredSelected = addFiltered.length > 0 && addFiltered.every((m) => addSelected.has(m.id));
+  function toggleAddSelect(id: string) {
+    setAddSelected((prev) => {
+      const n = new Set(prev);
+      if (n.has(id)) n.delete(id); else n.add(id);
+      return n;
+    });
+  }
+  function toggleAddSelectAll() {
+    setAddSelected((prev) => {
+      if (allFilteredSelected) {
+        const n = new Set(prev);
+        addFiltered.forEach((m) => n.delete(m.id));
+        return n;
+      }
+      const n = new Set(prev);
+      addFiltered.forEach((m) => n.add(m.id));
+      return n;
+    });
+  }
+  function resetAddPicker() {
+    setAddSearch(""); setAddMarket("all"); setAddSort("name-asc"); setAddSelected(new Set());
+  }
+
+  async function handleAddSelected() {
+    const ids = [...addSelected];
+    if (ids.length === 0) return;
+    setAdding(true);
+    let added = 0, failed = 0;
+    for (const id of ids) {
+      const res = await addInvitee(moduleSlug, id);
+      if (res.ok) added++; else failed++;
     }
-    toast.success(`${name} added to the seminar`);
+    setAdding(false);
+    setAddOpen(false);
+    resetAddPicker();
+    if (added > 0) {
+      toast.success(`${added} manager${added === 1 ? "" : "s"} added to the seminar${failed ? ` · ${failed} could not be added` : ""}`);
+    } else {
+      toast.error("Could not add the selected managers");
+    }
     router.refresh();
   }
 
@@ -235,24 +310,109 @@ export function ModuleRoster({
           </Button>
         )}
         {manageable && addableManagers.length > 0 && (
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
+          <Dialog open={addOpen} onOpenChange={(o) => { setAddOpen(o); if (!o) resetAddPicker(); }}>
+            <DialogTrigger asChild>
               <Button size="sm">
-                <UserPlus className="size-3.5 mr-1.5" /> Add employee
+                <UserPlus className="size-3.5 mr-1.5" /> Add managers
               </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="start" className="max-h-72 overflow-y-auto">
-              {addableManagers.map((m) => (
-                <DropdownMenuItem
-                  key={m.id}
-                  onClick={() => handleAddInvitee(m.id, m.name)}
-                  disabled={busy === "add:" + m.id}
-                >
-                  {m.name}
-                </DropdownMenuItem>
-              ))}
-            </DropdownMenuContent>
-          </DropdownMenu>
+            </DialogTrigger>
+            <DialogContent className="sm:max-w-2xl max-h-[88vh] flex flex-col">
+              <DialogHeader className="shrink-0">
+                <DialogTitle>Add managers to this seminar</DialogTitle>
+                <DialogDescription>
+                  Search, filter by market, and select everyone you want to invite — then add them all at once.
+                </DialogDescription>
+              </DialogHeader>
+
+              <div className="flex-1 min-h-0 overflow-y-auto space-y-3 py-1">
+                {/* Search + sort */}
+                <div className="flex items-center gap-2">
+                  <div className="relative flex-1">
+                    <Search className="size-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                    <Input
+                      value={addSearch}
+                      onChange={(e) => setAddSearch(e.target.value)}
+                      placeholder="Search by name, email, market…"
+                      className="pl-9 h-10"
+                      autoFocus
+                    />
+                  </div>
+                  <select
+                    value={addSort}
+                    onChange={(e) => setAddSort(e.target.value as typeof addSort)}
+                    className="h-10 rounded-md border bg-card px-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                    aria-label="Sort managers"
+                  >
+                    <option value="name-asc">Name A–Z</option>
+                    <option value="name-desc">Name Z–A</option>
+                    <option value="market">Market</option>
+                  </select>
+                </div>
+
+                {/* Market filter chips */}
+                {addMarkets.length > 0 && (
+                  <div className="flex flex-wrap gap-1.5">
+                    <FilterPill active={addMarket === "all"} onClick={() => setAddMarket("all")} label="All markets" />
+                    {addMarkets.map((mk) => (
+                      <FilterPill key={mk} active={addMarket === mk} onClick={() => setAddMarket(mk)} label={mk} />
+                    ))}
+                  </div>
+                )}
+
+                {/* Select-all + count */}
+                <div className="flex items-center justify-between border-y py-2 px-1">
+                  <label className="flex items-center gap-2 text-sm font-medium cursor-pointer">
+                    <Checkbox checked={allFilteredSelected} onCheckedChange={toggleAddSelectAll} />
+                    Select all
+                  </label>
+                  <span className="text-xs text-muted-foreground">
+                    {addSelected.size} selected · {addFiltered.length} shown
+                  </span>
+                </div>
+
+                {/* People list */}
+                {addFiltered.length === 0 ? (
+                  <div className="p-8 text-center text-sm text-muted-foreground">No managers match your search.</div>
+                ) : (
+                  <ul className="divide-y rounded-md border">
+                    {addFiltered.map((m) => {
+                      const sel = addSelected.has(m.id);
+                      return (
+                        <li key={m.id}>
+                          <label className="flex items-center gap-3 px-3 py-2.5 cursor-pointer hover:bg-accent/40">
+                            <Checkbox checked={sel} onCheckedChange={() => toggleAddSelect(m.id)} />
+                            <Avatar className="size-8 border shrink-0">
+                              <AvatarFallback className="text-[11px] font-semibold bg-primary/10 text-primary">
+                                {initials(m.name)}
+                              </AvatarFallback>
+                            </Avatar>
+                            <div className="min-w-0 flex-1">
+                              <div className="text-sm font-medium truncate">{m.name}</div>
+                              <div className="text-xs text-muted-foreground truncate">{m.email || "No email"}</div>
+                            </div>
+                            <div className="flex flex-wrap gap-1 shrink-0 justify-end">
+                              {m.markets.map((mk) => (
+                                <Badge key={mk} variant="secondary" className="text-[10px]">{mk}</Badge>
+                              ))}
+                            </div>
+                          </label>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                )}
+              </div>
+
+              <DialogFooter className="shrink-0">
+                <Button variant="outline" onClick={() => setAddOpen(false)} disabled={adding}>Cancel</Button>
+                <Button onClick={handleAddSelected} disabled={adding || addSelected.size === 0}>
+                  {adding
+                    ? "Adding…"
+                    : `Add ${addSelected.size || ""} manager${addSelected.size === 1 ? "" : "s"}`.replace("  ", " ")}
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
         )}
         <div className="ml-auto text-xs text-muted-foreground">
           <Filter className="size-3 inline mr-1" />
@@ -265,7 +425,7 @@ export function ModuleRoster({
           {filtered.length === 0 ? (
             <div className="p-12 text-center text-muted-foreground">
               <Filter className="size-8 mx-auto mb-2 opacity-40" />
-              <div className="font-medium text-foreground">No employees match.</div>
+              <div className="font-medium text-foreground">No managers match.</div>
               <div className="text-sm mt-1">Try clearing filters.</div>
             </div>
           ) : (
@@ -355,6 +515,22 @@ export function ModuleRoster({
         </CardContent>
       </Card>
     </div>
+  );
+}
+
+function FilterPill({ active, onClick, label }: { active: boolean; onClick: () => void; label: string }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-pressed={active}
+      className={cn(
+        "px-2.5 h-7 rounded-full border text-xs font-medium transition-colors",
+        active ? "bg-primary text-primary-foreground border-primary" : "bg-card border-border hover:bg-accent",
+      )}
+    >
+      {label}
+    </button>
   );
 }
 

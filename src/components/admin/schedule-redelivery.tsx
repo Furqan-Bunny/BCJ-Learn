@@ -129,8 +129,8 @@ export function ScheduleRedelivery({
           </Button>
         )}
       </DialogTrigger>
-      <DialogContent className="sm:max-w-lg">
-        <DialogHeader>
+      <DialogContent className="sm:max-w-lg max-h-[90vh] flex flex-col">
+        <DialogHeader className="shrink-0">
           <Badge variant="outline" className="w-fit text-[10px] uppercase tracking-wider mb-2">
             Schedule seminar
           </Badge>
@@ -140,7 +140,7 @@ export function ScheduleRedelivery({
           </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-4 py-1">
+        <div className="flex-1 min-h-0 overflow-y-auto space-y-4 py-1">
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
               <Label htmlFor="new-delivery-date">Seminar date</Label>
@@ -243,7 +243,7 @@ export function ScheduleRedelivery({
           </div>
         )}
 
-        <DialogFooter>
+        <DialogFooter className="shrink-0">
           <Button variant="outline" onClick={() => setOpen(false)} disabled={submitting}>Cancel</Button>
           <Button onClick={handleConfirm} disabled={!newDate || submitting || loading}>
             {submitting ? (

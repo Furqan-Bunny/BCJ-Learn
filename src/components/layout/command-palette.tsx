@@ -28,8 +28,11 @@ import {
 } from "lucide-react";
 import { useTheme } from "next-themes";
 import { useRoleStore } from "@/store/role-store";
+import { useCurrentUser } from "@/lib/supabase/use-user";
 import { createClient } from "@/lib/supabase/client";
 import type { Role } from "@/types";
+
+const DEMO_MODE = process.env.NEXT_PUBLIC_DEMO_MODE === "true";
 
 interface CommandPaletteProps {
   open: boolean;
@@ -45,7 +48,10 @@ const EMPTY: QuickJumpItem = { modules: [], managers: [] };
 
 export function CommandPalette({ open, onOpenChange }: CommandPaletteProps) {
   const router = useRouter();
-  const role = useRoleStore((s) => s.role);
+  // Real authenticated role drives what the palette shows (not the client store).
+  const { user } = useCurrentUser();
+  const storeRole = useRoleStore((s) => s.role);
+  const role = !DEMO_MODE && user?.role ? user.role : storeRole;
   const setRole = useRoleStore((s) => s.setRole);
   const { setTheme } = useTheme();
   const [data, setData] = React.useState<QuickJumpItem>(EMPTY);
@@ -171,19 +177,24 @@ export function CommandPalette({ open, onOpenChange }: CommandPaletteProps) {
           </>
         )}
 
-        <CommandSeparator />
-
-        <CommandGroup heading="Switch role">
-          <CommandItem onSelect={() => pickRole("manager")}>
-            <GraduationCap className="mr-2 size-4" /> View as Manager
-          </CommandItem>
-          <CommandItem onSelect={() => pickRole("teacher")}>
-            <BookOpen className="mr-2 size-4" /> View as Department Lead
-          </CommandItem>
-          <CommandItem onSelect={() => pickRole("admin")}>
-            <ShieldCheck className="mr-2 size-4" /> View as Admin
-          </CommandItem>
-        </CommandGroup>
+        {/* Role masquerade is a DEMO-only convenience. In production a user's role
+            is fixed by their profile — never let the palette swap it. */}
+        {DEMO_MODE && (
+          <>
+            <CommandSeparator />
+            <CommandGroup heading="Switch role">
+              <CommandItem onSelect={() => pickRole("manager")}>
+                <GraduationCap className="mr-2 size-4" /> View as Manager
+              </CommandItem>
+              <CommandItem onSelect={() => pickRole("teacher")}>
+                <BookOpen className="mr-2 size-4" /> View as Department Lead
+              </CommandItem>
+              <CommandItem onSelect={() => pickRole("admin")}>
+                <ShieldCheck className="mr-2 size-4" /> View as Admin
+              </CommandItem>
+            </CommandGroup>
+          </>
+        )}
 
         <CommandSeparator />
 

@@ -28,6 +28,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useRoleStore } from "@/store/role-store";
+import { useCurrentUser } from "@/lib/supabase/use-user";
 import { useT } from "@/lib/i18n/provider";
 import type { Role } from "@/types";
 import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
@@ -65,6 +66,7 @@ export const NAV_BY_ROLE: Record<Role, NavNode[]> = {
   teacher: [
     { kind: "link", label: "Dashboard", href: "/teacher/dashboard", icon: LayoutDashboard },
     { kind: "link", label: "My Modules", href: "/teacher/modules", icon: BookOpen },
+    { kind: "link", label: "Resources", href: "/manager/resources", icon: FileText },
     {
       kind: "group",
       label: "Reporting",
@@ -131,6 +133,7 @@ export const ROLE_ICON: Record<Role, IconType> = {
   admin: ShieldCheck,
 };
 
+const DEMO_MODE = process.env.NEXT_PUBLIC_DEMO_MODE === "true";
 const COLLAPSED_KEY = "bcj-sidebar-collapsed";
 const OPEN_GROUPS_KEY = "bcj-sidebar-open-groups";
 
@@ -146,7 +149,14 @@ interface SidebarProps {
 }
 
 export function Sidebar({ logoUrl, brandName = "BCJ Learn" }: SidebarProps) {
-  const role = useRoleStore((s) => s.role);
+  // The REAL authenticated role is the source of truth for which nav a user
+  // sees — never the persisted client store (which could drift from "View as…"
+  // or a stale default). Fall back to the store only for the brief signed-out
+  // instant before the redirect completes.
+  const { user } = useCurrentUser();
+  const storeRole = useRoleStore((s) => s.role);
+  // Production: the real session role wins. Demo: the store drives "View as…".
+  const role = !DEMO_MODE && user?.role ? user.role : storeRole;
   const pathname = usePathname();
   const reduced = !!useReducedMotion();
   const RoleIcon = ROLE_ICON[role];

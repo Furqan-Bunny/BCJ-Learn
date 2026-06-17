@@ -74,9 +74,11 @@ export function ResourcesAdminView({ initialResources }: { initialResources: Enr
   const [existingPath, setExistingPath] = React.useState<string | null>(null);
   const [externalUrl, setExternalUrl] = React.useState("");
   const [dragOver, setDragOver] = React.useState(false);
-  const [requiresAck, setRequiresAck] = React.useState(true);
+  const [requiresAck, setRequiresAck] = React.useState(false);
   const [signupAck, setSignupAck] = React.useState(false);
-  const [assignedRoles, setAssignedRoles] = React.useState<Role[]>(["manager"]);
+  // Default audience = everyone, so a new resource is visible to all by default
+  // (admins can narrow it). Avoids documents silently hidden from Department Leads.
+  const [assignedRoles, setAssignedRoles] = React.useState<Role[]>(["manager", "teacher", "admin"]);
   const [markets, setMarkets] = React.useState<string[]>([]); // [] = all markets
   const [notifyOnUpdate, setNotifyOnUpdate] = React.useState(true);
   const [requireReack, setRequireReack] = React.useState(false);
@@ -109,7 +111,7 @@ export function ResourcesAdminView({ initialResources }: { initialResources: Enr
     setEditingId(null);
     setTitle(""); setCategory("General"); setDepartment("General"); setDescription(""); setBody("");
     setFile(null); setExistingPath(null); setExternalUrl("");
-    setRequiresAck(true); setSignupAck(false); setAssignedRoles(["manager"]); setMarkets([]);
+    setRequiresAck(false); setSignupAck(false); setAssignedRoles(["manager", "teacher", "admin"]); setMarkets([]);
     setNotifyOnUpdate(true); setRequireReack(false);
     setSheetOpen(true);
   }

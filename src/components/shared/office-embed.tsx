@@ -98,8 +98,12 @@ export function OfficeEmbed({
       <iframe
         key={reloadKey}
         src={officeUrl(fileUrl)}
-        loading="lazy"
+        // Start Microsoft's render the moment the viewer mounts (not when scrolled
+        // into view) so the slide is ready sooner — it's the slowest part.
+        loading="eager"
         onLoad={() => setLoaded(true)}
+        allow="fullscreen"
+        allowFullScreen
         className="w-full h-full border-0 bg-white"
         title={title ?? "Document"}
       />

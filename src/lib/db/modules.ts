@@ -1,8 +1,32 @@
 // Modules — DB queries with shape matching src/data/modules.ts.
 
 import { dbClient } from "@/lib/supabase/db-client";
+import { createAdminClient } from "@/lib/supabase/server";
 import { pickLocale, type Locale } from "@/lib/i18n";
 import type { ModuleDef, Lesson, LessonContent, ContentType, ModuleStatus } from "@/types";
+
+export interface ModuleSummary { slug: string; title: string; number: number }
+
+/**
+ * Resolve title + number for a set of module slugs via the service-role client,
+ * bypassing RLS. Used for surfaces a manager has legitimately earned access to
+ * (e.g. a certificate for a module they passed) where the manager can't directly
+ * SELECT the modules table. Title/number are not sensitive.
+ */
+export async function getModuleSummariesBySlugs(
+  slugs: string[],
+  locale: Locale = "en",
+): Promise<Map<string, ModuleSummary>> {
+  const map = new Map<string, ModuleSummary>();
+  const unique = Array.from(new Set(slugs.filter(Boolean)));
+  if (unique.length === 0) return map;
+  const admin = createAdminClient();
+  const { data } = await admin.from("modules").select("slug, number, title, title_es").in("slug", unique);
+  for (const r of (data ?? []) as { slug: string; number: number; title: string; title_es: string | null }[]) {
+    map.set(r.slug, { slug: r.slug, number: r.number, title: pickLocale(r.title, r.title_es, locale) });
+  }
+  return map;
+}
 
 interface ModuleRow {
   slug: string;
@@ -120,24 +144,19 @@ function rowToLessonContent(r: LessonContentRow, locale: Locale): LessonContent 
   };
 }
 
-export async function listModules(locale: Locale = "en"): Promise<ModuleDef[]> {
-  const sb = await dbClient();
-  const [
-    { data: modRows },
-    { data: ownerRows },
-    { data: lessonRows },
-    { data: contentRows },
-  ] = await Promise.all([
-    sb.from("modules").select("*").order("number"),
-    sb.from("module_owners").select("module_slug, teacher_id, is_primary"),
-    sb.from("lessons").select("*").order("order"),
-    sb.from("lesson_contents").select("*").order("order"),
-  ]);
-
+// Shared assembly: stitch module rows together with their owners, lessons and
+// lesson-contents into full ModuleDefs. Used by both the RLS-scoped listModules
+// and the service-role getModulesBySlugs.
+function assembleModuleDefs(
+  modRows: unknown[] | null,
+  ownerRows: unknown[] | null,
+  lessonRows: unknown[] | null,
+  contentRows: unknown[] | null,
+  locale: Locale,
+): ModuleDef[] {
   const ownersBySlug = new Map<string, string[]>();
   for (const o of (ownerRows ?? []) as { module_slug: string; teacher_id: string; is_primary: boolean }[]) {
     const list = ownersBySlug.get(o.module_slug) ?? [];
-    // Primary first
     if (o.is_primary) list.unshift(o.teacher_id);
     else list.push(o.teacher_id);
     ownersBySlug.set(o.module_slug, list);
@@ -157,10 +176,45 @@ export async function listModules(locale: Locale = "en"): Promise<ModuleDef[]> {
     lessonsBySlug.set(l.module_slug, list);
   }
 
-  return (modRows ?? []).map((row) => {
-    const r = row as ModuleRow;
-    return rowToModuleDef(r, ownersBySlug.get(r.slug) ?? [], lessonsBySlug.get(r.slug) ?? [], locale);
-  });
+  return ((modRows ?? []) as ModuleRow[]).map((r) =>
+    rowToModuleDef(r, ownersBySlug.get(r.slug) ?? [], lessonsBySlug.get(r.slug) ?? [], locale),
+  );
+}
+
+export async function listModules(locale: Locale = "en"): Promise<ModuleDef[]> {
+  const sb = await dbClient();
+  const [
+    { data: modRows },
+    { data: ownerRows },
+    { data: lessonRows },
+    { data: contentRows },
+  ] = await Promise.all([
+    sb.from("modules").select("*").order("number"),
+    sb.from("module_owners").select("module_slug, teacher_id, is_primary"),
+    sb.from("lessons").select("*").order("order"),
+    sb.from("lesson_contents").select("*").order("order"),
+  ]);
+  return assembleModuleDefs(modRows, ownerRows, lessonRows, contentRows, locale);
+}
+
+// Full ModuleDefs for specific slugs via the service-role client (bypasses RLS).
+// Used to surface modules a manager has legitimately ENGAGED with (passed/failed
+// attempts) even when they're not currently published — so a passed module never
+// vanishes from the learner's list just because an admin un-published it.
+export async function getModulesBySlugs(slugs: string[], locale: Locale = "en"): Promise<ModuleDef[]> {
+  const unique = Array.from(new Set(slugs.filter(Boolean)));
+  if (unique.length === 0) return [];
+  const admin = createAdminClient();
+  const [{ data: modRows }, { data: ownerRows }, { data: lessonRows }] = await Promise.all([
+    admin.from("modules").select("*").in("slug", unique).order("number"),
+    admin.from("module_owners").select("module_slug, teacher_id, is_primary").in("module_slug", unique),
+    admin.from("lessons").select("*").in("module_slug", unique).order("order"),
+  ]);
+  const lessonIds = ((lessonRows ?? []) as LessonRow[]).map((l) => l.id);
+  const contentRows = lessonIds.length
+    ? (await admin.from("lesson_contents").select("*").in("lesson_id", lessonIds).order("order")).data
+    : [];
+  return assembleModuleDefs(modRows, ownerRows, lessonRows, contentRows, locale);
 }
 
 export async function getModule(slug: string, locale: Locale = "en"): Promise<ModuleDef | null> {

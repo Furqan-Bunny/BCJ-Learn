@@ -101,14 +101,19 @@ export async function listResourcesForCurrentUser(): Promise<
   if (!p?.role) return [];
   const locale: Locale = p.locale === "es" ? "es" : "en";
 
-  const dbc = await dbClient();
-  const { data: resources } = await dbc
-    .from("resources")
-    .select("*")
-    .contains("assigned_roles", [p.role]);
+  // Leadership (Department Leads + Admins) see the full resource library so they
+  // can review anything that's shared — they're never scoped out by role/market.
+  // Managers still only see what's assigned to their role + market.
+  const isLeadership = p.role === "teacher" || p.role === "admin";
 
-  // Filter by cohort (assigned_cohorts null = all cohorts)
+  const dbc = await dbClient();
+  let query = dbc.from("resources").select("*");
+  if (!isLeadership) query = query.contains("assigned_roles", [p.role]);
+  const { data: resources } = await query;
+
+  // Filter by cohort/market (assigned_cohorts null = all). Leadership skips this too.
   const filtered = ((resources ?? []) as ResourceRow[]).filter((r) => {
+    if (isLeadership) return true;
     if (!r.assigned_cohorts || r.assigned_cohorts.length === 0) return true;
     return p.cohort ? r.assigned_cohorts.includes(p.cohort) : false;
   });

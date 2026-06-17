@@ -13,12 +13,12 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import {
   ArrowLeft, ArrowUpRight, Calendar, Clock, Layers, Target, FileText, PlayCircle,
   Link2, ListChecks, BarChart3, Trophy, Users, AlertTriangle, PresentationIcon, Sparkles, Loader2,
-  Pencil, CheckCircle2,
+  Pencil, CheckCircle2, GraduationCap,
 } from "lucide-react";
 import { PageHeader } from "@/components/shared/page-header";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { KpiCard } from "@/components/shared/kpi-card";
-import { ModuleRoster } from "@/components/shared/module-roster";
+import { ModuleRoster, type AddableManager } from "@/components/shared/module-roster";
 import { DeliveryHistory } from "@/components/shared/delivery-history";
 import { ScheduleRedelivery } from "@/components/admin/schedule-redelivery";
 import { RescheduleSeminar } from "@/components/admin/reschedule-seminar";
@@ -56,7 +56,7 @@ export interface AdminModuleViewProps {
   deliveries: DeliveryRecord[];
   managersById: Record<string, Pick<Manager, "id" | "name" | "avatarColor" | "cohort">>;
   currentDeliveryStart: string | null;
-  addableManagers?: { id: string; name: string }[];
+  addableManagers?: AddableManager[];
   linkedSops?: Resource[];
   allSops?: Resource[];
 }
@@ -187,6 +187,11 @@ export function AdminModuleView({
             )}
             <StatusBadge variant={mod.status} />
             <EditModuleSheet mod={mod} allTeachers={allTeachers} />
+            <Button asChild variant="outline">
+              <Link href={`/manager/modules/${slug}`}>
+                <GraduationCap className="mr-2 size-4" /> Take it yourself
+              </Link>
+            </Button>
             <Button asChild>
               <Link href={`/teacher/modules/${slug}/present`}>
                 <PresentationIcon className="mr-2 size-4" /> Open presenter

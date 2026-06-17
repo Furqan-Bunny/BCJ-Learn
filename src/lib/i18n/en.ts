@@ -58,6 +58,7 @@ export const en: Record<string, string> = {
   "modules.filter.all": "All",
   "modules.filter.todo": "To do",
   "modules.filter.action": "Needs action",
+  "modules.filter.failed": "Failed",
   "modules.filter.passed": "Passed",
   "modules.status.passed": "Passed",
   "modules.status.retake": "Retake",
@@ -73,6 +74,7 @@ export const en: Record<string, string> = {
   "modules.retakeBtn": "Retake",
   "modules.view": "View",
   "modules.noMatch": "No modules match “{q}”.",
+  "modules.nonePublished": "No training modules have been published yet. They'll show up here as soon as your leadership publishes them.",
 
   // ── module detail ──
   "module.trainingDay": "Training day",

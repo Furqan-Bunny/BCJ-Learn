@@ -74,8 +74,11 @@ export function UserMenu() {
       await supabase.auth.signOut();
     }
     logout();
-    toast.success("Signed out");
-    setTimeout(() => router.push("/login"), 200);
+    // Hard-navigate (not router.push) so the authenticated shell unloads
+    // immediately — a soft push left the current page mounted for a moment,
+    // during which the nav could flash a different role's chrome. A full
+    // document load to /login tears down all client state cleanly.
+    window.location.replace("/login");
   }
 
   async function handleAvatarUpload(e: React.ChangeEvent<HTMLInputElement>) {

@@ -408,8 +408,11 @@ function ContentStage({
   const meta = TYPE_META[content.type];
   const Icon = meta.icon;
 
+  // Slides/files get a wide stage so they're big on the projector / in fullscreen;
+  // text-style content stays narrower for readability.
+  const wide = content.type === "slides" || content.type === "video" || !!content.storagePath;
   return (
-    <div className="max-w-4xl mx-auto w-full">
+    <div className={cn("mx-auto w-full", wide ? "max-w-6xl" : "max-w-4xl")}>
       <div className="flex items-center gap-2 mb-3">
         <span className={cn("size-7 rounded flex items-center justify-center", meta.tint)}>
           <Icon className="size-4" />
@@ -556,18 +559,18 @@ function StoredFilePresenter({
     );
   }
   if (ext === "pdf") {
-    return <iframe src={url} loading="lazy" className="w-full h-[72vh] border-0 bg-white" title={content.title} />;
+    return <iframe src={url} loading="eager" className="w-full h-[80vh] border-0 bg-white" title={content.title} />;
   }
   if (RAW_IMAGE_EXTS.includes(ext)) {
     return (
-      <div className="bg-slate-950 flex items-center justify-center p-4 max-h-[72vh] overflow-auto">
+      <div className="bg-slate-950 flex items-center justify-center p-4 max-h-[80vh] overflow-auto">
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src={url} alt={content.title} className="max-w-full max-h-[68vh] object-contain" />
+        <img src={url} alt={content.title} className="max-w-full max-h-[76vh] object-contain" />
       </div>
     );
   }
   if (RAW_OFFICE_EXTS.includes(ext) && content.storagePath) {
-    return <OfficeEmbed path={content.storagePath} initialUrl={url} title={content.title} />;
+    return <OfficeEmbed path={content.storagePath} initialUrl={url} title={content.title} className="w-full h-[80vh] border-0 bg-white" />;
   }
   return (
     <div className="p-12 text-center">

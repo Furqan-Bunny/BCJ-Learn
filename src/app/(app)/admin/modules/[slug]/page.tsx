@@ -51,7 +51,7 @@ export default async function AdminModuleDetailPage(props: PageProps<"/admin/mod
   const rosterIds = new Set(roster.map((r) => r.manager.id));
   const addableManagers = allManagers
     .filter((m) => !rosterIds.has(m.id) && m.status !== "inactive" && m.status !== "pending")
-    .map((m) => ({ id: m.id, name: m.name }));
+    .map((m) => ({ id: m.id, name: m.name, email: m.email, markets: m.markets?.length ? m.markets : [m.cohort] }));
 
   return (
     <AdminModuleView

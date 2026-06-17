@@ -19,7 +19,9 @@ export default async function TeacherModulesListPage() {
   const ownedSlugs = new Set(allOwnerRows.filter((r) => r.teacher_id === me.id).map((r) => r.module_slug));
 
   const [allModules, allTeachers] = await Promise.all([listModules(), listTeachers()]);
-  const myModules = allModules.filter((m) => ownedSlugs.has(m.slug));
+  // Department Leads now see EVERY module (not just the ones they own). Owned
+  // modules keep the full edit controls; the rest are present / take-it / results.
+  const myModules = allModules;
 
   // Enrich teachers with owned-module counts for the AddModuleSheet picker.
   const ownedByTeacher = new Map<string, string[]>();
@@ -39,6 +41,7 @@ export default async function TeacherModulesListPage() {
     <TeacherModulesView
       me={{ id: me.id }}
       myModules={myModules}
+      ownedSlugs={[...ownedSlugs]}
       teachers={enrichedTeachers}
       defaultNumber={defaultNumber}
     />
