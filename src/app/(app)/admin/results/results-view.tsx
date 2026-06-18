@@ -80,8 +80,10 @@ export function AdminResultsView({ rows, modules }: { rows: AttemptRow[]; module
     const initial: ColumnFiltersState = [];
     const moduleSlug = p.get("module");
     if (moduleSlug) {
+      // The module column filters on the SLUG (see its filterFn + the dropdown
+      // values), so seed the slug — not the number, which matched nothing.
       const m = modules.find((mm) => mm.slug === moduleSlug);
-      if (m) initial.push({ id: "moduleNumber", value: [m.number] });
+      if (m) initial.push({ id: "moduleNumber", value: [m.slug] });
     }
     const status = p.get("status");
     if (status) initial.push({ id: "status", value: [status] });
