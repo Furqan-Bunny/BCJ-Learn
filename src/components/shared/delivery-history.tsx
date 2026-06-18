@@ -90,8 +90,12 @@ export function DeliveryHistory({
                       <span className="font-medium">
                         {d.isCurrent ? "Current delivery" : `Delivery ${d.index}`}
                       </span>
-                      {d.isCurrent ? (
+                      {d.isCurrent && d.sessionEndedAt ? (
                         <Badge className="bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-emerald-500/30 text-[10px]">
+                          Delivered
+                        </Badge>
+                      ) : d.isCurrent ? (
+                        <Badge className="bg-sky-500/15 text-sky-700 dark:text-sky-300 border-sky-500/30 text-[10px]">
                           Active
                         </Badge>
                       ) : (
@@ -102,11 +106,17 @@ export function DeliveryHistory({
                       <span className="flex items-center gap-1.5">
                         <Calendar className="size-3" /> Started {fmtDate(d.startDate)}
                       </span>
-                      {d.endDate && (
+                      {/* A delivered-but-still-open delivery (session ended, quiz open for
+                          retakes) shows its delivered date; an archived one shows when it ended. */}
+                      {d.isCurrent && d.sessionEndedAt ? (
+                        <span className="flex items-center gap-1.5">
+                          <Clock className="size-3" /> Delivered {fmtDate(d.sessionEndedAt)}
+                        </span>
+                      ) : d.endDate ? (
                         <span className="flex items-center gap-1.5">
                           <Clock className="size-3" /> Ended {fmtDate(d.endDate)}
                         </span>
-                      )}
+                      ) : null}
                     </div>
                   </div>
 
