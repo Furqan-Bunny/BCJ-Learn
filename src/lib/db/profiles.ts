@@ -101,6 +101,17 @@ export async function listManagers(): Promise<Manager[]> {
   return (data ?? []).map((r) => toManager(r as ProfileRow));
 }
 
+// Manager profiles for a specific set of ids, via the service-role client (no
+// RLS scoping). Used where the caller has already worked out exactly which
+// managers it's allowed to show (e.g. a lead's "My team" = invitees/attempters
+// of their owned modules) and must not be limited by teacher profile-read RLS.
+export async function listManagersByIds(ids: string[]): Promise<Manager[]> {
+  if (ids.length === 0) return [];
+  const admin = createAdminClient();
+  const { data } = await admin.from("profiles").select(PROFILE_COLS).in("id", ids).eq("role", "manager").order("name");
+  return (data ?? []).map((r) => toManager(r as ProfileRow));
+}
+
 // All users who can be assigned to a module's seminar/quiz — managers, plus
 // Department Leads (teachers) and Admins (per Nancy's Jun-16 request that any
 // user be able to be assigned and take a quiz). Returned in the Manager shape so
