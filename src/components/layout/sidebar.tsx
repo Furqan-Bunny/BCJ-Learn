@@ -77,6 +77,8 @@ export const NAV_BY_ROLE: Record<Role, NavNode[]> = {
       ],
     },
     { kind: "link", label: "My team", href: "/teacher/managers", icon: Users },
+    // A lead who took a quiz themselves sees their own results/review here.
+    { kind: "link", label: "My Progress", href: "/manager/progress", icon: PlayCircle },
     { kind: "link", label: "Help", href: "/help", icon: HelpCircle },
   ],
 
