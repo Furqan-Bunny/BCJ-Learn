@@ -23,6 +23,8 @@ export interface TeacherModuleViewProps {
   deliveries: DeliveryRecord[];
   managersById: Record<string, Pick<Manager, "id" | "name" | "avatarColor" | "cohort">>;
   currentDeliveryStart: string | null;
+  /** When the current delivery's session was ended ("delivered"); null if not yet. */
+  deliveredAt?: string | null;
   addableManagers?: AddableManager[];
   /** Admin or the owning lead — gates the present / preview controls. */
   owns?: boolean;
@@ -36,6 +38,7 @@ export function TeacherModuleView({
   deliveries,
   managersById,
   currentDeliveryStart,
+  deliveredAt = null,
   addableManagers = [],
   owns = false,
 }: TeacherModuleViewProps) {
@@ -66,7 +69,16 @@ export function TeacherModuleView({
         eyebrow={`Module ${mod.number} · ${mod.scheduledDate ? fmtDate(mod.scheduledDate) : mod.scheduledMonth}`}
         title={mod.title}
         description={mod.description}
-        actions={<StatusBadge variant={mod.status} />}
+        actions={
+          <div className="flex items-center gap-2">
+            <StatusBadge variant={mod.status} />
+            {deliveredAt && (
+              <span className="inline-flex items-center rounded-md border border-emerald-500/30 bg-emerald-500/15 px-2 py-0.5 text-xs font-medium text-emerald-700 dark:text-emerald-400">
+                Delivered {fmtDate(deliveredAt, "MMM d, yyyy")}
+              </span>
+            )}
+          </div>
+        }
       />
 
       <div className="grid lg:grid-cols-3 gap-4 mb-8">

@@ -56,6 +56,8 @@ export interface AdminModuleViewProps {
   deliveries: DeliveryRecord[];
   managersById: Record<string, Pick<Manager, "id" | "name" | "avatarColor" | "cohort">>;
   currentDeliveryStart: string | null;
+  /** When the current delivery's session was ended ("delivered"); null if not yet. */
+  deliveredAt?: string | null;
   addableManagers?: AddableManager[];
   linkedSops?: Resource[];
   allSops?: Resource[];
@@ -72,6 +74,7 @@ export function AdminModuleView({
   deliveries,
   managersById,
   currentDeliveryStart,
+  deliveredAt = null,
   addableManagers = [],
   linkedSops = [],
   allSops = [],
@@ -186,6 +189,11 @@ export function AdminModuleView({
               </Badge>
             )}
             <StatusBadge variant={mod.status} />
+            {deliveredAt && (
+              <Badge className="bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border-emerald-500/30">
+                Delivered {fmtDate(deliveredAt, "MMM d, yyyy")}
+              </Badge>
+            )}
             <EditModuleSheet mod={mod} allTeachers={allTeachers} />
             <Button asChild variant="outline">
               <Link href={`/manager/modules/${slug}`}>

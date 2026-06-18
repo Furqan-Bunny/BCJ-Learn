@@ -1,7 +1,10 @@
+import Link from "next/link";
 import { getOwnedModuleOr404 } from "@/lib/auth/module-access";
 import { getCurrentDelivery } from "@/lib/db/deliveries";
 import { ensurePresentableContent, attachSignedMedia } from "@/lib/server/present-content";
 import { getViewedContentIds } from "@/lib/server/content-views";
+import { Button } from "@/components/ui/button";
+import { fmtDate } from "@/lib/format";
 import { PresenterView } from "./present-view";
 
 export default async function PresenterPage(props: PageProps<"/teacher/modules/[slug]/present">) {
@@ -31,6 +34,32 @@ export default async function PresenterPage(props: PageProps<"/teacher/modules/[
     getCurrentDelivery(slug),
     getViewedContentIds(slug),
   ]);
+
+  // Already delivered: the trainer ended this seminar (quiz opened to the room).
+  // You can't re-present the same delivery — schedule a new seminar to run it
+  // again. Retakes stay open for everyone meanwhile. (Preview is still allowed
+  // above.)
+  if (delivery?.sessionEndedAt) {
+    return (
+      <div className="max-w-lg mx-auto mt-16 text-center space-y-5">
+        <div className="text-xs font-semibold uppercase tracking-wider text-[var(--gold)]">Already delivered</div>
+        <h1 className="text-2xl font-bold tracking-tight">{mod.title}</h1>
+        <p className="text-sm text-muted-foreground">
+          This module was delivered on <span className="font-medium text-foreground">{fmtDate(delivery.sessionEndedAt, "MMM d, yyyy")}</span> and
+          the quiz is open to the room. To present it again, schedule a new seminar from the module page.
+          Retakes stay open for everyone in the meantime.
+        </p>
+        <div className="flex items-center justify-center gap-2 pt-2">
+          <Button asChild variant="outline">
+            <Link href={`/teacher/modules/${slug}`}>Back to module &amp; schedule again</Link>
+          </Button>
+          <Button asChild variant="ghost">
+            <Link href={`/teacher/modules/${slug}/present?preview=1`}>Preview slides</Link>
+          </Button>
+        </div>
+      </div>
+    );
+  }
 
   // Start in the presentation if the session already began; otherwise the
   // presenter opens to the check-in lobby (phase 1).

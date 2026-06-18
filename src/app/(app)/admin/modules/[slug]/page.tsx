@@ -65,6 +65,7 @@ export default async function AdminModuleDetailPage(props: PageProps<"/admin/mod
       deliveries={deliveries}
       managersById={managersById}
       currentDeliveryStart={currentDelivery?.startedAt ?? null}
+      deliveredAt={currentDelivery?.sessionEndedAt ?? null}
       addableManagers={addableManagers}
       linkedSops={linkedSops}
       allSops={allSops}

@@ -51,6 +51,7 @@ export default async function TeacherModulePage(props: PageProps<"/teacher/modul
       deliveries={deliveries}
       managersById={managersById}
       currentDeliveryStart={currentDelivery?.startedAt ?? null}
+      deliveredAt={currentDelivery?.sessionEndedAt ?? null}
       addableManagers={addableManagers}
       owns={owns}
     />
