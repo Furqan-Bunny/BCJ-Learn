@@ -46,7 +46,7 @@ export const en: Record<string, string> = {
   "dash.averageScore": "Average score",
   "dash.cohort": "Market",
   "dash.upNext": "Up next →",
-  "dash.onFirstTry": "{score}% on first try",
+  "dash.onFirstTry": "{score}% — passed",
   "dash.noAttemptsLeft": "No attempts left",
   "dash.attemptsLeft": "{n} of {max} attempts left",
 
@@ -250,7 +250,7 @@ export const en: Record<string, string> = {
   // ── dashboard (extra) ──
   "dash.trackProgress": "Track your progress through the BCJ Manager training program.",
   "dash.nothingYetLong": "Nothing yet — your activity will appear here.",
-  "dash.onFirstTrySuffix": "on first try",
+  "dash.onFirstTrySuffix": "passed",
   "dash.programComplete": "Program complete",
 
   // ── modules list (extra) ──
