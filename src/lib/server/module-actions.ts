@@ -526,6 +526,38 @@ export async function getDueEmployees(moduleSlug: string) {
   return { ok: true as const, employees };
 }
 
+// Like getDueEmployees but returns EVERY active employee with a `due` flag (due =
+// hasn't passed in the last 12 months). The Schedule-seminar dialog pre-selects
+// the due ones but lets the lead search and add anyone else too.
+export async function listSeminarCandidates(moduleSlug: string) {
+  const guard = await requireAdminOrModuleOwner(moduleSlug);
+  if (!guard.ok) return { ok: false as const, error: guard.error };
+
+  const admin = createAdminClient();
+  const cutoff = new Date(Date.now() - 365 * 24 * 60 * 60 * 1000).toISOString();
+
+  const [{ data: managers }, { data: passes }] = await Promise.all([
+    admin
+      .from("profiles")
+      .select("id, name, email, cohort")
+      .eq("role", "manager")
+      .not("status", "in", "(inactive,pending)")
+      .order("name"),
+    admin
+      .from("attempts")
+      .select("manager_id")
+      .eq("module_slug", moduleSlug)
+      .eq("status", "passed")
+      .gt("started_at", cutoff),
+  ]);
+
+  const passedRecently = new Set(((passes ?? []) as { manager_id: string }[]).map((a) => a.manager_id));
+  const employees = ((managers ?? []) as { id: string; name: string; email: string; cohort: string | null }[])
+    .map((m) => ({ id: m.id, name: m.name, email: m.email, cohort: m.cohort, due: !passedRecently.has(m.id) }));
+
+  return { ok: true as const, employees };
+}
+
 // Ends the current open delivery, creates a new one on `date`, invites exactly
 // `managerIds`, and emails each of them that the seminar is scheduled.
 export async function scheduleSeminar(moduleSlug: string, date: string, managerIds: string[], time?: string | null, timezone?: string | null) {

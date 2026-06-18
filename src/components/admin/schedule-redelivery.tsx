@@ -10,13 +10,13 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
-import { RotateCcw, AlertCircle, Calendar, Mail, Loader2, Users } from "lucide-react";
+import { RotateCcw, AlertCircle, Calendar, Mail, Loader2, Users, Search } from "lucide-react";
 import { fmtDate } from "@/lib/format";
 import { toast } from "sonner";
-import { getDueEmployees, scheduleSeminar, notifySeminar } from "@/lib/server/module-actions";
+import { listSeminarCandidates, scheduleSeminar, notifySeminar } from "@/lib/server/module-actions";
 import { TIMEZONES, defaultTimezone } from "@/lib/timezones";
 
-interface DueEmployee { id: string; name: string; email: string; cohort: string | null }
+interface DueEmployee { id: string; name: string; email: string; cohort: string | null; due: boolean }
 
 interface ScheduleRedeliveryProps {
   moduleSlug: string;
@@ -54,6 +54,7 @@ export function ScheduleRedelivery({
   const [submitting, setSubmitting] = React.useState(false);
   const [employees, setEmployees] = React.useState<DueEmployee[]>([]);
   const [selected, setSelected] = React.useState<Set<string>>(new Set());
+  const [search, setSearch] = React.useState("");
   const [notify, setNotify] = React.useState<{ sent: number; total: number } | null>(null);
 
   React.useEffect(() => {
@@ -61,17 +62,28 @@ export function ScheduleRedelivery({
     setNewDate(moduleDate || new Date().toISOString().split("T")[0]);
     setNewTime(moduleTime || "");
     setTz(moduleTz || defaultTimezone());
+    setSearch("");
     setLoading(true);
-    getDueEmployees(moduleSlug).then((res) => {
+    // Load the FULL employee directory; pre-select only the "due" ones (haven't
+    // passed in 12 months). The lead can search and add anyone else too.
+    listSeminarCandidates(moduleSlug).then((res) => {
       if (res.ok) {
         setEmployees(res.employees);
-        setSelected(new Set(res.employees.map((e) => e.id)));
+        setSelected(new Set(res.employees.filter((e) => e.due).map((e) => e.id)));
       } else {
         toast.error(res.error ?? "Could not load managers");
       }
       setLoading(false);
     });
   }, [open, moduleSlug, moduleDate, moduleTime, moduleTz]);
+
+  // Search-filtered, due-first ordering.
+  const visible = React.useMemo(() => {
+    const q = search.trim().toLowerCase();
+    return employees
+      .filter((e) => !q || `${e.name} ${e.email} ${e.cohort ?? ""}`.toLowerCase().includes(q))
+      .sort((a, b) => Number(b.due) - Number(a.due) || a.name.localeCompare(b.name));
+  }, [employees, search]);
 
   function toggle(id: string) {
     setSelected((prev) => {
@@ -136,7 +148,7 @@ export function ScheduleRedelivery({
           </Badge>
           <DialogTitle>Schedule seminar — {moduleTitle}</DialogTitle>
           <DialogDescription>
-            These managers haven&rsquo;t passed in the last 12 months. Uncheck anyone you don&rsquo;t want, pick the date, and they&rsquo;ll get an email about the seminar.
+            Managers who haven&rsquo;t passed in the last 12 months are pre-selected. Search to add anyone else, uncheck who you don&rsquo;t want, pick the date — the selected managers get an email about the seminar.
           </DialogDescription>
         </DialogHeader>
 
@@ -183,6 +195,17 @@ export function ScheduleRedelivery({
                 </button>
               )}
             </div>
+            {!loading && employees.length > 0 && (
+              <div className="relative border-b">
+                <Search className="size-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  placeholder="Search to add any manager…"
+                  className="h-9 pl-9 border-0 rounded-none focus-visible:ring-0"
+                />
+              </div>
+            )}
             <div className="max-h-64 overflow-y-auto divide-y">
               {loading ? (
                 <div className="p-6 text-center text-sm text-muted-foreground">
@@ -190,14 +213,21 @@ export function ScheduleRedelivery({
                 </div>
               ) : employees.length === 0 ? (
                 <div className="p-6 text-center text-sm text-muted-foreground">
-                  Everyone&rsquo;s current — no one is due for this seminar.
+                  No active employees to invite.
+                </div>
+              ) : visible.length === 0 ? (
+                <div className="p-6 text-center text-sm text-muted-foreground">
+                  No managers match your search.
                 </div>
               ) : (
-                employees.map((e) => (
+                visible.map((e) => (
                   <label key={e.id} className="flex items-center gap-3 px-3 py-2 cursor-pointer hover:bg-accent/40">
                     <Checkbox checked={selected.has(e.id)} onCheckedChange={() => toggle(e.id)} />
                     <div className="min-w-0 flex-1">
-                      <div className="text-sm font-medium truncate">{e.name}</div>
+                      <div className="text-sm font-medium truncate flex items-center gap-1.5">
+                        {e.name}
+                        {!e.due && <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-normal">· passed</span>}
+                      </div>
                       <div className="text-xs text-muted-foreground truncate">
                         {e.email}{e.cohort ? ` · ${e.cohort}` : ""}
                       </div>
