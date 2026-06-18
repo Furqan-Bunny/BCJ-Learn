@@ -17,6 +17,17 @@ export default async function AdminModulesPage() {
   // Enrich teachers with owned-module counts so AddModuleSheet shows "X modules owned" hints.
   const sb = await dbClient();
   const { data: ownerRows } = await sb.from("module_owners").select("module_slug, teacher_id");
+
+  // Which modules have been DELIVERED — their current (open) delivery's session
+  // has ended. Drives a "Delivered {date}" badge in the list.
+  const { data: curDeliveries } = await sb
+    .from("module_deliveries")
+    .select("module_slug, session_ended_at")
+    .is("ended_at", null);
+  const deliveredBySlug: Record<string, string> = {};
+  for (const d of (curDeliveries ?? []) as { module_slug: string; session_ended_at: string | null }[]) {
+    if (d.session_ended_at) deliveredBySlug[d.module_slug] = d.session_ended_at;
+  }
   const ownedByTeacher = new Map<string, string[]>();
   for (const o of (ownerRows ?? []) as { module_slug: string; teacher_id: string }[]) {
     const list = ownedByTeacher.get(o.teacher_id) ?? [];
@@ -41,6 +52,7 @@ export default async function AdminModulesPage() {
       teachers={enrichedTeachers}
       defaultNumber={defaultNumber}
       allSops={allSops}
+      deliveredBySlug={deliveredBySlug}
     />
   );
 }

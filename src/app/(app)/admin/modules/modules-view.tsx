@@ -21,12 +21,23 @@ export interface AdminModulesViewProps {
   teachers: Teacher[];
   defaultNumber: number;
   allSops?: Resource[];
+  /** slug → the date its current delivery was delivered (session ended). */
+  deliveredBySlug?: Record<string, string>;
 }
 
 type View = "list" | "cards";
 const VIEW_KEY = "bcj.modulesView";
 
-export function AdminModulesView({ modules, attempts, teacherNamesById, teachers, defaultNumber, allSops = [] }: AdminModulesViewProps) {
+function DeliveredTag({ date }: { date?: string }) {
+  if (!date) return null;
+  return (
+    <span className="inline-flex items-center rounded-md border border-emerald-500/30 bg-emerald-500/15 px-1.5 py-0.5 text-[10px] font-medium text-emerald-700 dark:text-emerald-400">
+      Delivered {fmtDate(date, "MMM d")}
+    </span>
+  );
+}
+
+export function AdminModulesView({ modules, attempts, teacherNamesById, teachers, defaultNumber, allSops = [], deliveredBySlug = {} }: AdminModulesViewProps) {
   // Default to the list view; remember the user's choice between visits.
   const [view, setView] = React.useState<View>("list");
   React.useEffect(() => {
@@ -99,6 +110,7 @@ export function AdminModulesView({ modules, attempts, teacherNamesById, teachers
                     <div className="flex items-start justify-between gap-3 mb-2">
                       <div className="text-xs font-mono text-muted-foreground">M{m.number} · {m.scheduledDate ? fmtDate(m.scheduledDate) : m.scheduledMonth}</div>
                       <StatusBadge variant={m.status} />
+                      <DeliveredTag date={deliveredBySlug[m.slug]} />
                     </div>
                     <div className="font-semibold text-lg">{m.title}</div>
                     <p className="text-sm text-muted-foreground mt-1 line-clamp-2">{m.description}</p>
@@ -138,6 +150,7 @@ export function AdminModulesView({ modules, attempts, teacherNamesById, teachers
                       <div className="flex items-center gap-2">
                         <span className="font-semibold truncate">{m.title}</span>
                         <StatusBadge variant={m.status} />
+                        <DeliveredTag date={deliveredBySlug[m.slug]} />
                       </div>
                       <p className="text-sm text-muted-foreground truncate">{m.description}</p>
                     </div>

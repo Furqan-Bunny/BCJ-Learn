@@ -23,9 +23,11 @@ export interface TeacherModulesViewProps {
   ownedSlugs: string[];
   teachers: Teacher[];
   defaultNumber: number;
+  /** slug → the date its current delivery was delivered (session ended). */
+  deliveredBySlug?: Record<string, string>;
 }
 
-export function TeacherModulesView({ me, myModules, ownedSlugs, teachers, defaultNumber }: TeacherModulesViewProps) {
+export function TeacherModulesView({ me, myModules, ownedSlugs, teachers, defaultNumber, deliveredBySlug = {} }: TeacherModulesViewProps) {
   const owned = new Set(ownedSlugs);
   // Owned first, then the rest — both alphabetised by module number.
   const sorted = [...myModules].sort((a, b) => {
@@ -54,7 +56,7 @@ export function TeacherModulesView({ me, myModules, ownedSlugs, teachers, defaul
         <Stagger className="grid lg:grid-cols-2 gap-4">
           {sorted.map((m) => (
             <StaggerItem key={m.slug} className="h-full">
-              <ModuleCard m={m} owns={owned.has(m.slug)} />
+              <ModuleCard m={m} owns={owned.has(m.slug)} deliveredAt={deliveredBySlug[m.slug]} />
             </StaggerItem>
           ))}
         </Stagger>
@@ -63,7 +65,7 @@ export function TeacherModulesView({ me, myModules, ownedSlugs, teachers, defaul
   );
 }
 
-function ModuleCard({ m, owns }: { m: ModuleDef; owns: boolean }) {
+function ModuleCard({ m, owns, deliveredAt }: { m: ModuleDef; owns: boolean; deliveredAt?: string }) {
   return (
     <Card className={`card-lift card-glow h-full flex flex-col ${owns ? "border-primary/30" : ""}`}>
       <CardContent className="p-5 flex flex-col flex-1">
@@ -76,6 +78,11 @@ function ModuleCard({ m, owns }: { m: ModuleDef; owns: boolean }) {
           <div className="flex items-center gap-1.5">
             {owns && <Badge variant="secondary" className="text-[10px]">Owner</Badge>}
             <StatusBadge variant={m.status} />
+            {deliveredAt && (
+              <Badge className="bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border-emerald-500/30 text-[10px]">
+                Delivered {fmtDate(deliveredAt, "MMM d")}
+              </Badge>
+            )}
           </div>
         </div>
         <div className="font-semibold text-lg">{m.title}</div>
