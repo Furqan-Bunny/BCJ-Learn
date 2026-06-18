@@ -12,11 +12,11 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSepara
 import { PageHeader } from "@/components/shared/page-header";
 import { initials, fmtRelative, fmtDate } from "@/lib/format";
 import {
-  Search, Plus, MoreHorizontal, Mail, Edit3, Trash2, BookOpen, ListChecks, ArrowRight, Phone, UserX,
+  Search, Plus, MoreHorizontal, Send, Edit3, Trash2, BookOpen, ListChecks, ArrowRight, Phone, UserX,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useRouter, useSearchParams } from "next/navigation";
-import { deactivateUser, deleteUser } from "@/lib/server/admin-actions";
+import { deactivateUser, deleteUser, resendInvite } from "@/lib/server/admin-actions";
 import { AddStaffSheet } from "@/components/admin/add-staff-sheet";
 import { EditUserSheet } from "@/components/admin/edit-user-sheet";
 import type { Teacher, ModuleDef } from "@/types";
@@ -137,9 +137,18 @@ export function AdminTeachersView({ teachers, modules, approvedByModule, totalBy
                       </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
-                      <DropdownMenuItem onClick={() => { window.location.href = `mailto:${t.email}`; }}>
-                        <Mail className="mr-2 size-4" /> Send email
-                      </DropdownMenuItem>
+                      {t.status === "pending" && (
+                        <DropdownMenuItem
+                          onClick={async () => {
+                            const res = await resendInvite(t.id);
+                            if (!res.ok) { toast.error(res.error ?? "Could not resend"); return; }
+                            toast.success(`Invite resent to ${t.name}`);
+                            router.refresh();
+                          }}
+                        >
+                          <Send className="mr-2 size-4" /> Resend invite
+                        </DropdownMenuItem>
+                      )}
                       <DropdownMenuItem onClick={() => setEditTarget(t)}>
                         <Edit3 className="mr-2 size-4" /> Edit profile
                       </DropdownMenuItem>

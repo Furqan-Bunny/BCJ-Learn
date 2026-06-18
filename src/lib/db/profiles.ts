@@ -74,6 +74,7 @@ function toTeacher(r: ProfileRow): Teacher {
     joinedAt: r.joined_at,
     lastActiveAt: r.last_active_at,
     phone: r.phone,
+    status: (r.status ?? "active") as ManagerStatus,
     ownedModuleSlugs: [], // derived from module_owners; filled by joined queries
   };
 }
@@ -90,6 +91,7 @@ function toAdmin(r: ProfileRow): Admin {
     joinedAt: r.joined_at,
     lastActiveAt: r.last_active_at,
     phone: r.phone,
+    status: (r.status ?? "active") as ManagerStatus,
   };
 }
 

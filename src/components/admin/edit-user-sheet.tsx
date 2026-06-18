@@ -79,9 +79,16 @@ export function EditUserSheet({
     });
     setSaving(false);
     if (!res.ok) { toast.error(res.error ?? "Could not save changes"); return; }
-    toast.success(
-      roleChanged ? `Role updated to ${ROLE_LABEL[role]}` : res.resent ? "Saved — invite re-sent" : "Changes saved",
-    );
+    if (res.removedOwnership?.length) {
+      toast.success(`Role updated to ${ROLE_LABEL[role]}`, {
+        description: `Removed as owner of: ${res.removedOwnership.join(", ")}. Reassign ${res.removedOwnership.length === 1 ? "it" : "them"} to another lead from the module page.`,
+        duration: 8000,
+      });
+    } else {
+      toast.success(
+        roleChanged ? `Role updated to ${ROLE_LABEL[role]}` : res.resent ? "Saved — invite re-sent" : "Changes saved",
+      );
+    }
     onOpenChange(false);
     router.refresh();
   }

@@ -8,12 +8,12 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { Search, Plus, MoreHorizontal, Mail, Edit3, Trash2, ShieldCheck, Sparkles, UserX } from "lucide-react";
+import { Search, Plus, MoreHorizontal, Send, Edit3, Trash2, ShieldCheck, Sparkles, UserX } from "lucide-react";
 import { PageHeader } from "@/components/shared/page-header";
 import { initials, fmtRelative, fmtDate } from "@/lib/format";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
-import { updateUserAsAdmin, deleteUser } from "@/lib/server/admin-actions";
+import { updateUserAsAdmin, deleteUser, resendInvite } from "@/lib/server/admin-actions";
 import { AddStaffSheet } from "@/components/admin/add-staff-sheet";
 import { EditUserSheet } from "@/components/admin/edit-user-sheet";
 import type { Admin, ActivityEvent } from "@/types";
@@ -118,9 +118,18 @@ export function AdminAdminsView({ admins, activityByActor }: AdminAdminsViewProp
                       </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
-                      <DropdownMenuItem onClick={() => { window.location.href = `mailto:${a.email}`; }}>
-                        <Mail className="mr-2 size-4" /> Send email
-                      </DropdownMenuItem>
+                      {a.status === "pending" && (
+                        <DropdownMenuItem
+                          onClick={async () => {
+                            const res = await resendInvite(a.id);
+                            if (!res.ok) { toast.error(res.error ?? "Could not resend"); return; }
+                            toast.success(`Invite resent to ${a.name}`);
+                            router.refresh();
+                          }}
+                        >
+                          <Send className="mr-2 size-4" /> Resend invite
+                        </DropdownMenuItem>
+                      )}
                       <DropdownMenuItem onClick={() => setEditTarget(a)}>
                         <Edit3 className="mr-2 size-4" /> Edit profile
                       </DropdownMenuItem>

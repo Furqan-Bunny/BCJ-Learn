@@ -45,11 +45,15 @@ export interface Teacher extends User {
   role: "teacher";
   ownedModuleSlugs: string[];
   bio: string;
+  /** Invite lifecycle — "pending" until they accept their invite. */
+  status?: ManagerStatus;
 }
 
 export interface Admin extends User {
   role: "admin";
   title: string;
+  /** Invite lifecycle — "pending" until they accept their invite. */
+  status?: ManagerStatus;
 }
 
 export type ContentType = "video" | "document" | "slides" | "link";

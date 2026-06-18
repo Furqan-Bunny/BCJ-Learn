@@ -279,7 +279,7 @@ export interface EditUserInput {
 
 export async function editUserAndReinvite(
   input: EditUserInput,
-): Promise<{ ok: boolean; error?: string; resent?: boolean }> {
+): Promise<{ ok: boolean; error?: string; resent?: boolean; removedOwnership?: string[] }> {
   const guard = await requireAdmin();
   if (!guard.ok) return { ok: false, error: guard.error };
 
@@ -295,10 +295,10 @@ export async function editUserAndReinvite(
   const admin = createAdminClient();
   const { data: cur } = await admin
     .from("profiles")
-    .select("name, email, status")
+    .select("name, email, status, role")
     .eq("id", input.userId)
     .single();
-  const before = cur as { name: string; email: string | null; status: ManagerStatus | null } | null;
+  const before = cur as { name: string; email: string | null; status: ManagerStatus | null; role: Role | null } | null;
   if (!before) return { ok: false, error: "User not found" };
 
   const emailChanged = email !== (before.email ?? "").toLowerCase();
@@ -334,6 +334,22 @@ export async function editUserAndReinvite(
   const { error: upErr } = await admin.from("profiles").update(profileUpdate).eq("id", input.userId);
   if (upErr) return { ok: false, error: upErr.message };
 
+  // Leaving the Department Lead role: a non-teacher can't own/manage modules, so
+  // auto-remove their ownership (the modules become unowned until reassigned) and
+  // report which ones so the UI can warn the admin to reassign them.
+  let removedOwnership: string[] | undefined;
+  if (before.role === "teacher" && input.role !== undefined && input.role !== "teacher") {
+    const { data: owned } = await admin
+      .from("module_owners")
+      .select("modules ( title )")
+      .eq("teacher_id", input.userId);
+    const titles = ((owned ?? []) as { modules: { title: string } | { title: string }[] | null }[])
+      .map((r) => (Array.isArray(r.modules) ? r.modules[0]?.title : r.modules?.title))
+      .filter((t): t is string => !!t);
+    await admin.from("module_owners").delete().eq("teacher_id", input.userId);
+    if (titles.length > 0) removedOwnership = titles;
+  }
+
   if (isPending) {
     const token = profileUpdate.invite_token as string;
     const inviteLink = `${process.env.NEXT_PUBLIC_APP_URL ?? ""}/auth/accept-invite?token=${token}`;
@@ -362,7 +378,7 @@ export async function editUserAndReinvite(
   revalidatePath("/admin/admins");
   revalidatePath(`/admin/managers/${input.userId}`);
 
-  return { ok: true, resent };
+  return { ok: true, resent, removedOwnership };
 }
 
 // ─── B.4 deactivate / reactivate ──────────────────────────
@@ -497,9 +513,14 @@ export async function resendInvite(userId: string) {
   if (!guard.ok) return { ok: false as const, error: guard.error };
 
   const admin = createAdminClient();
-  const { data: profile } = await admin.from("profiles").select("email, name").eq("id", userId).single();
-  const p = profile as { email?: string; name?: string } | null;
+  const { data: profile } = await admin.from("profiles").select("email, name, status").eq("id", userId).single();
+  const p = profile as { email?: string; name?: string; status?: string } | null;
   if (!p?.email) return { ok: false as const, error: "User not found" };
+  // Only pending users have an unfinished invite. Resending to an active user would
+  // knock them back to 'pending' and invalidate their password — block that.
+  if (p.status !== "pending") {
+    return { ok: false as const, error: "This person has already accepted their invite — no need to resend." };
+  }
 
   // Issue a fresh single-use token and email our own accept-invite link.
   const token = randomBytes(32).toString("hex");
