@@ -57,7 +57,7 @@ export async function startQuiz(moduleSlug: string): Promise<StartQuizResult> {
   // (no check-in, session not ended, training day not passed). Stops anyone from
   // starting it early by hitting the quiz URL directly.
   if (!(await canStartQuizNow(moduleSlug, user.id))) {
-    return { ok: false, error: "This quiz opens after the seminar — check in at the session, or wait for your trainer to open it." };
+    return { ok: false, error: "This quiz opens after the seminar — check in at the session, or wait for your trainer to open it. (If you're not on the invite list, ask your trainer to add you.)" };
   }
 
   // Required-resources (SOP) gate — server-side backstop, not just the page.

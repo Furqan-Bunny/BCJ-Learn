@@ -34,6 +34,8 @@ export interface ManagerDashboardProps {
   myActivity: ActivityEvent[];
   nextModuleCheckIn: { checkedIn: boolean; checkedInAt: string | null };
   nextModuleSession: { sessionStartedAt: string | null; sessionEndedAt: string | null; checkinOpen: boolean };
+  /** Invited to the next module's current delivery (or has a prior attempt). */
+  nextModuleInvited?: boolean;
 }
 
 export function ManagerDashboardView({
@@ -43,6 +45,7 @@ export function ManagerDashboardView({
   myActivity,
   nextModuleCheckIn,
   nextModuleSession,
+  nextModuleInvited = true,
 }: ManagerDashboardProps) {
   const t = useT();
   const passedSlugs = new Set(myAttempts.filter((a) => a.status === "passed").map((a) => a.moduleSlug));
@@ -105,6 +108,7 @@ export function ManagerDashboardView({
             isCheckedIn={nextModuleCheckIn.checkedIn}
             sessionStartedAt={nextModuleSession.sessionStartedAt}
             sessionEndedAt={nextModuleSession.sessionEndedAt}
+            isInvited={nextModuleInvited}
             variant="full"
           />
           <Card className="hidden lg:flex items-center justify-center bg-muted/30">

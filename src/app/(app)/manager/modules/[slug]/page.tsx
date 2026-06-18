@@ -1,9 +1,9 @@
 import { notFound, redirect } from "next/navigation";
 import { getCurrentUserForRole } from "@/lib/supabase/current-user";
-import { getModule, getModulesBySlugs } from "@/lib/db/modules";
+import { getModule, getModulesBySlugs, listModulesAssignedToUser } from "@/lib/db/modules";
 import { getModuleTrainer } from "@/lib/db/profiles";
 import { listAttemptsForManager } from "@/lib/db/attempts";
-import { getCheckedInStatus, getCurrentDelivery } from "@/lib/db/deliveries";
+import { getCheckedInStatus, getCurrentDelivery, getInviteeStatus } from "@/lib/db/deliveries";
 import { listModuleSopsForUser } from "@/lib/db/module-resources";
 import { ManagerModuleView } from "./module-view";
 import type { Metadata } from "next";
@@ -20,13 +20,21 @@ export default async function ManagerModulePage(props: PageProps<"/manager/modul
   const me = await getCurrentUserForRole("manager");
   if (!me) redirect("/login");
 
-  const [allMyAttempts, checkInStatus, delivery, moduleSops] = await Promise.all([
+  const [allMyAttempts, checkInStatus, delivery, moduleSops, inviteeStatus] = await Promise.all([
     listAttemptsForManager(me.id),
     getCheckedInStatus(slug, me.id),
     getCurrentDelivery(slug),
     listModuleSopsForUser(slug, me.id),
+    getInviteeStatus(slug, me.id),
   ]);
   const myAttempts = allMyAttempts.filter((a) => a.moduleSlug === slug);
+
+  // Employees may only open modules they're assigned to (invited to any delivery, or
+  // already attempted). Staff (admin/lead) reach this via "Take it yourself" — bypass.
+  if (me.role === "manager" && myAttempts.length === 0) {
+    const assigned = await listModulesAssignedToUser(me.id, me.locale);
+    if (!assigned.some((m) => m.slug === slug)) return notFound();
+  }
 
   // Serve module title/description in the employee's language (English fallback).
   // If the manager can't read it via RLS (e.g. it's no longer published) but they
@@ -67,6 +75,7 @@ export default async function ManagerModulePage(props: PageProps<"/manager/modul
       managerName={me.name}
       moduleSops={moduleSops}
       backHref={backHref}
+      isInvited={me.role !== "manager" || inviteeStatus.isInvited || myAttempts.length > 0}
     />
   );
 }

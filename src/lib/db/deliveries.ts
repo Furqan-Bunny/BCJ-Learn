@@ -129,6 +129,20 @@ export async function getCheckedInStatus(slug: string, managerId: string): Promi
   return { checkedIn: true, checkedInAt: (data as { checked_in_at: string }).checked_in_at };
 }
 
+/** True if the given manager is an invitee of the current (open) delivery. */
+export async function getInviteeStatus(slug: string, managerId: string): Promise<{ isInvited: boolean }> {
+  const sb = await dbClient();
+  const delivery = await getCurrentDelivery(slug);
+  if (!delivery) return { isInvited: false };
+  const { data } = await sb
+    .from("module_invitees")
+    .select("manager_id")
+    .eq("delivery_id", delivery.id)
+    .eq("manager_id", managerId)
+    .maybeSingle();
+  return { isInvited: !!data };
+}
+
 /** List of manager IDs currently checked in to the current delivery. */
 export async function listCheckedInManagers(slug: string): Promise<Manager["id"][]> {
   const sb = await dbClient();

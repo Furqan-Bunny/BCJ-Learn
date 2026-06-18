@@ -16,7 +16,7 @@ import "server-only";
 // row to resume) is already past this gate. Mirrors computeQuizState exactly.
 
 import { dbClient } from "@/lib/supabase/db-client";
-import { getCurrentDelivery, getCheckedInStatus } from "@/lib/db/deliveries";
+import { getCurrentDelivery, getCheckedInStatus, getInviteeStatus } from "@/lib/db/deliveries";
 
 const DEMO_MODE = process.env.NEXT_PUBLIC_DEMO_MODE === "true";
 
@@ -33,6 +33,16 @@ export async function canStartQuizNow(slug: string, userId: string): Promise<boo
     .eq("module_slug", slug)
     .limit(1);
   if ((attempts?.length ?? 0) > 0) return true;
+
+  // The invitee gate applies to EMPLOYEES only: a manager may start a FRESH attempt
+  // only if invited to the current delivery — the quiz is for the invited attendees,
+  // not the whole company once the session opens. Staff (admin/lead) bypass it so
+  // "Take it yourself" keeps working. (A prior attempt above already lets retakes through.)
+  const { data: prof } = await sb.from("profiles").select("role").eq("id", userId).maybeSingle();
+  if ((prof as { role?: string } | null)?.role === "manager") {
+    const { isInvited } = await getInviteeStatus(slug, userId);
+    if (!isInvited) return false;
+  }
 
   const [{ data: mod }, delivery, checkin] = await Promise.all([
     sb.from("modules").select("scheduled_date").eq("slug", slug).maybeSingle(),

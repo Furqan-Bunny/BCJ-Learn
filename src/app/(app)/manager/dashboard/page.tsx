@@ -1,9 +1,9 @@
 import { redirect } from "next/navigation";
 import { getCurrentUserForRole } from "@/lib/supabase/current-user";
-import { listModules } from "@/lib/db/modules";
+import { listModulesAssignedToUser } from "@/lib/db/modules";
 import { listAttemptsForManager } from "@/lib/db/attempts";
 import { listActivityForUser } from "@/lib/db/activity";
-import { getCheckedInStatus, getCurrentDelivery } from "@/lib/db/deliveries";
+import { getCheckedInStatus, getCurrentDelivery, getInviteeStatus } from "@/lib/db/deliveries";
 import { ManagerDashboardView } from "./dashboard-view";
 import type { Cohort, ManagerStatus } from "@/types";
 
@@ -11,8 +11,9 @@ export default async function ManagerDashboardPage() {
   const me = await getCurrentUserForRole("manager");
   if (!me) redirect("/login");
 
+  // Employees only see the modules they're invited to (+ attempted). Not all published.
   const [modules, attempts, activity] = await Promise.all([
-    listModules(me.locale),
+    listModulesAssignedToUser(me.id, me.locale),
     listAttemptsForManager(me.id),
     listActivityForUser(me.id, 5),
   ]);
@@ -34,9 +35,16 @@ export default async function ManagerDashboardPage() {
     .filter((m) => m.status === "published")
     .sort((a, b) => orderKey(a) - orderKey(b) || a.number - b.number);
   const nextModule = orderedModules.find((m) => !passedSlugs.has(m.slug)) ?? orderedModules[orderedModules.length - 1];
-  const [checkInStatus, delivery] = nextModule
-    ? await Promise.all([getCheckedInStatus(nextModule.slug, me.id), getCurrentDelivery(nextModule.slug)])
-    : [{ checkedIn: false, checkedInAt: null }, null];
+  const [checkInStatus, delivery, inviteeStatus] = nextModule
+    ? await Promise.all([
+        getCheckedInStatus(nextModule.slug, me.id),
+        getCurrentDelivery(nextModule.slug),
+        getInviteeStatus(nextModule.slug, me.id),
+      ])
+    : [{ checkedIn: false, checkedInAt: null }, null, { isInvited: false }];
+  // Invited (current delivery) OR already attempted (retake) → can engage.
+  const nextModuleInvited =
+    !!nextModule && (inviteeStatus.isInvited || attempts.some((a) => a.moduleSlug === nextModule.slug));
 
   return (
     <ManagerDashboardView
@@ -59,6 +67,7 @@ export default async function ManagerDashboardPage() {
         sessionEndedAt: delivery?.sessionEndedAt ?? null,
         checkinOpen: !!delivery?.checkinOpenedAt,
       }}
+      nextModuleInvited={nextModuleInvited}
     />
   );
 }

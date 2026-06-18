@@ -43,6 +43,8 @@ export interface ManagerModuleViewProps {
   moduleSops?: ModuleSopStatus[];
   /** Where the "All modules" link goes — staff land here via "Take it yourself". */
   backHref?: string;
+  /** Invited to the current delivery (or has a prior attempt / is staff). */
+  isInvited?: boolean;
 }
 
 export function ManagerModuleView({
@@ -58,6 +60,7 @@ export function ManagerModuleView({
   managerName = "",
   moduleSops = [],
   backHref = "/manager/modules",
+  isInvited = true,
 }: ManagerModuleViewProps) {
   const t = useT();
   const [previewing, setPreviewing] = React.useState<LessonContent | null>(null);
@@ -206,6 +209,7 @@ export function ManagerModuleView({
           isCheckedIn={isCheckedIn}
           sessionStartedAt={sessionStartedAt}
           sessionEndedAt={sessionEndedAt}
+          isInvited={isInvited}
           variant="full"
         />
       </div>
