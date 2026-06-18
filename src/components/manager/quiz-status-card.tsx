@@ -79,11 +79,16 @@ export function QuizStatusCard({
         title={t("status.passedTitle", { score: fmtPct(state.passedAttempt.scorePct), module: mod.title })}
         description={t("status.passedDesc")}
         primaryAction={
-          <Button asChild variant="outline">
-            <Link href={`/manager/modules/${mod.slug}/certificate`}>
-              <Award className="size-4 mr-1.5" /> {t("status.viewCertificate")}
-            </Link>
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button asChild variant="outline">
+              <Link href={`/manager/attempts/${state.passedAttempt.id}`}>{t("quiz.reviewMyAnswers")}</Link>
+            </Button>
+            <Button asChild variant="outline">
+              <Link href={`/manager/modules/${mod.slug}/certificate`}>
+                <Award className="size-4 mr-1.5" /> {t("status.viewCertificate")}
+              </Link>
+            </Button>
+          </div>
         }
         meta={[
           { icon: CheckCircle2, label: t("status.metaPassedOn"), value: fmtDate(state.passedAttempt.submittedAt ?? state.passedAttempt.startedAt) },

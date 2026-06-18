@@ -1,12 +1,14 @@
 import { listAttempts, listAttendanceKeys } from "@/lib/db/attempts";
-import { listManagers } from "@/lib/db/profiles";
+import { listAssignableUsers } from "@/lib/db/profiles";
 import { listModules } from "@/lib/db/modules";
 import { AdminResultsView, type AttemptRow } from "./results-view";
 
 export default async function AdminResultsPage() {
+  // listAssignableUsers (not listManagers) so Department Leads + Admins who took a
+  // quiz themselves also show in results — their attempts were being dropped.
   const [attempts, managers, modules, attendanceKeys] = await Promise.all([
     listAttempts(),
-    listManagers(),
+    listAssignableUsers(),
     listModules(),
     listAttendanceKeys(),
   ]);

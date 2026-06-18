@@ -380,11 +380,9 @@ export function ManagerQuizView({ mod }: { mod: ModuleDef }) {
             <Button asChild size="lg">
               <Link href="/manager/dashboard">{t("quiz.backToDashboard")}</Link>
             </Button>
-            {!result?.passed && (
-              <Button asChild variant="outline" size="lg">
-                <Link href={`/manager/attempts/${attemptId}`}>{t("quiz.reviewMyAnswers")}</Link>
-              </Button>
-            )}
+            <Button asChild variant="outline" size="lg">
+              <Link href={`/manager/attempts/${attemptId}`}>{t("quiz.reviewMyAnswers")}</Link>
+            </Button>
             {result?.passed && (
               <Button asChild variant="outline" size="lg">
                 <Link href={`/manager/modules/${slug}/certificate`}>{t("quiz.viewCertificate")}</Link>
