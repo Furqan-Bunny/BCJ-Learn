@@ -20,6 +20,7 @@ import {
   Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger,
 } from "@/components/ui/dialog";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Pagination, pageSlice } from "@/components/ui/pagination";
 import { fmtPct, fmtRelative, initials } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
@@ -102,6 +103,8 @@ export function ModuleRoster({
   const [filter, setFilter] = React.useState<FilterKey>(initialFilter);
   const [search, setSearch] = React.useState("");
   const [busy, setBusy] = React.useState<string | null>(null);
+  const [page, setPage] = React.useState(0);
+  const PER_PAGE = 15;
 
   const filtered = React.useMemo(() => {
     return roster.filter((r) => {
@@ -113,6 +116,10 @@ export function ModuleRoster({
       return true;
     });
   }, [roster, filter, search]);
+
+  // Reset to the first page whenever the filtered set changes.
+  React.useEffect(() => setPage(0), [filter, search]);
+  const shown = pageSlice(filtered, page, PER_PAGE);
 
   const tookQuizPct = counts.expected ? Math.round((counts.tookQuiz / counts.expected) * 100) : 0;
   const passedPct = counts.expected ? Math.round((counts.passed / counts.expected) * 100) : 0;
@@ -432,7 +439,7 @@ export function ModuleRoster({
             </div>
           ) : (
             <ul className="divide-y">
-              {filtered.map((r) => {
+              {shown.map((r) => {
                 const meta = STATUS_META[r.status];
                 const StatusIcon = meta.Icon;
                 return (
@@ -515,6 +522,11 @@ export function ModuleRoster({
                 );
               })}
             </ul>
+          )}
+          {filtered.length > PER_PAGE && (
+            <div className="px-4 py-3 border-t">
+              <Pagination page={page} total={filtered.length} pageSize={PER_PAGE} onPageChange={setPage} />
+            </div>
           )}
         </CardContent>
       </Card>
