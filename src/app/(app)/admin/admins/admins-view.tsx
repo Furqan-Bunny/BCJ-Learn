@@ -211,10 +211,11 @@ export function AdminAdminsView({ admins, activityByActor }: AdminAdminsViewProp
       </div>
 
       <EditUserSheet
-        user={editTarget ? { id: editTarget.id, name: editTarget.name, email: editTarget.email, title: editTarget.title } : null}
+        user={editTarget ? { id: editTarget.id, name: editTarget.name, email: editTarget.email, title: editTarget.title, role: editTarget.role } : null}
         open={!!editTarget}
         onOpenChange={(o) => { if (!o) setEditTarget(null); }}
         showTitle
+        showRole
       />
     </>
   );

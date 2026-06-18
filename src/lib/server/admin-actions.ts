@@ -273,6 +273,8 @@ export interface EditUserInput {
   name: string;
   email: string;
   title?: string | null;
+  /** Change the user's role (Employee / Department Lead / Admin). */
+  role?: Role;
 }
 
 export async function editUserAndReinvite(
@@ -285,6 +287,10 @@ export async function editUserAndReinvite(
   const email = input.email.trim().toLowerCase();
   if (!name) return { ok: false, error: "Name is required" };
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return { ok: false, error: "Enter a valid email address" };
+  // Don't let an admin demote themselves (and lock the org out of admin access).
+  if (input.role !== undefined && input.userId === guard.userId && input.role !== "admin") {
+    return { ok: false, error: "You can't change your own role." };
+  }
 
   const admin = createAdminClient();
   const { data: cur } = await admin
@@ -312,6 +318,7 @@ export async function editUserAndReinvite(
   const profileUpdate: Record<string, unknown> = { name };
   if (emailChanged) profileUpdate.email = email;
   if (input.title !== undefined) profileUpdate.title = input.title?.trim() ? input.title.trim() : null;
+  if (input.role !== undefined) profileUpdate.role = input.role;
 
   const isPending = before.status === "pending";
   let resent = false;

@@ -27,6 +27,7 @@ import {
   X as XIcon,
   ChevronLeft,
   ChevronRight,
+  Pencil,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -57,6 +58,7 @@ import {
 import { PageHeader } from "@/components/shared/page-header";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { AddManagerSheet } from "@/components/admin/add-manager-sheet";
+import { EditUserSheet } from "@/components/admin/edit-user-sheet";
 import { BulkImportSheet } from "@/components/admin/bulk-import-sheet";
 import type { Manager, Cohort, ManagerStatus } from "@/types";
 import { fmtRelative, initials } from "@/lib/format";
@@ -77,6 +79,7 @@ export function AdminManagersView({ managers, totalModules }: { managers: Manage
   const [sorting, setSorting] = React.useState<SortingState>([]);
   const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>([]);
   const [rowSelection, setRowSelection] = React.useState({});
+  const [editTarget, setEditTarget] = React.useState<Manager | null>(null);
 
   // Pre-seed the faceted filters from drill-through links (e.g. the admin
   // dashboard pie slices → ?status=, cohort rows → ?cohort=). Reuses the
@@ -226,6 +229,9 @@ export function AdminManagersView({ managers, totalModules }: { managers: Manage
               <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
                 <DropdownMenuItem onClick={() => router.push(`/admin/managers/${m.id}`)}>
                   View profile
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setEditTarget(m)}>
+                  <Pencil className="mr-2 size-4" /> Edit / change role
                 </DropdownMenuItem>
                 {m.status === "pending" && (
                   <DropdownMenuItem
@@ -481,6 +487,13 @@ export function AdminManagersView({ managers, totalModules }: { managers: Manage
           </Button>
         </div>
       </div>
+
+      <EditUserSheet
+        user={editTarget ? { id: editTarget.id, name: editTarget.name, email: editTarget.email, role: editTarget.role } : null}
+        open={!!editTarget}
+        onOpenChange={(o) => { if (!o) setEditTarget(null); }}
+        showRole
+      />
     </>
   );
 }

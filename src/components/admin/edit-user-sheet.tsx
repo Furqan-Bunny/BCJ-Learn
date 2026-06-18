@@ -12,15 +12,24 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 import { editUserAndReinvite } from "@/lib/server/admin-actions";
+import type { Role } from "@/types";
+
+const ROLE_LABEL: Record<Role, string> = {
+  manager: "Employee",
+  teacher: "Department Lead",
+  admin: "Admin",
+};
 
 export interface EditableUser {
   id: string;
   name: string;
   email: string;
   title?: string | null;
+  role?: Role;
 }
 
 export function EditUserSheet({
@@ -28,16 +37,20 @@ export function EditUserSheet({
   open,
   onOpenChange,
   showTitle = false,
+  showRole = false,
 }: {
   user: EditableUser | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
   showTitle?: boolean;
+  /** Show a role selector so an admin can promote/demote (Employee / Lead / Admin). */
+  showRole?: boolean;
 }) {
   const router = useRouter();
   const [name, setName] = React.useState("");
   const [email, setEmail] = React.useState("");
   const [title, setTitle] = React.useState("");
+  const [role, setRole] = React.useState<Role>("manager");
   const [saving, setSaving] = React.useState(false);
 
   // Re-seed the fields whenever a different user is opened.
@@ -46,8 +59,11 @@ export function EditUserSheet({
       setName(user.name ?? "");
       setEmail(user.email ?? "");
       setTitle(user.title ?? "");
+      setRole(user.role ?? "manager");
     }
   }, [user]);
+
+  const roleChanged = showRole && !!user && role !== (user.role ?? "manager");
 
   async function handleSave() {
     if (!user) return;
@@ -59,10 +75,13 @@ export function EditUserSheet({
       name: name.trim(),
       email: email.trim(),
       title: showTitle ? (title.trim() || null) : undefined,
+      role: showRole ? role : undefined,
     });
     setSaving(false);
     if (!res.ok) { toast.error(res.error ?? "Could not save changes"); return; }
-    toast.success(res.resent ? "Saved — invite re-sent" : "Changes saved");
+    toast.success(
+      roleChanged ? `Role updated to ${ROLE_LABEL[role]}` : res.resent ? "Saved — invite re-sent" : "Changes saved",
+    );
     onOpenChange(false);
     router.refresh();
   }
@@ -86,6 +105,24 @@ export function EditUserSheet({
             <Label htmlFor="eu-email" className="text-xs">Work email</Label>
             <Input id="eu-email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} className="h-10" />
           </div>
+          {showRole && (
+            <div className="space-y-1.5">
+              <Label className="text-xs">Role</Label>
+              <Select value={role} onValueChange={(v) => setRole(v as Role)}>
+                <SelectTrigger className="h-10"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="manager">Employee</SelectItem>
+                  <SelectItem value="teacher">Department Lead</SelectItem>
+                  <SelectItem value="admin">Admin</SelectItem>
+                </SelectContent>
+              </Select>
+              {roleChanged && (
+                <p className="text-[11px] text-amber-600 dark:text-amber-400">
+                  Changing the role changes what this person can see and do after they next load the app.
+                </p>
+              )}
+            </div>
+          )}
           {showTitle && (
             <div className="space-y-1.5">
               <Label htmlFor="eu-title" className="text-xs">Title (optional)</Label>
