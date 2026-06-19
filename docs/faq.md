@@ -19,6 +19,9 @@ On the login screen click **"Forgot password?"**, confirm your email, and click 
 **Why can't I take the quiz yet?**
 The quiz opens **after the live seminar**. You usually need to **check in** at the seminar (enter the 4-digit code on the room screen), and the trainer must **end the session**. If a module has **required resources**, you must sign them first.
 
+**I don't see a module I expected.**
+You only see modules you've been **invited** to. Ask your Department Lead or an Admin to add you to that module's roster — it'll appear right away.
+
 **Can I look at the materials before the seminar?**
 Yes — open the module and scroll to **Seminar outline**. Anything marked **"Available to preview now"** can be studied beforehand. It's optional but helpful.
 
@@ -51,7 +54,10 @@ Your trainer can reschedule you to the next delivery, or open the quiz for you. 
 ## For Department Leads
 
 **Which modules can I see?**
-Only the ones you **own**. Admins assign ownership. You can't open another lead's module.
+**Every** module — but you only **edit** the ones you **own** (Admins assign ownership). On modules you don't own you can still present, take the quiz yourself, and view results; the edit controls are just hidden.
+
+**Can I take a quiz myself, and where do I see my result?**
+Yes — open the module and tap **Take it yourself**. Your own attempts, scores, answer review, and certificates live under **My Progress** in your sidebar.
 
 **How do I get questions ready?**
 Upload your content (**Content**), then open **Questions** and click **Generate questions with AI**. Review each — **Approve**, **Edit**, **Regenerate**, or **Reject** — then **Publish**.
@@ -66,7 +72,7 @@ Open **Present in seminar** → **Open check-in** (shows the code) → **Start s
 **See results** for the module: pass rate, score distribution, most-missed questions, and the roster of who attended and how they did. On any question, **Who answered** shows exactly who got it right or wrong with date/time.
 
 **How do I set the seminar time?**
-Schedule or reschedule the seminar with a **date and time**; attendees are emailed automatically.
+Schedule or reschedule the seminar with a **date and time**. The attendee list is pre-checked with everyone who hasn't passed in the last 12 months, and you can **search the directory to add anyone else**; the selected attendees are emailed automatically.
 
 ---
 
@@ -85,7 +91,7 @@ Any of: failed twice on a module, missed a deadline, no login in 14+ days, first
 Yes. **Notifications** for email templates (with preview + send test). **Settings → Certificate** for the certificate wording, signatory, and logo. **Settings → Branding** for name, colours, logo, and the email sender address.
 
 **Who can see drafts and other leads' modules?**
-Admins see everything. Department Leads see only their own modules. Employees see only published modules assigned to them.
+Admins see everything. Department Leads now see **every** module but only **edit** the ones they own. Employees see only the **published** modules they've been **invited** to — publishing alone doesn't expose a module to everyone.
 
 **How do I track changes to a resource and who acknowledged it?**
 Open the resource's detail page: **Change history** shows every edit (who, when, what changed); **Acknowledgements** shows who signed each version and when (the re-acknowledgement tree).

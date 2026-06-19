@@ -25,12 +25,12 @@
 
 ![All modules](/docs-img/admin-modules.png)
 
-`Modules` shows all modules (List or Card view, toggle persists). **Search** by number/title/description/month/owner. Click a module to open it. **Add module** opens the wizard.
+`Modules` shows all modules (List or Card view, toggle persists). Each row shows its **Published / Draft** status and, once the module has been delivered (its seminar's session has ended), a green **"Delivered {date}"** badge. **Search** by number/title/description/month/owner. Click a module to open it. **Add module** opens the wizard.
 
 ### Add module (4-step wizard)
 1. **Details & content** — module number (auto), **title**, **description**, **scheduled date** + optional **time**, **owner Department Lead(s)**, **pass threshold** (default 85%), **question count** (default 25), optional **time limit**, and optional **required resources** to link. Below, the **Lessons builder** (add lessons + content — see §3).
 2. **Generate questions** — AI drafts questions one at a time; **Add** the good ones, **Skip** the rest. Toggle the **pool** (First attempt / Retake) as you go.
-3. **Choose employees** — pick who attends (defaults to everyone due). Leave empty to schedule later.
+3. **Choose employees** — pick who attends. Everyone who hasn't passed in the last 12 months is **pre-checked**, and you can **search the full directory to add anyone else** (already-passed people show a "passed" hint and start unchecked). Leave empty to schedule later.
 4. **Publish & send** — **Publish** (creates the module, links resources, schedules the seminar if you picked people, and emails invites in batches) **or** **Save as draft** (stays admin-visible, hidden from employees, publish later).
 
 ### Module detail page
@@ -41,14 +41,14 @@ Tabs:
 - **Content** — read-only lessons preview + **Edit content**.
 - **Questions** — bank summary grouped by pool + **Review & edit questions**.
 - **Roster** — who's expected for the current delivery; **Reschedule** / **Schedule redelivery**; the roster table (bulk add/remove, search/filter).
-- **Past deliveries** — timeline of prior deliveries with attendance + session times.
+- **Past deliveries** — timeline of every delivery with attendance + session times. The current delivery is tagged **Active** (not yet presented), **Delivered {date}** (its seminar has ended but it stays open so people can retake), or **Archived** (superseded by a newer delivery).
 - **Reports** — attempts table for this module + **Open full Test Results**.
 
 ### Edit module
 Same fields as the wizard, pre-filled (number can't change). Edit details, owners, thresholds, lessons, and linked resources; **Save changes**.
 
 ### Publish vs Draft
-Only **published** modules appear to employees. **Draft** modules are visible to admins/leads but hidden from employees. Use **Unpublish** to pull a module back to draft. Publishing with fewer approved questions than the quiz length asks for a confirmation but is allowed.
+A module appears to an employee only when it's **published AND they've been invited** to it (added to its roster) — publishing alone does **not** expose it to the whole company. **Draft** modules are visible to admins/leads but hidden from employees. Use **Unpublish** to pull a module back to draft. Publishing with fewer approved questions than the quiz length asks for a confirmation but is allowed.
 
 ---
 
@@ -105,7 +105,7 @@ A table of all employees: name, **markets**, **status** (Pending / Active / At-r
 - **Bulk import** — upload a CSV (`name,email,markets`; markets separated by `;`). Rows are validated; import the valid ones; invites send in batches.
 
 ### Employee detail
-A person's profile, their assigned modules (status, attempts, pass rate), and **all their attempts** (click into any). Actions: send reminder, reschedule a retake, force password reset, deactivate, delete.
+A person's profile, their assigned modules (status, attempts, pass rate), and **all their attempts** (click into any). Actions: send reminder, reschedule a retake, force password reset, deactivate, delete. **Editing a person lets you change their role** (Employee ↔ Department Lead ↔ Admin) — demoting a lead removes their module ownership — and for a still-**pending** invite you can **Resend invite**.
 
 ### Department Leads (`People → Department Leads`)
 A table of leads: owned modules, question-bank progress, joined, last active. **Invite Department Lead** (name, email, title). Email / send reminder / delete per lead.
@@ -122,7 +122,7 @@ A table of admins (name, title, joined, last active). **Invite admin** (name, em
 
 ![Test results — the master attempts table](/docs-img/admin-reports.png)
 
-`Test results` is the master attempts table:
+`Test results` is the master attempts table — every quiz attempt by **anyone**, including Department Leads or Admins who took a quiz themselves (not just employees):
 - KPIs: total attempts, pass rate, average score, failed.
 - Columns: employee, module, pool, **score**, status, **Attended** (checked-in vs not), date **with time**. Sort, filter (by module/pool/status), search by employee. Paginated. **Download CSV** exports the current view.
 - Click a row to open the **attempt detail**: the score, correct/wrong counts, time taken, and a **question-by-question review** with the correct answers and the employee's choices. Actions: send reminder, schedule retake.
@@ -177,7 +177,7 @@ Saved settings apply to every employee's certificate.
 
 ## 11. Seminars & deliveries
 
-- **Schedule a seminar / redelivery** — pick a **date + time** and the attendees (defaults to everyone due); invites email in batches. A module can have **multiple deliveries** (1st, 2nd, …); each attempt is tied to the delivery it happened in. **Rescheduling** the current delivery moves only that one; **scheduling a new delivery** creates the next one and archives the prior in **Past deliveries**.
+- **Schedule a seminar / redelivery** — pick a **date + time** and the attendees. Everyone who hasn't passed in the last 12 months is pre-checked, and you can **search the directory to add anyone else**; invites email in batches. A module can have **multiple deliveries** (1st, 2nd, …); each attempt is tied to the delivery it happened in. **Rescheduling** the current delivery moves only that one; **scheduling a new delivery** creates the next one and archives the prior in **Past deliveries**.
 - **Check-in** — opened by the Department Lead in the presenter; each session has a **fresh 4-digit code**. Attendance is recorded and shown on rosters and the attempted-vs-not column in reports.
 - **Send the quiz to non-attendees** — quizzes open after the seminar; you can also send/open the quiz to selected people who didn't attend (talk to your team about policy).
 

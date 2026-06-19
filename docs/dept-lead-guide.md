@@ -2,7 +2,7 @@
 
 *For the trainer who owns a module: build it, present it live, review questions, and see how your people did.*
 
-> A Department Lead only ever sees and edits the modules they **own**. Trying to open another lead's module by URL returns "Not found." Admins assign module ownership.
+> A Department Lead now **sees every module** — but only **edits** the ones they **own** (ownership is assigned by an Admin). On a module you don't own you can still **present** it, **take the quiz yourself**, and **view results**; the editing controls are simply hidden.
 
 ---
 
@@ -19,9 +19,9 @@
 
 ## 2. My Modules
 
-![The modules you own](/docs-img/lead-modules.png)
+![Your modules](/docs-img/lead-modules.png)
 
-`My Modules` lists the modules you own. From here you can open any of them, or **Add module** (you'll be the owner). Each card has the same quick actions as the dashboard.
+`My Modules` lists **every** module. The ones you **own** carry the full edit controls (content, questions, schedule); on the rest you can **present**, **take it yourself**, or **see results**. **Add module** creates a new one with you as the owner. Each card has the same quick actions as the dashboard.
 
 ### Module detail
 Opening a module shows: question bank progress, attempts, pass rate, the **seminar plan** (lessons + total time), a **content tally** (videos/documents/slides/links), the **current roster** (who's expected, with live status), **past deliveries**, and buttons to **review questions** and **see results**.
@@ -86,7 +86,7 @@ On training day, open **Present in seminar** (full-screen presenter):
 ## 6. Check-in & scheduling
 
 - **Check-in** is opened from the presenter (above). Each session has a **fresh code**.
-- **Schedule / reschedule the seminar** with **date *and* time** from the module's roster section (or the admin sets it up). Rescheduling keeps the same attendees and emails them the new date/time.
+- **Schedule / reschedule the seminar** with **date *and* time** from the module's roster section (or the admin sets it up). When you schedule, the attendee list comes **pre-checked with everyone who hasn't passed in the last 12 months** (new hires, past fails, recertification-due) — and you can **search the full employee directory to add anyone else**, or uncheck people you don't want. The selected people are invited and emailed. Rescheduling keeps the same attendees and emails them the new date/time.
 
 ---
 
@@ -107,7 +107,7 @@ Open **See results** for a module:
 
 ![My team — employees trained on your modules](/docs-img/lead-team.png)
 
-`My team` lists the employees trained on your modules (read-only for you):
+`My team` lists the employees on the modules you **own** — anyone **invited to** (or who has **taken**) one of your modules. People outside your modules don't appear, and if you don't own a module yet your team is empty.
 
 - KPIs: team members, passed your modules, not yet attempted, at-risk.
 - **Search** by name/email/market and **filter by market**.
@@ -115,8 +115,14 @@ Open **See results** for a module:
 
 ---
 
+## 9. Taking a module yourself & My Progress
+
+You can take any module's quiz to experience it from the employee's side — open the module and tap **Take it yourself**. Your own attempts, scores, **answer review**, and **certificates** live under **My Progress** in your sidebar — the same history employees get. Handy for sanity-checking a quiz before a seminar, or for completing training that applies to you too. (You bypass the invite gate, so you can take any module.)
+
+---
+
 ## What you can't do (Admin-only)
 
-Department Leads don't manage other leads' modules, the employee directory at large, branding/certificate/email settings, the audit log, bulk user import, or CSV exports. Ask an Admin for those.
+Department Leads can **see** every module but **don't edit** modules they don't own. They also don't manage the employee directory at large, branding/certificate/email settings, the audit log, bulk user import, or CSV exports. Ask an Admin for those.
 
 *See the FAQ for quick answers.*

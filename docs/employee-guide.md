@@ -33,9 +33,9 @@ Your home screen shows:
 
 ## 3. Modules
 
-![The 5-module program list](/docs-img/emp-modules.png)
+![Your modules](/docs-img/emp-modules.png)
 
-Open **Modules** to see the whole 5-module program. You can:
+Open **Modules** to see the modules you've been **invited** to. You won't see modules you're not on — if you expected one and it's missing, ask your trainer to add you. You can:
 
 - **Search** modules by name.
 - **Filter** with the tabs: **All**, **To do**, **Needs action** (retake or locked), **Passed**.
@@ -85,7 +85,7 @@ When the seminar ends, your **Quiz status** card flips to **"Quiz is open."** Ta
 - On the last question, tap **Submit quiz**.
 
 **Your result:**
-- **Passed (85%+):** "Congratulations, you passed!" with your score, confetti, and a **View certificate** button. The next module unlocks next month.
+- **Passed (85%+):** "Congratulations, you passed!" with your score, confetti, a **View certificate** button, and a **Review my answers** button so you can see exactly which questions you missed. The next module unlocks next month.
 - **Not passed:** "Not quite there" with your score and how many **attempts you have left**. A **retake is automatically scheduled** — review the material and try again. After your **3rd** miss the module **locks** and your trainer is notified to help. You can tap **Review my answers**.
 
 ### The 3-attempt rule
@@ -163,6 +163,7 @@ You can switch the app between **English** and **Español** in three places: the
 
 ## Quick rules recap
 
+- You only see the modules you've been **invited** to — if one's missing, ask your trainer.
 - **Pass = 85%** (or whatever your module requires).
 - **3 attempts** total; 3rd miss locks the module and your trainer helps.
 - **Content is open before the seminar**; the **quiz** opens after the seminar (check in + trainer ends session).
