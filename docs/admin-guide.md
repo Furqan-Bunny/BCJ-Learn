@@ -177,6 +177,8 @@ Saved settings apply to every employee's certificate.
 
 ## 11. Seminars & deliveries
 
+![Schedule a seminar — the due list is pre-checked, and you can search the directory to add anyone](/docs-img/admin-schedule-seminar.png)
+
 - **Schedule a seminar / redelivery** — pick a **date + time** and the attendees. Everyone who hasn't passed in the last 12 months is pre-checked, and you can **search the directory to add anyone else**; invites email in batches. A module can have **multiple deliveries** (1st, 2nd, …); each attempt is tied to the delivery it happened in. **Rescheduling** the current delivery moves only that one; **scheduling a new delivery** creates the next one and archives the prior in **Past deliveries**.
 - **Check-in** — opened by the Department Lead in the presenter; each session has a **fresh 4-digit code**. Attendance is recorded and shown on rosters and the attempted-vs-not column in reports.
 - **Send the quiz to non-attendees** — quizzes open after the seminar; you can also send/open the quiz to selected people who didn't attend (talk to your team about policy).

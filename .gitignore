@@ -39,3 +39,7 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# Real service-account credentials (production) — never commit
+docs/service-credentials.html
+docs/pdf/BCJ-Learn-Service-Credentials.pdf

@@ -16,15 +16,67 @@ import { promises as fs } from "fs";
 import path from "path";
 import puppeteer, { type Page, type BrowserContext } from "puppeteer";
 
-const BASE = process.env.SHOTS_BASE ?? "http://localhost:3008";
+const BASE = process.env.SHOTS_BASE ?? "http://localhost:3000";
 const PASSWORD = "BcjLearnDemo2026!";
 const OUT = path.join(process.cwd(), "public", "docs-img");
 
 const ROLES = {
-  employee: { email: "testemployee@bcj.com" },
-  lead: { email: "testlead@bcj.com" },
-  admin: { email: "testadmin@bcj.com" },
+  employee: { email: "test-manager@bcjbuildingservices.com" },
+  lead: { email: "test-lead@bcjbuildingservices.com" },
+  admin: { email: "test-admin@bcjbuildingservices.com" },
 };
+
+/** A callout to draw on a screen before capturing: a teal ring + label around
+ *  the first visible element matching `text` (or a CSS `selector`). Used to point
+ *  out new features in the guides. */
+interface Mark { text?: string; selector?: string; label?: string; nth?: number }
+
+async function applyMarks(page: Page, marks: Mark[]) {
+  for (const m of marks) {
+    await page.evaluate((mk: Mark) => {
+      const TEAL = "#25BCB9";
+      let el: Element | null = null;
+      if (mk.selector) {
+        const list = Array.from(document.querySelectorAll(mk.selector)).filter((e) => (e as HTMLElement).getClientRects().length);
+        el = list[mk.nth ?? 0] ?? null;
+      } else if (mk.text) {
+        const all = Array.from(document.querySelectorAll("button, a, span, div, input, label, h1, h2, h3, td, th, p"));
+        const hits = all.filter((e) => {
+          const t = (e.textContent ?? "").trim();
+          const ph = (e as HTMLInputElement).placeholder ?? "";
+          return ((mk.text && (t === mk.text || t.includes(mk.text!))) || (mk.text && ph.includes(mk.text!))) && (e as HTMLElement).getClientRects().length;
+        });
+        hits.sort((a, b) => {
+          const ra = a.getBoundingClientRect(), rb = b.getBoundingClientRect();
+          return ra.width * ra.height - rb.width * rb.height;
+        });
+        el = hits[mk.nth ?? 0] ?? null;
+      }
+      if (!el) return;
+      const r = el.getBoundingClientRect();
+      const ring = document.createElement("div");
+      Object.assign(ring.style, {
+        position: "fixed", left: `${r.left - 6}px`, top: `${r.top - 6}px`,
+        width: `${r.width + 12}px`, height: `${r.height + 12}px`,
+        border: `3px solid ${TEAL}`, borderRadius: "10px",
+        boxShadow: `0 0 0 4px rgba(37,188,185,.22)`, zIndex: "2147483646", pointerEvents: "none",
+      } as CSSStyleDeclaration);
+      document.body.appendChild(ring);
+      if (mk.label) {
+        const tag = document.createElement("div");
+        tag.textContent = mk.label;
+        const above = r.top - 6 - 28 > 4;
+        Object.assign(tag.style, {
+          position: "fixed", left: `${r.left - 6}px`, top: above ? `${r.top - 6 - 28}px` : `${r.bottom + 8}px`,
+          background: TEAL, color: "#fff", font: "600 13px 'Segoe UI', sans-serif",
+          padding: "4px 10px", borderRadius: "7px", zIndex: "2147483647", pointerEvents: "none", whiteSpace: "nowrap",
+          boxShadow: "0 2px 8px rgba(4,29,57,.25)",
+        } as CSSStyleDeclaration);
+        document.body.appendChild(tag);
+      }
+    }, m);
+  }
+}
 
 const results = { ok: [] as string[], fail: [] as string[] };
 const ONLY = process.env.SHOTS_ONLY; // when set, only capture shots whose name includes it
@@ -48,12 +100,14 @@ async function login(page: Page, email: string) {
   await settle(1000);
 }
 
-/** Navigate to a page and screenshot the viewport. */
-async function shot(page: Page, urlPath: string, name: string, settleMs = 1300) {
+/** Navigate to a page and screenshot the viewport. Optional `marks` draw teal
+ *  callouts on new features before the capture. */
+async function shot(page: Page, urlPath: string, name: string, settleMs = 1300, marks: Mark[] = []) {
   if (!wanted(name)) return;
   try {
     await page.goto(`${BASE}${urlPath}`, { waitUntil: "networkidle2", timeout: 45000 });
     await settle(settleMs);
+    if (marks.length) await applyMarks(page, marks);
     await page.screenshot({ path: path.join(OUT, `${name}.png`) });
     results.ok.push(name);
     console.log(`  ✓ ${name}`);
@@ -64,13 +118,14 @@ async function shot(page: Page, urlPath: string, name: string, settleMs = 1300) 
 }
 
 /** Navigate, run an action (e.g. open a modal), then screenshot. */
-async function shotAction(page: Page, urlPath: string, name: string, action: () => Promise<void>, settleMs = 1600) {
+async function shotAction(page: Page, urlPath: string, name: string, action: () => Promise<void>, settleMs = 1600, marks: Mark[] = []) {
   if (!wanted(name)) return;
   try {
     await page.goto(`${BASE}${urlPath}`, { waitUntil: "networkidle2", timeout: 45000 });
     await settle(900);
     await action();
     await settle(settleMs);
+    if (marks.length) await applyMarks(page, marks);
     await page.screenshot({ path: path.join(OUT, `${name}.png`) });
     results.ok.push(name);
     console.log(`  ✓ ${name}`);
@@ -93,6 +148,25 @@ async function firstModuleSlug(page: Page, listUrl: string): Promise<string | nu
     }
     return null;
   });
+}
+
+/** Click the first visible button/link/tab whose text matches one of `labels`. */
+async function clickByText(page: Page, labels: string[]): Promise<boolean> {
+  const handles = await page.$$("button, a, [role='tab']");
+  for (const label of labels) {
+    for (const h of handles) {
+      const txt = (await h.evaluate((b) => (b.textContent ?? "").trim()));
+      if (txt === label || txt.includes(label)) {
+        const visible = await h.evaluate((b) => (b as HTMLElement).getClientRects().length > 0);
+        if (!visible) continue;
+        await h.evaluate((b) => (b as HTMLElement).scrollIntoView({ block: "center" }));
+        await settle(250);
+        await h.click().catch(() => {});
+        return true;
+      }
+    }
+  }
+  return false;
 }
 
 /** Click the first lesson-content card so the file-preview modal opens. */
@@ -125,7 +199,9 @@ async function captureEmployee(ctx: BrowserContext) {
   await login(page, ROLES.employee.email);
 
   await shot(page, "/manager/dashboard", "emp-dashboard");
-  await shot(page, "/manager/modules", "emp-modules");
+  await shot(page, "/manager/modules", "emp-modules", 1300, [
+    { text: "My Progress", label: "Your own results & answer review" },
+  ]);
 
   const slug = await firstModuleSlug(page, "/manager/modules");
   if (slug) {
@@ -173,7 +249,9 @@ async function captureLead(ctx: BrowserContext) {
   await login(page, ROLES.lead.email);
 
   await shot(page, "/teacher/dashboard", "lead-dashboard");
-  await shot(page, "/teacher/modules", "lead-modules");
+  await shot(page, "/teacher/modules", "lead-modules", 1300, [
+    { text: "My Progress", label: "Take a quiz yourself — your results live here" },
+  ]);
   await shot(page, "/teacher/results", "lead-results");
   await shot(page, "/teacher/questions", "lead-questions");
   await shot(page, "/teacher/managers", "lead-team");
@@ -198,7 +276,9 @@ async function captureAdmin(ctx: BrowserContext) {
 
   await shot(page, "/admin/dashboard", "admin-dashboard");
   await shot(page, "/admin/managers", "admin-people");
-  await shot(page, "/admin/modules", "admin-modules");
+  await shot(page, "/admin/modules", "admin-modules", 1300, [
+    { text: "Delivered", label: "Delivered status, per module" },
+  ]);
   await shot(page, "/admin/questions", "admin-questions");
   await shot(page, "/admin/resources", "admin-resources");
   await shot(page, "/admin/results", "admin-reports");
@@ -220,6 +300,24 @@ async function captureAdmin(ctx: BrowserContext) {
   });
   if (resId) await shot(page, `/admin/resources/${resId}`, "admin-resource-detail");
   else results.fail.push("admin-resource-detail: no resource id found");
+
+  // Schedule-seminar dialog — search the full directory to add anyone (new).
+  if (wanted("admin-schedule-seminar")) {
+    const slug = await firstModuleSlug(page, "/admin/modules");
+    if (slug) {
+      await shotAction(page, `/admin/modules/${slug}`, "admin-schedule-seminar", async () => {
+        // Open the Roster tab if it's a tab, then the "Schedule seminar" dialog.
+        await clickByText(page, ["Roster"]);
+        await settle(600);
+        await clickByText(page, ["Schedule seminar", "Schedule redelivery", "Schedule"]);
+        await page.waitForSelector('[data-slot="dialog-content"]', { timeout: 8000 }).catch(() => {});
+      }, 1600, [
+        { selector: 'input[placeholder*="Search to add"]', label: "Search & add ANY manager" },
+      ]);
+    } else {
+      results.fail.push("admin-schedule-seminar: no module slug found");
+    }
+  }
 
   await page.close();
 }
