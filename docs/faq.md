@@ -1,4 +1,4 @@
-# BCJ Learn — FAQ
+# BCJ Learn - FAQ
 
 *Quick answers to common questions. Grouped by who's asking.*
 
@@ -20,18 +20,18 @@ On the login screen click **"Forgot password?"**, confirm your email, and click 
 The quiz opens **after the live seminar**. You usually need to **check in** at the seminar (enter the 4-digit code on the room screen), and the trainer must **end the session**. If a module has **required resources**, you must sign them first.
 
 **I don't see a module I expected.**
-You only see modules you've been **invited** to. Ask your Department Lead or an Admin to add you to that module's roster — it'll appear right away.
+You only see modules you've been **invited** to. Ask your Department Lead or an Admin to add you to that module's roster - it'll appear right away.
 
 **Can I look at the materials before the seminar?**
-Yes — open the module and scroll to **Seminar outline**. Anything marked **"Available to preview now"** can be studied beforehand. It's optional but helpful.
+Yes - open the module and scroll to **Seminar outline**. Anything marked **"Available to preview now"** can be studied beforehand. It's optional but helpful.
 
 **What score do I need to pass?**
-**85%** by default (some modules may differ — the quiz intro shows the exact pass mark).
+**85%** by default (some modules may differ - the quiz intro shows the exact pass mark).
 
 **How many tries do I get?**
 **Three** total per module: your first attempt plus up to **two retakes**. Retakes cover the same material, reworded. After the 3rd miss the module locks and your trainer reaches out to help.
 
-**A retake got scheduled — what now?**
+**A retake got scheduled - what now?**
 Review the material, then take the retake from your module's status card or **My Progress**. It shows how many attempts you have left.
 
 **Where's my certificate?**
@@ -47,23 +47,23 @@ Go to **My Profile** and use the **language** toggle (English / Español). The w
 Your trainer can reschedule you to the next delivery, or open the quiz for you. Check your **Notifications** and talk to your Department Lead.
 
 **Where do I see my history?**
-**My Progress** — every attempt with scores and dates, plus a module-by-module summary.
+**My Progress** - every attempt with scores and dates, plus a module-by-module summary.
 
 ---
 
 ## For Department Leads
 
 **Which modules can I see?**
-**Every** module — but you only **edit** the ones you **own** (Admins assign ownership). On modules you don't own you can still present, take the quiz yourself, and view results; the edit controls are just hidden.
+**Every** module - but you only **edit** the ones you **own** (Admins assign ownership). On modules you don't own you can still present, take the quiz yourself, and view results; the edit controls are just hidden.
 
 **Can I take a quiz myself, and where do I see my result?**
-Yes — open the module and tap **Take it yourself**. Your own attempts, scores, answer review, and certificates live under **My Progress** in your sidebar.
+Yes - open the module and tap **Take it yourself**. Your own attempts, scores, answer review, and certificates live under **My Progress** in your sidebar.
 
 **How do I get questions ready?**
-Upload your content (**Content**), then open **Questions** and click **Generate questions with AI**. Review each — **Approve**, **Edit**, **Regenerate**, or **Reject** — then **Publish**.
+Upload your content (**Content**), then open **Questions** and click **Generate questions with AI**. Review each - **Approve**, **Edit**, **Regenerate**, or **Reject** - then **Publish**.
 
 **Can questions be generated after publishing?**
-Yes. You can generate/approve questions any time — just make sure they're ready **before the presentation**.
+Yes. You can generate/approve questions any time - just make sure they're ready **before the presentation**.
 
 **How do I run the seminar?**
 Open **Present in seminar** → **Open check-in** (shows the code) → **Start session** → present your content → **End session** (this opens the quiz to everyone who checked in).
@@ -91,7 +91,7 @@ Any of: failed twice on a module, missed a deadline, no login in 14+ days, first
 Yes. **Notifications** for email templates (with preview + send test). **Settings → Certificate** for the certificate wording, signatory, and logo. **Settings → Branding** for name, colours, logo, and the email sender address.
 
 **Who can see drafts and other leads' modules?**
-Admins see everything. Department Leads now see **every** module but only **edit** the ones they own. Employees see only the **published** modules they've been **invited** to — publishing alone doesn't expose a module to everyone.
+Admins see everything. Department Leads now see **every** module but only **edit** the ones they own. Employees see only the **published** modules they've been **invited** to - publishing alone doesn't expose a module to everyone.
 
 **How do I track changes to a resource and who acknowledged it?**
 Open the resource's detail page: **Change history** shows every edit (who, when, what changed); **Acknowledgements** shows who signed each version and when (the re-acknowledgement tree).

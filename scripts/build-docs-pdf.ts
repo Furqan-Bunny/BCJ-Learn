@@ -1,5 +1,5 @@
 /**
- * BCJ Learn — render the Markdown guides in /docs to polished, client-ready PDFs.
+ * BCJ Learn - render the Markdown guides in /docs to polished, client-ready PDFs.
  *
  * Each /docs/<name>.md becomes /docs/pdf/<name>.pdf: a clean-corporate layout
  * with a cover page, a table of contents, numbered sections with teal accent
@@ -31,7 +31,7 @@ const DOCS = [
 
 const IMG_DIR = path.join(process.cwd(), "public", "docs-img");
 
-// Screenshots inlined as base64 data URIs — headless Chrome won't load file://
+// Screenshots inlined as base64 data URIs - headless Chrome won't load file://
 // images from a setContent page (no file origin), so we embed them directly.
 const imgDataUri = new Map<string, string>();
 async function loadImages() {
@@ -43,7 +43,7 @@ async function loadImages() {
   }
 }
 
-/** "June 2026" — fine to use a live date inside a one-shot script. */
+/** "June 2026" - fine to use a live date inside a one-shot script. */
 function monthYear(): string {
   return new Date().toLocaleDateString("en-US", { month: "long", year: "numeric" });
 }
@@ -82,7 +82,7 @@ function coverHtml(title: string): string {
       <div class="cover-prepared">Prepared for BCJ Building Services</div>
       <div class="cover-date">${monthYear()}</div>
     </div>
-    <div class="cover-foot">Confidential — for internal use</div>
+    <div class="cover-foot">Confidential - for internal use</div>
   </section>`;
 }
 
@@ -92,7 +92,7 @@ function tocHtml(items: string[]): string {
 }
 
 function pageHtml(title: string, coverAndToc: string, body: string, bodyClass = ""): string {
-  return `<!doctype html><html><head><meta charset="utf-8"><style>
+  return `<!doctype html><html><head><meta charset="utf-8"><title>BCJ Learn - ${title}</title><style>
     * { box-sizing: border-box; }
     html, body { margin: 0; padding: 0; }
     body {
@@ -233,7 +233,7 @@ async function main() {
   } finally {
     await browser.close();
   }
-  console.log(`\nDone — ${DOCS.length} PDFs in docs/pdf/`);
+  console.log(`\nDone - ${DOCS.length} PDFs in docs/pdf/`);
 }
 
 main().catch((e) => { console.error(e); process.exit(1); });

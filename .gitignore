@@ -43,3 +43,6 @@ next-env.d.ts
 # Real service-account credentials (production) — never commit
 docs/service-credentials.html
 docs/pdf/BCJ-Learn-Service-Credentials.pdf
+
+# Distributable doc bundles (built locally; handover pack contains credentials)
+docs/*.zip

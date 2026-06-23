@@ -1,4 +1,4 @@
-# BCJ Learn — Platform Overview
+# BCJ Learn - Platform Overview
 
 *What this platform is, who uses it, and how a module goes from idea to a passed quiz and a certificate.*
 
@@ -10,7 +10,7 @@ BCJ Learn is BCJ Building Services' internal training platform. It turns the com
 
 ![Leadership's live program overview](/docs-img/admin-dashboard.png)
 
-One module is delivered per month (June–October 2026), starting with **Operations & Leadership**.
+One module is delivered per month (June-October 2026), starting with **Operations & Leadership**.
 
 The platform handles the whole training lifecycle in one place:
 
@@ -31,7 +31,7 @@ The platform handles the whole training lifecycle in one place:
 | **Department Lead** | The trainer who owns a module (internally also called "manager"/"teacher" in places) | Builds & **presents** modules and reviews questions. **Sees every module**, but only **edits** the ones they **own**; their *My team* and per-module results are scoped to their own modules. Can also take a quiz themselves. |
 | **Employee** | The people being trained (internally "manager") | Attend the seminar, take the quiz, view resources, track their progress, earn certificates. |
 
-> Roles are set when a person is invited. A Department Lead can **see** every module (present it, take it, view results) but only **edits** the ones they own. An Employee only sees the modules they've been **invited** to — publishing alone is not enough.
+> Roles are set when a person is invited. A Department Lead can **see** every module (present it, take it, view results) but only **edits** the ones they own. An Employee only sees the modules they've been **invited** to - publishing alone is not enough.
 
 ---
 
@@ -63,7 +63,7 @@ Quiz unlocks ─▶ employee takes quiz ─▶  PASS (85%+) ─▶ certificate, 
 
 ## Key rules everyone should know
 
-- **Invited-only access:** an employee only sees — and can take — a module they've been **invited** to (added to its roster). Publishing a module does **not** expose it to the whole company. Department Leads and Admins see every module. Adding someone to a module's roster gives them access immediately.
+- **Invited-only access:** an employee only sees - and can take - a module they've been **invited** to (added to its roster). Publishing a module does **not** expose it to the whole company. Department Leads and Admins see every module. Adding someone to a module's roster gives them access immediately.
 - **Passing score: 85%** (configurable per module). Below that = fail.
 - **3 strikes:** an employee gets up to **3 attempts** total (1 first attempt + 2 retakes). After the **3rd failed attempt** the module **locks** and the Department Lead/Admin is notified to coach them.
 - **Same questions for everyone:** on the first attempt every employee gets the **same** question set, just in a **randomised order** (and options shuffled). Retakes use the **same concepts, reworded**.
@@ -76,11 +76,11 @@ Quiz unlocks ─▶ employee takes quiz ─▶  PASS (85%+) ─▶ certificate, 
 
 ## Where things live (quick map)
 
-**Admin** — Dashboard · Modules · Resources · Question library · People (Employees / Department Leads / Admins) · At-risk · Test results · Reports · Audit log · Notifications · Settings (Branding, Certificate) · Help
+**Admin** - Dashboard · Modules · Resources · Question library · People (Employees / Department Leads / Admins) · At-risk · Test results · Reports · Audit log · Notifications · Settings (Branding, Certificate) · Help
 
-**Department Lead** — Dashboard · My Modules · Resources · Test results · Question library · My team · My Progress · Help
+**Department Lead** - Dashboard · My Modules · Resources · Test results · Question library · My team · My Progress · Help
 
-**Employee** — Dashboard · Modules · Resources · My Progress · Notifications · My Profile (language toggle) · Help
+**Employee** - Dashboard · Modules · Resources · My Progress · Notifications · My Profile (language toggle) · Help
 
 ---
 
@@ -92,4 +92,4 @@ Employees can switch the whole employee experience between **English** and **Esp
 
 ---
 
-*Next: read the guide for your role — Admin, Department Lead, or Employee — and the FAQ for quick answers.*
+*Next: read the guide for your role - Admin, Department Lead, or Employee - and the FAQ for quick answers.*

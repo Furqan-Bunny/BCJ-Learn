@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>BCJ Learn - Architecture &amp; Operations Handover</title>
+<style>
+  @page { size: A4; margin: 16mm 15mm; }
+  * { box-sizing: border-box; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  body { font-family: -apple-system, "Segoe UI", Roboto, Arial, sans-serif; color: #1a2330; margin: 0; line-height: 1.55; font-size: 11px; }
+
+  /* Cover */
+  .cover { height: 256mm; display: flex; flex-direction: column; justify-content: space-between; break-after: page; }
+  .cover-top { display: flex; align-items: center; gap: 11px; }
+  .cover-logo { width: 46px; height: 46px; background: #041D39; border-radius: 10px; display: flex; align-items: center; justify-content: center; color: #fff; font-weight: 800; font-size: 17px; }
+  .cover-org { color: #041D39; font-weight: 700; font-size: 15px; }
+  .cover-mid { padding-bottom: 36mm; }
+  .cover-eyebrow { color: #25BCB9; font-weight: 700; font-size: 13px; letter-spacing: 3px; text-transform: uppercase; margin-bottom: 10px; }
+  .cover-title { color: #041D39; font-size: 38px; line-height: 1.1; font-weight: 800; margin: 0 0 16px; letter-spacing: -.5px; }
+  .cover-rule { width: 90px; height: 5px; background: #25BCB9; border-radius: 3px; margin-bottom: 22px; }
+  .cover-sub { color: #36506a; font-size: 14px; max-width: 460px; }
+  .cover-meta { margin-top: 26px; font-size: 12px; color: #1a2330; }
+  .cover-meta div { padding: 3px 0; }
+  .cover-meta b { display: inline-block; width: 130px; color: #6b7280; font-weight: 600; }
+  .cover-foot { color: #6b7280; font-size: 10px; border-top: 1px solid #dbe2ea; padding-top: 8px; }
+
+  h2 { font-size: 15px; color: #041D39; margin: 22px 0 8px; padding-bottom: 6px; border-bottom: 2px solid #25BCB9; break-after: avoid; }
+  h2 .n { color: #25BCB9; font-weight: 800; margin-right: 8px; }
+  h3 { font-size: 12px; color: #041D39; margin: 14px 0 4px; break-after: avoid; }
+  p { margin: 0 0 8px; }
+  ul, ol { margin: 4px 0 10px 18px; padding: 0; }
+  li { margin: 3px 0; }
+  b, strong { color: #041D39; }
+  .lede { color: #4b5563; font-size: 11.5px; }
+
+  table { width: 100%; border-collapse: collapse; margin: 8px 0 12px; font-size: 10.5px; break-inside: avoid; }
+  th { text-align: left; font-size: 9px; text-transform: uppercase; letter-spacing: .8px; color: #6b7280; font-weight: 700; padding: 7px 9px; background: #f1f7f7; border-bottom: 1px solid #cfe6e5; }
+  td { padding: 7px 9px; border-bottom: 1px solid #eef0f4; vertical-align: top; }
+  tr:nth-child(even) td { background: #f8fafb; }
+  code, .mono { font-family: "SF Mono", Consolas, monospace; font-size: 10px; background: #eef2f6; padding: 1px 5px; border-radius: 4px; color: #041D39; }
+  td .mono { background: none; padding: 0; }
+
+  .diagram { background: #041D39; color: #d7e3f0; border-radius: 10px; padding: 16px 18px; font-family: "SF Mono", Consolas, monospace; font-size: 10px; line-height: 1.5; white-space: pre; break-inside: avoid; margin: 8px 0 12px; }
+  .diagram .t { color: #25BCB9; }
+
+  .callout { border-left: 3px solid #25BCB9; background: #f1fbfb; padding: 10px 14px; border-radius: 0 6px 6px 0; margin: 8px 0 12px; font-size: 10.5px; }
+  .callout.warn { border-left-color: #f59e0b; background: #fffbeb; color: #78350f; }
+  .callout b { color: inherit; }
+
+  .toc { break-after: page; }
+  .toc h2 { border: none; }
+  .toc ol { list-style: none; counter-reset: t; margin: 8px 0 0; padding: 0; }
+  .toc li { counter-increment: t; padding: 6px 0; border-bottom: 1px solid #eef2f6; font-weight: 600; color: #1a2330; font-size: 12px; }
+  .toc li::before { content: counter(t); color: #25BCB9; font-weight: 800; margin-right: 12px; }
+
+  .footer { margin-top: 22px; padding-top: 10px; border-top: 1px solid #e5e7eb; text-align: center; font-size: 9px; color: #9ca3af; }
+</style>
+</head>
+<body>
+
+<!-- ───────── Cover ───────── -->
+<section class="cover">
+  <div class="cover-top">
+    <div class="cover-logo">BCJ</div>
+    <div class="cover-org">Building&nbsp;Services</div>
+  </div>
+  <div class="cover-mid">
+    <div class="cover-eyebrow">BCJ&nbsp;Learn</div>
+    <h1 class="cover-title">Architecture &amp;<br/>Operations Handover</h1>
+    <div class="cover-rule"></div>
+    <div class="cover-sub">How the platform is built, where it runs, and how to operate, maintain, and support it after handover.</div>
+    <div class="cover-meta">
+      <div><b>Prepared for</b> BCJ Building Services - IT &amp; Leadership</div>
+      <div><b>Prepared by</b> Ten80ten</div>
+      <div><b>Document</b> Operations Handover (Deliverable&nbsp;#10)</div>
+      <div><b>Version</b> 1.0</div>
+      <div><b>Date</b> June&nbsp;22,&nbsp;2026</div>
+    </div>
+  </div>
+  <div class="cover-foot">Confidential - for BCJ Building Services internal use only.</div>
+</section>
+
+<!-- ───────── Contents ───────── -->
+<section class="toc">
+  <h2>Contents</h2>
+  <ol>
+    <li>System overview</li>
+    <li>Architecture at a glance</li>
+    <li>The services that run the platform</li>
+    <li>Hosting &amp; deployments</li>
+    <li>Database &amp; data</li>
+    <li>Environment variables</li>
+    <li>Authentication &amp; security</li>
+    <li>AI question generation</li>
+    <li>Email delivery</li>
+    <li>Scheduled jobs</li>
+    <li>File storage</li>
+    <li>Routine operations (runbook)</li>
+    <li>Monitoring &amp; troubleshooting</li>
+    <li>Backups &amp; disaster recovery</li>
+    <li>Support &amp; escalation</li>
+  </ol>
+</section>
+
+<!-- ───────── 1 ───────── -->
+<h2><span class="n">1</span>System overview</h2>
+<p>BCJ Learn is a custom, BCJ-owned web application for delivering the five-module Account Manager training programme: hosting content, running on-site quizzes, enforcing the 85% pass rule and retakes, and giving leadership live reporting. It is a single web app - no software for users to install - that runs on professional cloud services, all set up under BCJ's own accounts.</p>
+<p>This document is for whoever maintains the platform on BCJ's side (IT, or a future support partner). It explains what the platform is built on, where each piece lives, and how to perform the common operational tasks. It does not require day-to-day code changes - the platform is built to run Modules 2-5 with no engineering work.</p>
+
+<!-- ───────── 2 ───────── -->
+<h2><span class="n">2</span>Architecture at a glance</h2>
+<p>The application is a <b>Next.js</b> web app hosted on <b>Vercel</b>. It talks to <b>Supabase</b> for its database, user accounts and file storage, to <b>OpenAI</b> for AI question drafting, and to <b>Resend</b> for email. Everything below is owned by BCJ.</p>
+<div class="diagram">      Account Managers · Department Leads · Admins
+                    │  (any web browser, HTTPS)
+                    ▼
+       <span class="t">┌──────────────────────────────────┐</span>
+       <span class="t">│   VERCEL - Next.js application     │</span>   UI + server logic + API
+       <span class="t">└───┬───────────┬───────────┬───────┘</span>
+           │           │           │
+           ▼           ▼           ▼
+   <span class="t">┌───────────┐ ┌───────────┐ ┌───────────┐</span>
+   <span class="t">│ SUPABASE  │ │  OPENAI   │ │  RESEND   │</span>
+   <span class="t">│ Postgres  │ │  GPT-4o + │ │  email    │</span>
+   <span class="t">│ Auth ·    │ │  Whisper  │ │  delivery │</span>
+   <span class="t">│ Storage   │ │  (AI)     │ │           │</span>
+   <span class="t">└───────────┘ └───────────┘ └───────────┘</span></div>
+<table>
+  <thead><tr><th>Layer</th><th>Technology</th><th>Role</th></tr></thead>
+  <tbody>
+    <tr><td><b>Application</b></td><td>Next.js 16 (App Router), React 19, TypeScript, Tailwind CSS</td><td>The whole web app - pages, server actions, API routes.</td></tr>
+    <tr><td><b>Hosting</b></td><td>Vercel</td><td>Builds and runs the app; auto-deploys from GitHub; HTTPS, scaling, logs.</td></tr>
+    <tr><td><b>Database / Auth / Storage</b></td><td>Supabase (PostgreSQL)</td><td>All data, user accounts, sign-in, and uploaded files.</td></tr>
+    <tr><td><b>AI</b></td><td>OpenAI - GPT-4o &amp; Whisper</td><td>Drafts quiz questions from content; transcribes videos.</td></tr>
+    <tr><td><b>Email</b></td><td>Resend</td><td>Sends invitations, sign-in codes, results and reminders.</td></tr>
+    <tr><td><b>Source code</b></td><td>GitHub (private, BCJ-IT)</td><td>The codebase; every change is versioned here.</td></tr>
+  </tbody>
+</table>
+
+<!-- ───────── 3 ───────── -->
+<h2><span class="n">3</span>The services that run the platform</h2>
+<p>Five external services power BCJ Learn, all under BCJ's own accounts. Login details are in the separate <b>Service Account Credentials</b> sheet.</p>
+<table>
+  <thead><tr><th>Service</th><th>What it does</th><th>Sign in at</th></tr></thead>
+  <tbody>
+    <tr><td><b>GitHub</b></td><td>Stores the source code (account: BCJ-IT)</td><td><span class="mono">github.com</span></td></tr>
+    <tr><td><b>Vercel</b></td><td>Hosts &amp; deploys the live site</td><td><span class="mono">vercel.com</span></td></tr>
+    <tr><td><b>Supabase</b></td><td>Database, user accounts &amp; file storage</td><td><span class="mono">supabase.com</span></td></tr>
+    <tr><td><b>Resend</b></td><td>Sends all platform emails</td><td><span class="mono">resend.com</span></td></tr>
+    <tr><td><b>OpenAI</b></td><td>AI question drafting &amp; video transcription</td><td><span class="mono">platform.openai.com</span></td></tr>
+  </tbody>
+</table>
+
+<!-- ───────── 4 ───────── -->
+<h2><span class="n">4</span>Hosting &amp; deployments</h2>
+<p>The app is hosted on Vercel and connected to the GitHub repository. Deployment is automatic:</p>
+<ul>
+  <li>A change is pushed to the GitHub repo's main branch.</li>
+  <li>Vercel automatically builds it and, if the build passes, publishes it to the live URL within a couple of minutes.</li>
+  <li>Every deployment is kept in history, so a previous version can be restored instantly.</li>
+</ul>
+<p><b>To roll back:</b> Vercel dashboard → <i>Deployments</i> → pick a known-good deployment → <i>Promote to Production</i>. No code or rebuild needed.</p>
+<div class="callout">No manual server administration is required. Vercel handles HTTPS certificates, scaling and uptime automatically.</div>
+
+<!-- ───────── 5 ───────── -->
+<h2><span class="n">5</span>Database &amp; data</h2>
+<p>All data lives in a single <b>Supabase PostgreSQL</b> database - user accounts, modules, content, questions, quiz attempts, results, resources and notifications. Key points for whoever maintains it:</p>
+<ul>
+  <li><b>Schema changes</b> are managed as numbered SQL migration files in the codebase under <span class="mono">supabase/migrations/</span> (52 to date). They are applied in order via the Supabase SQL editor.</li>
+  <li><b>Row-Level Security (RLS)</b> is enabled on the tables: the database itself enforces who can read or write what (e.g. an employee can only see their own attempts). This is a core security layer, not just app logic.</li>
+  <li><b>Business rules</b> such as starting a quiz and grading run as secure database functions (RPCs), so the rules hold even if called directly.</li>
+  <li><b>Quiz integrity:</b> the same question pool is served in a randomised order; the 85% threshold, the 3-attempt limit and the easier retake pool are all enforced server-side.</li>
+</ul>
+<div class="callout warn"><b>Care with the database:</b> editing rows directly in Supabase bypasses the app's safeguards. Prefer the in-app Admin tools; use direct SQL only for maintenance, and take a backup first.</div>
+
+<!-- ───────── 6 ───────── -->
+<h2><span class="n">6</span>Environment variables</h2>
+<p>The app is configured through environment variables held in <b>Vercel → Project → Settings → Environment Variables</b> (never in the code). The actual values are secret and are not printed here.</p>
+<table>
+  <thead><tr><th>Variable</th><th>Purpose</th></tr></thead>
+  <tbody>
+    <tr><td class="mono">NEXT_PUBLIC_SUPABASE_URL</td><td>Address of the Supabase project.</td></tr>
+    <tr><td class="mono">NEXT_PUBLIC_SUPABASE_ANON_KEY</td><td>Public client key - restricted by Row-Level Security.</td></tr>
+    <tr><td class="mono">SUPABASE_SERVICE_ROLE_KEY</td><td>Server-only admin key (bypasses RLS). Keep secret.</td></tr>
+    <tr><td class="mono">OPENAI_API_KEY</td><td>OpenAI key for AI question generation &amp; transcription. Keep secret.</td></tr>
+    <tr><td class="mono">RESEND_API_KEY</td><td>Resend key for sending email. Keep secret.</td></tr>
+    <tr><td class="mono">RESEND_FROM_EMAIL</td><td>The "from" address all emails are sent from.</td></tr>
+    <tr><td class="mono">NEXT_PUBLIC_APP_URL</td><td>The site's base URL, used to build links inside emails.</td></tr>
+    <tr><td class="mono">NEXT_PUBLIC_DEMO_MODE</td><td>When <span class="mono">true</span>, skips sending real emails (for testing). Set <span class="mono">false</span> in production.</td></tr>
+    <tr><td class="mono">CRON_SECRET</td><td>Password that protects the automatic reminders job.</td></tr>
+  </tbody>
+</table>
+<div class="callout">After changing any variable in Vercel, trigger a redeploy so the new value takes effect.</div>
+
+<!-- ───────── 7 ───────── -->
+<h2><span class="n">7</span>Authentication &amp; security</h2>
+<ul>
+  <li><b>Sign-in:</b> email + password, handled by Supabase Auth. Optional <b>two-step verification</b> sends a 6-digit code by email.</li>
+  <li><b>Password reset:</b> self-service from the login screen via an emailed link.</li>
+  <li><b>Roles:</b> Admin, Department Lead, Employee - enforced both in the app and at the database (RLS).</li>
+  <li><b>Encryption:</b> all traffic is HTTPS; data is encrypted at rest by Supabase.</li>
+  <li><b>The service-role key</b> is used only by trusted server code, never sent to the browser. Treat it, and all secret keys, like passwords.</li>
+</ul>
+
+<!-- ───────── 8 ───────── -->
+<h2><span class="n">8</span>AI question generation</h2>
+<p>Quiz questions are drafted by <b>OpenAI</b>: <b>GPT-4o</b> reads the uploaded module content and writes the question bank; <b>Whisper</b> transcribes uploaded videos so their content can be used too. Nothing is published without a human approving it in the app.</p>
+<ul>
+  <li>The feature runs on the key in <span class="mono">OPENAI_API_KEY</span>. To run it on BCJ's own account, create a key at <span class="mono">platform.openai.com</span>, add it in Vercel, and redeploy.</li>
+  <li>Cost is usage-based and billed directly by OpenAI to the account that owns the key - typically modest at this scale.</li>
+</ul>
+<div class="callout">An Anthropic (Claude) integration also exists in the code but is not currently used; AI runs on OpenAI.</div>
+
+<!-- ───────── 9 ───────── -->
+<h2><span class="n">9</span>Email delivery</h2>
+<p>All automated email (invitations, sign-in codes, pass/fail results, reminders, at-risk alerts) is sent through <b>Resend</b>. The text of every email is editable by an Admin inside the app under <i>Notifications</i>.</p>
+<ul>
+  <li>Emails are sent from the address in <span class="mono">RESEND_FROM_EMAIL</span>.</li>
+  <li>For best deliverability the sending domain should be verified in Resend (DNS records added to BCJ's domain). Until then, sending may be limited.</li>
+</ul>
+
+<!-- ───────── 10 ───────── -->
+<h2><span class="n">10</span>Scheduled jobs</h2>
+<p>One automated job runs on a schedule via <b>Vercel Cron</b>:</p>
+<table>
+  <thead><tr><th>Job</th><th>Endpoint</th><th>Schedule</th></tr></thead>
+  <tbody>
+    <tr><td>Overdue / reminder emails</td><td class="mono">/api/cron/reminders</td><td>Weekdays, 13:00 UTC</td></tr>
+  </tbody>
+</table>
+<p>The endpoint is protected by <span class="mono">CRON_SECRET</span> so only Vercel can trigger it. The schedule is defined in <span class="mono">vercel.json</span>.</p>
+
+<!-- ───────── 11 ───────── -->
+<h2><span class="n">11</span>File storage</h2>
+<p>Uploaded files are kept in <b>Supabase Storage</b>, organised into three buckets:</p>
+<table>
+  <thead><tr><th>Bucket</th><th>Holds</th></tr></thead>
+  <tbody>
+    <tr><td class="mono">module-content</td><td>Module manuals, slides, documents and videos.</td></tr>
+    <tr><td class="mono">branding</td><td>The platform logo and brand assets.</td></tr>
+    <tr><td class="mono">avatars</td><td>User profile photos.</td></tr>
+  </tbody>
+</table>
+
+<!-- ───────── 12 ───────── -->
+<h2><span class="n">12</span>Routine operations (runbook)</h2>
+<table>
+  <thead><tr><th>Task</th><th>How</th></tr></thead>
+  <tbody>
+    <tr><td><b>Add an Admin / Lead / Employee</b></td><td>In the app: <i>People</i> → invite. No code needed.</td></tr>
+    <tr><td><b>Publish a new module</b></td><td>In the app: build content, generate &amp; approve questions, choose attendees, Publish.</td></tr>
+    <tr><td><b>Deploy a code change</b></td><td>Push to the GitHub repo's main branch → Vercel builds &amp; deploys automatically.</td></tr>
+    <tr><td><b>Roll back a release</b></td><td>Vercel → Deployments → promote a previous deployment to Production.</td></tr>
+    <tr><td><b>Rotate / update a key</b></td><td>Create the new key in the provider → update it in Vercel → Environment Variables → redeploy.</td></tr>
+    <tr><td><b>Apply a database change</b></td><td>Run the relevant <span class="mono">supabase/migrations/</span> file in the Supabase SQL editor.</td></tr>
+    <tr><td><b>Restore data</b></td><td>Supabase → Database → Backups → restore a point in time.</td></tr>
+  </tbody>
+</table>
+
+<!-- ───────── 13 ───────── -->
+<h2><span class="n">13</span>Monitoring &amp; troubleshooting</h2>
+<ul>
+  <li><b>App errors / logs:</b> Vercel dashboard → the latest Deployment → <i>Logs</i> (runtime &amp; function logs).</li>
+  <li><b>Database &amp; auth logs:</b> Supabase dashboard → <i>Logs</i>.</li>
+  <li><b>Email delivery:</b> Resend dashboard → <i>Emails</i> (see what sent, bounced or failed).</li>
+  <li><b>In-app activity:</b> the Admin <i>Audit log</i> records sign-ins, passes, publishes, reminders and more.</li>
+</ul>
+<p>Common first checks: a failed AI generation usually means the OpenAI key is missing, unfunded or invalid; emails not arriving usually means the sending domain isn't verified or demo mode is on.</p>
+
+<!-- ───────── 14 ───────── -->
+<h2><span class="n">14</span>Backups &amp; disaster recovery</h2>
+<ul>
+  <li><b>Database:</b> Supabase takes automated backups (retention depends on the Supabase plan). Restores are done from the Supabase dashboard.</li>
+  <li><b>Code:</b> the full history is in GitHub; any prior version can be restored or redeployed.</li>
+  <li><b>Deployments:</b> Vercel keeps every previous build for instant rollback.</li>
+</ul>
+<div class="callout">Recommended: confirm the Supabase plan's backup retention meets BCJ's needs, and keep at least one Admin and the IT account credentials stored in a company password manager.</div>
+
+<!-- ───────── 15 ───────── -->
+<h2><span class="n">15</span>Support &amp; escalation</h2>
+<p>During the <b>30-day warranty period</b> after launch, Ten80ten fixes any defect - anything not behaving as described in the project scope - at no cost. New features follow the agreed change process and are quoted separately.</p>
+<table>
+  <thead><tr><th>Need</th><th>Contact</th></tr></thead>
+  <tbody>
+    <tr><td>Day-to-day technical issue / bug</td><td>Furqan (Ten80ten - Technical Lead)</td></tr>
+    <tr><td>Commercial / scope / support tier</td><td>Alex Nicholson (Ten80ten) · +1&nbsp;239-784-5377</td></tr>
+  </tbody>
+</table>
+<p class="lede">After the warranty period, BCJ can self-manage the platform or arrange an ongoing support arrangement with Ten80ten, as set out in the project scope.</p>
+
+<div class="footer">BCJ Learn - Architecture &amp; Operations Handover · v1.0 · Confidential - for BCJ Building Services internal use only. Prepared by Ten80ten, June 22, 2026.</div>
+
+</body>
+</html>

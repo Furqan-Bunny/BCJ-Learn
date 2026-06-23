@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>BCJ Learn - Deliverables & Scope Status</title>
+<style>
+  @page { size: A4; margin: 16mm 15mm; }
+  * { box-sizing: border-box; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  body { font-family: -apple-system, "Segoe UI", Roboto, Arial, sans-serif; color: #1a2330; margin: 0; line-height: 1.5; font-size: 11px; }
+  .header { border-bottom: 3px solid #041D39; padding-bottom: 12px; margin-bottom: 18px; display: flex; align-items: center; justify-content: space-between; }
+  .brand { display: flex; align-items: center; gap: 10px; }
+  .logo { width: 34px; height: 34px; background: #041D39; border-radius: 8px; display: flex; align-items: center; justify-content: center; color: #fff; font-weight: 800; font-size: 13px; }
+  .brand-name { font-size: 17px; font-weight: 700; color: #041D39; }
+  .brand-sub { font-size: 10px; color: #6b7280; }
+  .date { font-size: 10px; color: #6b7280; text-align: right; }
+  h1 { font-size: 20px; color: #041D39; margin: 2px 0 4px; }
+  .accent { width: 60px; height: 4px; background: #25BCB9; border-radius: 3px; margin: 6px 0 14px; }
+  .lede { font-size: 11.5px; color: #4b5563; margin: 0 0 16px; }
+  h2 { font-size: 12px; text-transform: uppercase; letter-spacing: 1.2px; color: #041D39; margin: 20px 0 8px; padding-bottom: 5px; border-bottom: 2px solid #25BCB9; }
+  table { width: 100%; border-collapse: collapse; margin-bottom: 4px; font-size: 10.5px; }
+  thead th { text-align: left; font-size: 9px; text-transform: uppercase; letter-spacing: .8px; color: #6b7280; font-weight: 700; padding: 7px 9px; background: #f1f7f7; border-bottom: 1px solid #cfe6e5; }
+  tbody td { padding: 8px 9px; border-bottom: 1px solid #eef0f4; vertical-align: top; }
+  tbody tr:nth-child(even) { background: #f8fafb; }
+  .num { color: #6b7280; font-weight: 700; width: 18px; }
+  .item { font-weight: 600; color: #1a2330; }
+  .note { color: #5b6675; font-size: 10px; }
+  .badge { display: inline-block; padding: 2px 8px; border-radius: 20px; font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: .4px; white-space: nowrap; }
+  .b-done { background: #d6f5ec; color: #0f7a5a; }
+  .b-follow { background: #fef0d6; color: #9a6a00; }
+  .b-bcj { background: #e0ecff; color: #1c4ea8; }
+  .legend { font-size: 9.5px; color: #6b7280; margin: 2px 0 0; }
+  .legend .badge { margin-right: 4px; }
+  .closeout { margin-top: 8px; border-left: 3px solid #25BCB9; background: #f1fbfb; padding: 11px 14px; border-radius: 0 6px 6px 0; }
+  .closeout b { color: #041D39; }
+  .closeout ul { margin: 6px 0 0; padding-left: 18px; }
+  .closeout li { margin: 3px 0; font-size: 10.5px; }
+  ul.extras { margin: 8px 0 4px; padding: 0; list-style: none; columns: 1; }
+  ul.extras li { position: relative; padding: 5px 0 5px 22px; border-bottom: 1px solid #f0f3f6; font-size: 10.5px; }
+  ul.extras li:last-child { border-bottom: none; }
+  ul.extras li::before { content: "✓"; position: absolute; left: 2px; top: 5px; color: #0f7a5a; font-weight: 800; font-size: 11px; }
+  ul.extras b { color: #041D39; }
+  .footer { margin-top: 22px; padding-top: 10px; border-top: 1px solid #e5e7eb; text-align: center; font-size: 9px; color: #9ca3af; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="brand">
+    <div class="logo">BCJ</div>
+    <div><div class="brand-name">BCJ Learn</div><div class="brand-sub">Account Manager Training &amp; Quiz Platform</div></div>
+  </div>
+  <div class="date">Deliverables &amp; Scope Status<br/>June 22, 2026</div>
+</div>
+
+<h1>Deliverables &amp; Scope Status</h1>
+<div class="accent"></div>
+<p class="lede">This is a status snapshot against the approved Project Scope (May 1, 2026). It maps the contract deliverables and the agreed scope of work to what is live today, what is still to follow, and the few items we need from BCJ to fully close out.</p>
+
+<h2>1. Contract deliverables (Scope §7)</h2>
+<table>
+  <thead><tr><th class="num">#</th><th>Deliverable</th><th style="width:120px">Status</th></tr></thead>
+  <tbody>
+    <tr><td class="num">1</td><td><span class="item">Fully functional, branded platform</span> <span class="note">- live web application</span></td><td><span class="badge b-done">Delivered</span></td></tr>
+    <tr><td class="num">2</td><td><span class="item">Source code repository</span> <span class="note">- private GitHub repo in BCJ's name (BCJ-IT)</span></td><td><span class="badge b-done">Delivered</span></td></tr>
+    <tr><td class="num">3</td><td><span class="item">Cloud infrastructure account</span> <span class="note">- Supabase + Vercel, owned by BCJ</span></td><td><span class="badge b-done">Delivered</span></td></tr>
+    <tr><td class="num">4</td><td><span class="item">Database with Module 1 content + user accounts</span> <span class="note">- loaded and live</span></td><td><span class="badge b-done">Delivered</span></td></tr>
+    <tr><td class="num">5</td><td><span class="item">Domain &amp; DNS configuration</span> <span class="note">- controlled by BCJ</span></td><td><span class="badge b-done">Delivered</span></td></tr>
+    <tr><td class="num">6</td><td><span class="item">Written user documentation</span> <span class="note">- Admin, Department Lead &amp; Employee guides (PDF) + in-app Help Center</span></td><td><span class="badge b-done">Delivered</span></td></tr>
+    <tr><td class="num">7</td><td><span class="item">Account credentials handover</span> <span class="note">- GitHub, Supabase, Vercel, Resend (sent separately)</span></td><td><span class="badge b-done">Delivered</span></td></tr>
+    <tr><td class="num">8</td><td><span class="item">Admin training session recording</span> <span class="note">- 60-min Loom</span></td><td><span class="badge b-done">Delivered</span></td></tr>
+    <tr><td class="num">9</td><td><span class="item">Teacher training session recording</span> <span class="note">- 30-min Loom</span></td><td><span class="badge b-done">Delivered</span></td></tr>
+    <tr><td class="num">10</td><td><span class="item">Architecture &amp; operations handover document</span></td><td><span class="badge b-done">Delivered</span></td></tr>
+    <tr><td class="num">11</td><td><span class="item">UAT sign-off record</span></td><td><span class="badge b-follow">To follow</span></td></tr>
+    <tr><td class="num">12</td><td><span class="item">30-day warranty support log</span> <span class="note">- delivered at end of warranty period, per contract</span></td><td><span class="badge b-follow">At period end</span></td></tr>
+  </tbody>
+</table>
+<p class="legend"><span class="badge b-done">Delivered</span> live now &nbsp; <span class="badge b-follow">To follow</span> in progress / scheduled</p>
+
+<h2>2. Scope of work coverage (Scope §4)</h2>
+<table>
+  <thead><tr><th>Capability</th><th style="width:120px">Status</th></tr></thead>
+  <tbody>
+    <tr><td><span class="item">Content delivery</span> <span class="note">- Word, PowerPoint, PDF &amp; video in-app, page-by-page, no download</span></td><td><span class="badge b-done">Delivered</span></td></tr>
+    <tr><td><span class="item">Quiz engine</span> <span class="note">- multiple-choice, randomised, configurable length/time, 85% pass, instant result</span></td><td><span class="badge b-done">Delivered</span></td></tr>
+    <tr><td><span class="item">Retake logic</span> <span class="note">- first-attempt + easier retake pools, auto-assigned; locked &amp; flagged after 3 fails</span></td><td><span class="badge b-done">Delivered</span></td></tr>
+    <tr><td><span class="item">AI question authoring</span> <span class="note">- AI drafts from content; BCJ approves/edits/regenerates/rejects before live</span></td><td><span class="badge b-done">Delivered</span></td></tr>
+    <tr><td><span class="item">Three user roles</span> <span class="note">- Admin, Department Lead, Employee; one person can hold multiple</span></td><td><span class="badge b-done">Delivered</span></td></tr>
+    <tr><td><span class="item">Admin dashboard &amp; reporting</span> <span class="note">- program / per-manager / per-module views, at-risk list, one-click actions</span></td><td><span class="badge b-done">Delivered</span></td></tr>
+    <tr><td><span class="item">Notifications &amp; reminders</span> <span class="note">- invitations, reminders, results, at-risk alerts; templates editable by Admin</span></td><td><span class="badge b-done">Delivered</span></td></tr>
+    <tr><td><span class="item">CSV export of results</span></td><td><span class="badge b-done">Delivered</span></td></tr>
+    <tr><td><span class="item">Optional - AI flashcards for self-study</span></td><td><span class="badge b-done">Delivered</span></td></tr>
+    <tr><td><span class="item">Optional - video watch progress (resume where left off)</span></td><td><span class="badge b-done">Delivered</span></td></tr>
+  </tbody>
+</table>
+
+<h2>3. Delivered beyond the original scope - at no extra cost</h2>
+<p class="lede" style="margin-bottom:6px;">A number of features were built that were not in the original scope, to make the platform genuinely easier and safer for BCJ to run:</p>
+<ul class="extras">
+  <li><b>Bilingual - English &amp; Español:</b> the whole employee experience and the quizzes (scope was English-only).</li>
+  <li><b>Branded completion certificate:</b> issued on every pass, printable, with a fully customisable editor (scope was a simple completion record).</li>
+  <li><b>Live presenter mode + 4-digit seminar check-in:</b> run the in-person session straight from the platform.</li>
+  <li><b>Resource hub:</b> shared documents with read-and-acknowledge sign-off and full version history.</li>
+  <li><b>Audit log:</b> every action recorded and filterable - sign-ins, passes, publishes, reminders and more.</li>
+  <li><b>Two-step verification:</b> optional 6-digit email code at login for extra account security.</li>
+  <li><b>Question analytics:</b> see exactly who answered each question right or wrong, with version history and one-click restore.</li>
+  <li><b>Content version history:</b> every content edit is snapshotted and can be restored.</li>
+  <li><b>Invited-only access:</b> employees see and take only the modules they have been invited to.</li>
+  <li><b>Flexible roles:</b> change anyone's role at any time (Employee ↔ Department Lead ↔ Admin) without losing their history.</li>
+  <li><b>Department Lead workspace:</b> leads see every module, can present or take any, and track their own progress.</li>
+  <li><b>Smart seminar scheduling:</b> pre-fills who is due and lets you search and add anyone else.</li>
+  <li><b>In-app Office viewer:</b> Word, PowerPoint, Excel and PDF preview in place - no downloads.</li>
+  <li><b>Branding controls:</b> platform name, colours, logo and email sender, all editable by Admin.</li>
+</ul>
+
+<h2>4. To close out - what we need from BCJ</h2>
+<div class="closeout">
+  <ul>
+    <li><b>OpenAI (ChatGPT) API key</b> - so the AI question-writing runs under, and is billed to, BCJ's own account. This completes the AI handover.</li>
+    <li><b>Email-sending domain verification</b> - confirm the sending domain so all automated emails go out from BCJ's address.</li>
+    <li><b>UAT sign-off</b> - a quick review-and-sign once requirements are met following testing.</li>
+  </ul>
+</div>
+<p class="lede" style="margin-top:14px;">Your <b>30-day warranty (bug-testing) period</b> is now running: any defect - anything not behaving as described in the scope - is fixed at no cost during this window. New features are scoped and quoted separately, per the agreed change process.</p>
+
+<div class="footer">BCJ Building Services - Confidential. Prepared by Ten80ten · June 22, 2026.</div>
+
+</body>
+</html>
