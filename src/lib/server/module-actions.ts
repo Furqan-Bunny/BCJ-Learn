@@ -115,14 +115,18 @@ export async function createModule(input: CreateModuleInput): Promise<{ ok: bool
       ? [guard.userId]
       : Array.from(new Set(input.ownerTeacherIds.filter(Boolean)));
 
-  // Every owner must be a Department Lead (teacher). Mirrors updateModuleOwners.
+  // Every owner must be staff — a Department Lead (teacher) or an Admin. Allowing
+  // admins as owners means a lead who gets promoted keeps their module (no
+  // "owner must be a Department Lead" block). Mirrors updateModuleOwners.
   if (ownerIds.length > 0) {
     const { data: profs } = await admin.from("profiles").select("id, role").in("id", ownerIds);
-    const teacherSet = new Set(
-      ((profs ?? []) as { id: string; role: string }[]).filter((p) => p.role === "teacher").map((p) => p.id),
+    const ownerSet = new Set(
+      ((profs ?? []) as { id: string; role: string }[])
+        .filter((p) => p.role === "teacher" || p.role === "admin")
+        .map((p) => p.id),
     );
-    if (teacherSet.size !== ownerIds.length) {
-      return { ok: false, error: "Every owner must be a Department Lead" };
+    if (ownerSet.size !== ownerIds.length) {
+      return { ok: false, error: "Every owner must be a Department Lead or Admin" };
     }
   }
 
@@ -1170,13 +1174,16 @@ export async function updateModuleOwners(
 
   const admin = createAdminClient();
 
-  // Validate every id is actually a teacher.
+  // Validate every id is staff — a Department Lead (teacher) or an Admin. Admins
+  // are allowed as owners so a promoted lead keeps ownership (nothing gets blocked).
   const { data: profs } = await admin.from("profiles").select("id, role").in("id", ids);
-  const teacherSet = new Set(
-    ((profs ?? []) as { id: string; role: string }[]).filter((p) => p.role === "teacher").map((p) => p.id),
+  const ownerSet = new Set(
+    ((profs ?? []) as { id: string; role: string }[])
+      .filter((p) => p.role === "teacher" || p.role === "admin")
+      .map((p) => p.id),
   );
-  if (teacherSet.size !== ids.length) {
-    return { ok: false, error: "Every owner must be a Department Lead" };
+  if (ownerSet.size !== ids.length) {
+    return { ok: false, error: "Every owner must be a Department Lead or Admin" };
   }
 
   const primary = primaryId && ids.includes(primaryId) ? primaryId : ids[0];
