@@ -64,15 +64,23 @@ export async function extractTextForContent(c: ContentForExtract): Promise<Extra
 
     if (e === "pdf") {
       const { buffer } = await download(c.storagePath);
-      // Load pdf-parse at runtime via createRequire with a variable specifier so
-      // the bundler never tries to resolve it (and its import-time debug
-      // self-test — which reads a sample PDF — never runs).
+      // pdf-parse is kept external (next.config serverExternalPackages) and loaded
+      // at runtime via createRequire with a variable specifier so the bundler never
+      // tries to resolve it. v2's CJS entry exports a `PDFParse` class (NOT the old
+      // v1 callable): construct with `{ data: buffer }`, then `getText()`.
       const { createRequire } = await import("node:module");
       const req = createRequire(import.meta.url);
       const pkg = "pdf-parse";
-      const pdfParse = req(pkg) as (b: Buffer) => Promise<{ text: string }>;
-      const res = await pdfParse(buffer);
-      return { text: res.text ?? "" };
+      const { PDFParse } = req(pkg) as typeof import("pdf-parse");
+      const parser = new PDFParse({ data: buffer });
+      try {
+        // Override the default pageJoiner ("-- N of M --") so page markers don't
+        // pollute the text the AI sees.
+        const res = await parser.getText({ pageJoiner: "\n\n" });
+        return { text: res.text ?? "" };
+      } finally {
+        await parser.destroy(); // release the underlying pdf.js worker/resources
+      }
     }
 
     if (e === "csv" || e === "txt" || e === "md") {

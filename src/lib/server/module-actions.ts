@@ -61,6 +61,24 @@ async function requireAdminOrModuleOwner(moduleSlug: string): Promise<GuardResul
   return { ok: true, userId: user.id, userName: p.name ?? "", role: "teacher" };
 }
 
+// Allows an admin OR any Department Lead (teacher). Used for module CREATION,
+// which happens before a `module_owners` row exists — so `requireAdminOrModuleOwner`
+// can't apply. Callers must still enforce that a teacher only creates a module
+// they will own (see createModule).
+async function requireAdminOrTeacher(): Promise<GuardResult> {
+  const sb = await createClient();
+  const {
+    data: { user },
+  } = await sb.auth.getUser();
+  if (!user) return { ok: false, error: "Not signed in" };
+  const { data } = await sb.from("profiles").select("role, name").eq("id", user.id).single();
+  const p = data as { role?: Role; name?: string } | null;
+  if (!p || (p.role !== "admin" && p.role !== "teacher")) {
+    return { ok: false, error: "Admin or Department Lead role required" };
+  }
+  return { ok: true, userId: user.id, userName: p.name ?? "", role: p.role };
+}
+
 // ─── createModule ──────────────────────────────────────────────────────
 
 export interface CreateModuleInput {
@@ -81,12 +99,32 @@ export interface CreateModuleInput {
 }
 
 export async function createModule(input: CreateModuleInput): Promise<{ ok: boolean; error?: string; slug?: string }> {
-  const guard = await requireAdmin();
+  const guard = await requireAdminOrTeacher();
   if (!guard.ok) return { ok: false, error: guard.error };
 
   if (DEMO_MODE) return { ok: true, slug: input.slug };
 
   const admin = createAdminClient();
+
+  // Owner rules by caller role:
+  //  • A Department Lead may only create a module they own — force the owner to
+  //    themself (defense-in-depth; the locked-owner UI already sends this).
+  //  • An admin uses the picked owners.
+  const ownerIds =
+    guard.role === "teacher"
+      ? [guard.userId]
+      : Array.from(new Set(input.ownerTeacherIds.filter(Boolean)));
+
+  // Every owner must be a Department Lead (teacher). Mirrors updateModuleOwners.
+  if (ownerIds.length > 0) {
+    const { data: profs } = await admin.from("profiles").select("id, role").in("id", ownerIds);
+    const teacherSet = new Set(
+      ((profs ?? []) as { id: string; role: string }[]).filter((p) => p.role === "teacher").map((p) => p.id),
+    );
+    if (teacherSet.size !== ownerIds.length) {
+      return { ok: false, error: "Every owner must be a Department Lead" };
+    }
+  }
 
   const { error: modErr } = await admin.from("modules").insert({
     slug: input.slug,
@@ -102,10 +140,16 @@ export async function createModule(input: CreateModuleInput): Promise<{ ok: bool
     question_count: input.questionCount,
     time_limit_minutes: input.timeLimitMinutes,
   });
-  if (modErr) return { ok: false, error: modErr.message };
+  if (modErr) {
+    // The unique constraint on modules.number gives a clearer message.
+    if (modErr.message.toLowerCase().includes("unique") || modErr.code === "23505") {
+      return { ok: false, error: "That module number is already in use — pick a different number." };
+    }
+    return { ok: false, error: modErr.message };
+  }
 
-  if (input.ownerTeacherIds.length > 0) {
-    const ownerRows = input.ownerTeacherIds.map((tid, i) => ({
+  if (ownerIds.length > 0) {
+    const ownerRows = ownerIds.map((tid, i) => ({
       module_slug: input.slug,
       teacher_id: tid,
       is_primary: i === 0,
@@ -1047,7 +1091,7 @@ export async function updateModuleMetadata(
   slug: string,
   patch: UpdateModuleMetadataInput,
 ): Promise<{ ok: boolean; error?: string }> {
-  const guard = await requireAdmin();
+  const guard = await requireAdminOrModuleOwner(slug);
   if (!guard.ok) return { ok: false, error: guard.error };
 
   if (patch.title !== undefined && !patch.title.trim()) {
@@ -1111,11 +1155,16 @@ export async function updateModuleOwners(
   teacherIds: string[],
   primaryId?: string,
 ): Promise<{ ok: boolean; error?: string }> {
-  const guard = await requireAdmin();
+  const guard = await requireAdminOrModuleOwner(slug);
   if (!guard.ok) return { ok: false, error: guard.error };
 
   const ids = Array.from(new Set(teacherIds.filter(Boolean)));
   if (ids.length === 0) return { ok: false, error: "Assign at least one Department Lead" };
+
+  // A Department Lead can't remove themselves or hand the module to someone else.
+  if (guard.role === "teacher" && !ids.includes(guard.userId)) {
+    return { ok: false, error: "You must remain an owner of this module." };
+  }
 
   if (DEMO_MODE) return { ok: true };
 
