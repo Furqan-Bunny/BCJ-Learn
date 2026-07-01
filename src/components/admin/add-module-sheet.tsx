@@ -41,6 +41,8 @@ type DueEmployee = { id: string; name: string; email: string; cohort: string | n
 export function AddModuleSheet({ trigger, teachers, defaultNumber = 6, lockedOwnerId, allSops = [] }: AddModuleSheetProps) {
   const router = useRouter();
   const lockedOwner = lockedOwnerId ? teachers.find((t) => t.id === lockedOwnerId) : null;
+  // Other Department Leads a locked owner (a lead) can add as co-owners.
+  const coOwnerTeachers = lockedOwnerId ? teachers.filter((t) => t.id !== lockedOwnerId) : [];
   const [open, setOpen] = React.useState(false);
   const [step, setStep] = React.useState(1);
   const [createdSlug, setCreatedSlug] = React.useState<string | null>(null);
@@ -322,13 +324,34 @@ export function AddModuleSheet({ trigger, teachers, defaultNumber = 6, lockedOwn
               <div className="rounded-lg border-2 border-primary/30 bg-primary/[0.04] p-4">
                 <div className="flex items-center gap-2 mb-3">
                   <BookOpen className="size-4 text-primary" />
-                  <span className="text-sm font-semibold">Assigned to Department Lead</span>
+                  <span className="text-sm font-semibold">Owners (Department Leads)</span>
                   <Badge variant="outline" className="ml-auto text-[10px] gap-1"><Lock className="size-2.5" /> You — locked</Badge>
                 </div>
                 <div className="flex items-center gap-3 p-3 rounded-md border bg-card">
                   <Avatar className="size-10 border shrink-0"><AvatarImage src={lockedOwner.avatarUrl ?? undefined} alt={lockedOwner.name} className="object-cover" /><AvatarFallback style={{ background: lockedOwner.avatarColor, color: "white" }} className="text-sm font-semibold">{initials(lockedOwner.name)}</AvatarFallback></Avatar>
                   <div className="flex-1 min-w-0"><div className="font-semibold text-sm truncate">{lockedOwner.name}</div><div className="text-xs text-muted-foreground truncate">{lockedOwner.email}</div></div>
+                  <Badge variant="outline" className="text-[10px] shrink-0">Primary</Badge>
                 </div>
+                {coOwnerTeachers.length > 0 && (
+                  <>
+                    <p className="text-xs text-muted-foreground mt-3 mb-2">
+                      Add other Department Leads to co-own this module (optional).
+                    </p>
+                    <div className="grid sm:grid-cols-2 gap-2">
+                      {coOwnerTeachers.map((t) => {
+                        const sel = ownerTeacherIds.includes(t.id);
+                        return (
+                          <button key={t.id} type="button" onClick={() => toggleTeacher(t.id)} aria-pressed={sel}
+                            className={`flex items-center gap-3 p-3 rounded-lg border transition-all text-left ${sel ? "border-primary bg-primary/10 ring-2 ring-primary/20" : "border-border bg-card hover:bg-accent/40 hover:border-primary/40"}`}>
+                            <Avatar className="size-9 border shrink-0"><AvatarImage src={t.avatarUrl ?? undefined} alt={t.name} className="object-cover" /><AvatarFallback style={{ background: t.avatarColor, color: "white" }} className="text-xs font-semibold">{initials(t.name)}</AvatarFallback></Avatar>
+                            <div className="flex-1 min-w-0"><div className="font-medium text-sm truncate">{t.name}</div></div>
+                            <div className={`size-4 rounded shrink-0 flex items-center justify-center ${sel ? "bg-primary border-2 border-primary" : "border-2 border-muted-foreground/30"}`}>{sel && <Check className="size-3 text-primary-foreground" strokeWidth={3} />}</div>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </>
+                )}
               </div>
             ) : (
               <div className="rounded-lg border-2 border-primary/30 bg-primary/[0.04] p-4">

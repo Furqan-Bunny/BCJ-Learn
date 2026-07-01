@@ -107,12 +107,12 @@ export async function createModule(input: CreateModuleInput): Promise<{ ok: bool
   const admin = createAdminClient();
 
   // Owner rules by caller role:
-  //  • A Department Lead may only create a module they own — force the owner to
-  //    themself (defense-in-depth; the locked-owner UI already sends this).
-  //  • An admin uses the picked owners.
+  //  • A Department Lead always owns the module they create (forced in as the
+  //    first/primary owner) but MAY also add other Department Leads as co-owners.
+  //  • An admin uses the picked owners as-is.
   const ownerIds =
     guard.role === "teacher"
-      ? [guard.userId]
+      ? Array.from(new Set([guard.userId, ...input.ownerTeacherIds.filter(Boolean)]))
       : Array.from(new Set(input.ownerTeacherIds.filter(Boolean)));
 
   // Every owner must be staff — a Department Lead (teacher) or an Admin. Allowing
