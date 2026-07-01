@@ -31,8 +31,33 @@ async function requireAdmin(): Promise<GuardResult> {
   return { ok: true, userId: user.id, userName: p.name ?? "", userEmail: p.email ?? user.email ?? "" };
 }
 
+// Admin OR the owning Department Lead of `moduleSlug`. Used for module-scoped
+// reminders (the roster's Send-reminder controls) so an owning lead can nudge
+// their own roster. Admin-wide reminders (no slug) keep using requireAdmin.
+async function requireAdminOrModuleOwner(moduleSlug: string): Promise<GuardResult> {
+  const sb = await createClient();
+  const {
+    data: { user },
+  } = await sb.auth.getUser();
+  if (!user) return { ok: false, error: "Not signed in" };
+  const { data } = await sb.from("profiles").select("role, name, email").eq("id", user.id).single();
+  const p = data as { role?: Role; name?: string; email?: string } | null;
+  if (!p) return { ok: false, error: "Profile not found" };
+  const base = { ok: true as const, userId: user.id, userName: p.name ?? "", userEmail: p.email ?? user.email ?? "" };
+  if (p.role === "admin") return base;
+  if (p.role !== "teacher") return { ok: false, error: "Admin or Department Lead role required" };
+  const { data: owner } = await sb
+    .from("module_owners")
+    .select("teacher_id")
+    .eq("module_slug", moduleSlug)
+    .eq("teacher_id", user.id)
+    .maybeSingle();
+  if (!owner) return { ok: false, error: "You don't own this module" };
+  return base;
+}
+
 export async function sendReminder(managerId: string, moduleSlug?: string): Promise<{ ok: boolean; error?: string }> {
-  const guard = await requireAdmin();
+  const guard = moduleSlug ? await requireAdminOrModuleOwner(moduleSlug) : await requireAdmin();
   if (!guard.ok) return { ok: false, error: guard.error };
 
   const admin = createAdminClient();
@@ -89,7 +114,7 @@ export async function sendBulkReminders(
   managerIds: string[],
   moduleSlug?: string,
 ): Promise<{ ok: boolean; sent: number; failed: number; error?: string }> {
-  const guard = await requireAdmin();
+  const guard = moduleSlug ? await requireAdminOrModuleOwner(moduleSlug) : await requireAdmin();
   if (!guard.ok) return { ok: false, sent: 0, failed: 0, error: guard.error };
 
   let sent = 0;

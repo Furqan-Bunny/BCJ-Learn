@@ -29,9 +29,12 @@ import type { ModuleDef } from "@/types";
 interface Props {
   mod: ModuleDef;
   allTeachers: { id: string; name: string }[];
+  /** Whether to show the delete danger-zone. Deleting a module is admin-only,
+   *  so owning Department Leads get everything EXCEPT this. Defaults to true. */
+  canDelete?: boolean;
 }
 
-export function EditModuleSheet({ mod, allTeachers }: Props) {
+export function EditModuleSheet({ mod, allTeachers, canDelete = true }: Props) {
   const router = useRouter();
   const [open, setOpen] = React.useState(false);
 
@@ -227,20 +230,22 @@ export function EditModuleSheet({ mod, allTeachers }: Props) {
             </div>
           </div>
 
-          {/* Danger zone */}
-          <div className="rounded-md border border-rose-500/30 bg-rose-50/30 dark:bg-rose-950/15 p-3 space-y-3">
-            <div className="text-xs font-semibold uppercase tracking-wider text-rose-600 dark:text-rose-400">Danger zone</div>
+          {/* Danger zone — deleting is admin-only */}
+          {canDelete && (
+            <div className="rounded-md border border-rose-500/30 bg-rose-50/30 dark:bg-rose-950/15 p-3 space-y-3">
+              <div className="text-xs font-semibold uppercase tracking-wider text-rose-600 dark:text-rose-400">Danger zone</div>
 
-            <div className="space-y-1.5">
-              <Label htmlFor="m-confirm" className="text-xs">Delete permanently — type the title to confirm</Label>
-              <Input id="m-confirm" value={confirmTitle} onChange={(e) => setConfirmTitle(e.target.value)} placeholder={mod.title} className="h-9" />
-              <Button type="button" variant="destructive" size="sm" className="w-full"
-                onClick={handleDelete} disabled={busy || confirmTitle.trim() !== mod.title.trim()}>
-                <Trash2 className="mr-1.5 size-3.5" /> Delete module
-              </Button>
-              <p className="text-[11px] text-muted-foreground">Only works if the module has no quiz attempts — otherwise unpublish it (set to draft) to hide it; history is kept.</p>
+              <div className="space-y-1.5">
+                <Label htmlFor="m-confirm" className="text-xs">Delete permanently — type the title to confirm</Label>
+                <Input id="m-confirm" value={confirmTitle} onChange={(e) => setConfirmTitle(e.target.value)} placeholder={mod.title} className="h-9" />
+                <Button type="button" variant="destructive" size="sm" className="w-full"
+                  onClick={handleDelete} disabled={busy || confirmTitle.trim() !== mod.title.trim()}>
+                  <Trash2 className="mr-1.5 size-3.5" /> Delete module
+                </Button>
+                <p className="text-[11px] text-muted-foreground">Only works if the module has no quiz attempts — otherwise unpublish it (set to draft) to hide it; history is kept.</p>
+              </div>
             </div>
-          </div>
+          )}
         </div>
 
         <SheetFooter>

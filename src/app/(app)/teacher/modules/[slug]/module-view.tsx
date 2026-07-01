@@ -10,6 +10,7 @@ import { ModuleRoster, type AddableManager } from "@/components/shared/module-ro
 import { DeliveryHistory } from "@/components/shared/delivery-history";
 import { ScheduleRedelivery } from "@/components/admin/schedule-redelivery";
 import { RescheduleSeminar } from "@/components/admin/reschedule-seminar";
+import { EditModuleSheet } from "@/components/admin/edit-module-sheet";
 import { fmtDate } from "@/lib/format";
 import type { ModuleDef, Attempt, Manager } from "@/types";
 import type { RosterRow, RosterCounts } from "@/lib/db/roster";
@@ -26,8 +27,12 @@ export interface TeacherModuleViewProps {
   /** When the current delivery's session was ended ("delivered"); null if not yet. */
   deliveredAt?: string | null;
   addableManagers?: AddableManager[];
-  /** Admin or the owning lead — gates the present / preview controls. */
+  /** Admin or the owning lead — gates all edit controls. */
   owns?: boolean;
+  /** All Department Leads — for the owner picker in the edit sheet. */
+  allTeachers?: { id: string; name: string }[];
+  /** True when the viewer is an admin — controls the delete danger-zone. */
+  isAdmin?: boolean;
 }
 
 export function TeacherModuleView({
@@ -41,6 +46,8 @@ export function TeacherModuleView({
   deliveredAt = null,
   addableManagers = [],
   owns = false,
+  allTeachers = [],
+  isAdmin = false,
 }: TeacherModuleViewProps) {
   const slug = mod.slug;
   const totalMinutes = mod.lessons.reduce((sum, l) => sum + l.durationMinutes, 0);
@@ -77,6 +84,7 @@ export function TeacherModuleView({
                 Delivered {fmtDate(deliveredAt, "MMM d, yyyy")}
               </span>
             )}
+            {owns && <EditModuleSheet mod={mod} allTeachers={allTeachers} canDelete={isAdmin} />}
           </div>
         }
       />
@@ -88,18 +96,22 @@ export function TeacherModuleView({
             <div className="text-2xl font-bold tabular-nums mt-2">
               {mod.questionsApproved} <span className="text-muted-foreground text-base font-normal">/ {mod.questionsTotal}</span>
             </div>
-            <Button asChild variant="ghost" size="sm" className="mt-3 -ml-2">
-              <Link href={`/teacher/modules/${slug}/questions`}>Review <ArrowRight className="ml-1 size-3.5" /></Link>
-            </Button>
+            {owns && (
+              <Button asChild variant="ghost" size="sm" className="mt-3 -ml-2">
+                <Link href={`/teacher/modules/${slug}/questions`}>Review <ArrowRight className="ml-1 size-3.5" /></Link>
+              </Button>
+            )}
           </CardContent>
         </Card>
         <Card>
           <CardContent className="p-5">
             <div className="text-xs uppercase tracking-wider text-muted-foreground">Attempts</div>
             <div className="text-2xl font-bold tabular-nums mt-2">{submittedAttempts.length}</div>
-            <Button asChild variant="ghost" size="sm" className="mt-3 -ml-2">
-              <Link href={`/teacher/modules/${slug}/results`}>See results <ArrowRight className="ml-1 size-3.5" /></Link>
-            </Button>
+            {owns && (
+              <Button asChild variant="ghost" size="sm" className="mt-3 -ml-2">
+                <Link href={`/teacher/modules/${slug}/results`}>See results <ArrowRight className="ml-1 size-3.5" /></Link>
+              </Button>
+            )}
           </CardContent>
         </Card>
         <Card>
@@ -120,11 +132,13 @@ export function TeacherModuleView({
               <span className="text-muted-foreground"> · {mod.lessons.length} lessons</span>
             </div>
             <div className="flex items-center gap-2">
-              <Button asChild variant="outline" size="sm">
-                <Link href={`/teacher/modules/${slug}/content`}>
-                  <BookOpen className="mr-2 size-3.5" /> Edit content
-                </Link>
-              </Button>
+              {owns && (
+                <Button asChild variant="outline" size="sm">
+                  <Link href={`/teacher/modules/${slug}/content`}>
+                    <BookOpen className="mr-2 size-3.5" /> Edit content
+                  </Link>
+                </Button>
+              )}
               <Button asChild variant="outline" size="sm">
                 <Link href={`/manager/modules/${slug}`}>
                   <GraduationCap className="mr-2 size-3.5" /> Take it yourself
@@ -181,29 +195,31 @@ export function TeacherModuleView({
               Who&rsquo;s expected for the current delivery · status updates as quiz attempts come in
             </p>
           </div>
-          <div className="flex items-center gap-2">
-            {currentDeliveryStart && (
-              <RescheduleSeminar
+          {owns && (
+            <div className="flex items-center gap-2">
+              {currentDeliveryStart && (
+                <RescheduleSeminar
+                  moduleSlug={slug}
+                  moduleTitle={mod.title}
+                  attendeeCount={rosterCounts.expected}
+                  moduleDate={mod.scheduledDate}
+                  moduleTime={mod.scheduledTime}
+                  moduleTz={mod.timezone}
+                />
+              )}
+              <ScheduleRedelivery
                 moduleSlug={slug}
                 moduleTitle={mod.title}
-                attendeeCount={rosterCounts.expected}
+                currentDeliveryStart={currentDeliveryStart}
                 moduleDate={mod.scheduledDate}
                 moduleTime={mod.scheduledTime}
                 moduleTz={mod.timezone}
+                checkedInCount={rosterCounts.checkedIn}
               />
-            )}
-            <ScheduleRedelivery
-              moduleSlug={slug}
-              moduleTitle={mod.title}
-              currentDeliveryStart={currentDeliveryStart}
-              moduleDate={mod.scheduledDate}
-              moduleTime={mod.scheduledTime}
-              moduleTz={mod.timezone}
-              checkedInCount={rosterCounts.checkedIn}
-            />
-          </div>
+            </div>
+          )}
         </div>
-        <ModuleRoster moduleSlug={slug} roster={roster} counts={rosterCounts} manageable addableManagers={addableManagers} />
+        <ModuleRoster moduleSlug={slug} roster={roster} counts={rosterCounts} manageable={owns} addableManagers={addableManagers} />
       </div>
 
       <div className="mt-10">

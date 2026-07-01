@@ -2,7 +2,7 @@ import { getModule } from "@/lib/db/modules";
 import { getAccessibleModuleOr404 } from "@/lib/auth/module-access";
 import { getCurrentUser } from "@/lib/supabase/current-user";
 import { listAttemptsForModule } from "@/lib/db/attempts";
-import { listAssignableUsers } from "@/lib/db/profiles";
+import { listAssignableUsers, listTeachers } from "@/lib/db/profiles";
 import { getAddableEmployees } from "@/lib/server/module-actions";
 import { listDeliveriesForModule, getCurrentDelivery } from "@/lib/db/deliveries";
 import { getModuleRoster, getModuleRosterCounts } from "@/lib/db/roster";
@@ -24,13 +24,14 @@ export default async function TeacherModulePage(props: PageProps<"/teacher/modul
   const me = await getCurrentUser();
   const owns = me?.role === "admin" || (!!me && mod.ownerTeacherIds.includes(me.id));
 
-  const [attempts, allManagers, deliveries, roster, counts, currentDelivery] = await Promise.all([
+  const [attempts, allManagers, deliveries, roster, counts, currentDelivery, allTeachers] = await Promise.all([
     listAttemptsForModule(slug),
     listAssignableUsers(),
     listDeliveriesForModule(slug),
     getModuleRoster(slug),
     getModuleRosterCounts(slug),
     getCurrentDelivery(slug),
+    listTeachers(),
   ]);
 
   const managersById = Object.fromEntries(
@@ -54,6 +55,8 @@ export default async function TeacherModulePage(props: PageProps<"/teacher/modul
       deliveredAt={currentDelivery?.sessionEndedAt ?? null}
       addableManagers={addableManagers}
       owns={owns}
+      allTeachers={allTeachers.map((t) => ({ id: t.id, name: t.name }))}
+      isAdmin={me?.role === "admin"}
     />
   );
 }
