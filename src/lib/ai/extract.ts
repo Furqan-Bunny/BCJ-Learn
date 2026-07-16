@@ -64,23 +64,17 @@ export async function extractTextForContent(c: ContentForExtract): Promise<Extra
 
     if (e === "pdf") {
       const { buffer } = await download(c.storagePath);
-      // pdf-parse is kept external (next.config serverExternalPackages) and loaded
-      // at runtime via createRequire with a variable specifier so the bundler never
-      // tries to resolve it. v2's CJS entry exports a `PDFParse` class (NOT the old
-      // v1 callable): construct with `{ data: buffer }`, then `getText()`.
+      // pdf-parse is pinned to v1.1.1 — pure JS, no native deps, so it works in the
+      // Vercel serverless runtime (v2 pulls pdfjs-dist v5 + native @napi-rs/canvas,
+      // which fail there and silently returned empty text). Import the inner lib
+      // directly to skip the package index.js debug self-test (which reads a sample
+      // file at import time). Loaded via createRequire so the bundler keeps it
+      // external (see next.config serverExternalPackages).
       const { createRequire } = await import("node:module");
       const req = createRequire(import.meta.url);
-      const pkg = "pdf-parse";
-      const { PDFParse } = req(pkg) as typeof import("pdf-parse");
-      const parser = new PDFParse({ data: buffer });
-      try {
-        // Override the default pageJoiner ("-- N of M --") so page markers don't
-        // pollute the text the AI sees.
-        const res = await parser.getText({ pageJoiner: "\n\n" });
-        return { text: res.text ?? "" };
-      } finally {
-        await parser.destroy(); // release the underlying pdf.js worker/resources
-      }
+      const pdfParse = req("pdf-parse/lib/pdf-parse.js") as (b: Buffer) => Promise<{ text: string }>;
+      const res = await pdfParse(buffer);
+      return { text: res.text ?? "" };
     }
 
     if (e === "csv" || e === "txt" || e === "md") {

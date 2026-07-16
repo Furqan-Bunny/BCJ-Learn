@@ -571,7 +571,11 @@ export async function generateQuestions(
   const ex = await extractModuleSources(moduleSlug);
   if (!ex.ok) return ex;
   if (ex.totalChars < 200) {
-    return { ok: false, error: "No readable content found in this module's files. Upload a Word/PDF/text document (or a short video) with real content, then try again." };
+    // Surface the per-file reason (e.g. a parse error or an unsupported/scanned
+    // file) instead of a blanket message, so a failure is diagnosable.
+    const notes = ex.items.filter((i) => i.note).map((i) => i.note as string);
+    const detail = notes.length ? ` Details: ${notes.join("; ")}` : "";
+    return { ok: false, error: `No readable content found in this module's files. Upload a Word/PDF/text document (or a short video) with real content, then try again.${detail}` };
   }
   await summarizeModule(moduleSlug);
   const a = await generateQuestionBatch(moduleSlug, "first-attempt");

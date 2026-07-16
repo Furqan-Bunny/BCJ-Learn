@@ -65,7 +65,12 @@ export function QuestionReviewPanel({
     if (!ex.ok) { setError(ex.error); setPhase("error"); return; }
     patch(0, { status: "done", detail: `${ex.items.length} item(s) · ${ex.totalChars.toLocaleString()} characters` });
     const notes = ex.items.filter((i) => i.note).map((i) => i.note!) as string[];
-    if (ex.totalChars < 200) { setError("No readable content found in your files. Upload a real document or short video."); setPhase("error"); return; }
+    if (ex.totalChars < 200) {
+      const detail = notes.length ? ` Details: ${notes.join("; ")}` : "";
+      setError(`No readable content found in your files. Upload a real document or short video.${detail}`);
+      setPhase("error");
+      return;
+    }
     patch(1, { status: "active", detail: "Condensing into a study guide…" });
     await summarizeModule(moduleSlug);
     patch(1, { status: "done" });
