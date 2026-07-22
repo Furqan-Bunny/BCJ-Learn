@@ -14,6 +14,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
+import { Users } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { editUserAndReinvite } from "@/lib/server/admin-actions";
 import type { Role } from "@/types";
@@ -24,12 +25,17 @@ const ROLE_LABEL: Record<Role, string> = {
   admin: "Admin",
 };
 
+// Canonical markets (same list used by the Add-Manager sheet).
+const COHORTS = ["Atlanta", "Nashville", "Charlotte"] as const;
+
 export interface EditableUser {
   id: string;
   name: string;
   email: string;
   title?: string | null;
   role?: Role;
+  /** Employee's currently-assigned market(s). Used when `showMarkets` is set. */
+  markets?: string[];
 }
 
 export function EditUserSheet({
@@ -38,6 +44,7 @@ export function EditUserSheet({
   onOpenChange,
   showTitle = false,
   showRole = false,
+  showMarkets = false,
 }: {
   user: EditableUser | null;
   open: boolean;
@@ -45,12 +52,15 @@ export function EditUserSheet({
   showTitle?: boolean;
   /** Show a role selector so an admin can promote/demote (Employee / Lead / Admin). */
   showRole?: boolean;
+  /** Show a market multi-select (employees only). */
+  showMarkets?: boolean;
 }) {
   const router = useRouter();
   const [name, setName] = React.useState("");
   const [email, setEmail] = React.useState("");
   const [title, setTitle] = React.useState("");
   const [role, setRole] = React.useState<Role>("manager");
+  const [markets, setMarkets] = React.useState<string[]>([]);
   const [saving, setSaving] = React.useState(false);
 
   // Re-seed the fields whenever a different user is opened.
@@ -60,8 +70,18 @@ export function EditUserSheet({
       setEmail(user.email ?? "");
       setTitle(user.title ?? "");
       setRole(user.role ?? "manager");
+      // Normalise to the canonical set so legacy values don't leave a stale toggle.
+      setMarkets((user.markets ?? []).filter((m) => (COHORTS as readonly string[]).includes(m)));
     }
   }, [user]);
+
+  function toggleMarket(m: string) {
+    setMarkets((prev) => (prev.includes(m) ? prev.filter((x) => x !== m) : [...prev, m]));
+  }
+
+  // Market field is only relevant for employees; hide it if the role is switched away.
+  const marketsVisible = showMarkets && role === "manager";
+  const marketsInvalid = marketsVisible && markets.length === 0;
 
   const roleChanged = showRole && !!user && role !== (user.role ?? "manager");
 
@@ -69,6 +89,7 @@ export function EditUserSheet({
     if (!user) return;
     if (!name.trim()) { toast.error("Name is required"); return; }
     if (!email.trim()) { toast.error("Email is required"); return; }
+    if (marketsInvalid) { toast.error("Pick at least one market"); return; }
     setSaving(true);
     const res = await editUserAndReinvite({
       userId: user.id,
@@ -76,6 +97,7 @@ export function EditUserSheet({
       email: email.trim(),
       title: showTitle ? (title.trim() || null) : undefined,
       role: showRole ? role : undefined,
+      markets: marketsVisible ? markets : undefined,
     });
     setSaving(false);
     if (!res.ok) { toast.error(res.error ?? "Could not save changes"); return; }
@@ -130,6 +152,34 @@ export function EditUserSheet({
               )}
             </div>
           )}
+          {marketsVisible && (
+            <div className="space-y-1.5">
+              <Label className="text-xs flex items-center gap-1">
+                <Users className="size-3" /> Markets
+                <span className="text-muted-foreground/70 font-normal">(pick one or more)</span>
+              </Label>
+              <div className="flex flex-wrap gap-2">
+                {COHORTS.map((c) => {
+                  const sel = markets.includes(c);
+                  return (
+                    <button
+                      key={c}
+                      type="button"
+                      onClick={() => toggleMarket(c)}
+                      aria-pressed={sel}
+                      className={`px-3 h-9 rounded-md border text-sm transition-colors ${
+                        sel
+                          ? "bg-primary text-primary-foreground border-primary"
+                          : "bg-card border-border hover:bg-accent"
+                      }`}
+                    >
+                      {c}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
           {showTitle && (
             <div className="space-y-1.5">
               <Label htmlFor="eu-title" className="text-xs">Title (optional)</Label>
@@ -140,7 +190,7 @@ export function EditUserSheet({
 
         <SheetFooter>
           <SheetClose asChild><Button variant="outline">Cancel</Button></SheetClose>
-          <Button onClick={handleSave} disabled={saving || !name.trim() || !email.trim()}>
+          <Button onClick={handleSave} disabled={saving || !name.trim() || !email.trim() || marketsInvalid}>
             {saving ? "Saving…" : "Save changes"}
           </Button>
         </SheetFooter>

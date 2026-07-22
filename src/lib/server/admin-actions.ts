@@ -275,6 +275,8 @@ export interface EditUserInput {
   title?: string | null;
   /** Change the user's role (Employee / Department Lead / Admin). */
   role?: Role;
+  /** Reassign the employee's market(s). Only applied for managers. */
+  markets?: string[] | null;
 }
 
 export async function editUserAndReinvite(
@@ -319,6 +321,17 @@ export async function editUserAndReinvite(
   if (emailChanged) profileUpdate.email = email;
   if (input.title !== undefined) profileUpdate.title = input.title?.trim() ? input.title.trim() : null;
   if (input.role !== undefined) profileUpdate.role = input.role;
+
+  // Reassign market(s) — only for managers. Keep the legacy single-value
+  // `cohort` column in sync (cohort = first market), matching the invite flow.
+  const staysManager = input.role === undefined ? before.role === "manager" : input.role === "manager";
+  let marketsChanged: string[] | undefined;
+  if (input.markets !== undefined && staysManager) {
+    const markets = (input.markets ?? []).filter(Boolean);
+    profileUpdate.markets = markets;
+    profileUpdate.cohort = (markets[0] ?? null) as Cohort | null;
+    marketsChanged = markets;
+  }
 
   const isPending = before.status === "pending";
   let resent = false;
@@ -369,7 +382,7 @@ export async function editUserAndReinvite(
   await logActivity(
     "user_added",
     guard.userId,
-    `${guard.userName} edited ${name}${emailChanged ? ` (email → ${email})` : ""}${resent ? " and re-sent the invite" : ""}`,
+    `${guard.userName} edited ${name}${emailChanged ? ` (email → ${email})` : ""}${marketsChanged ? ` (markets → ${marketsChanged.length ? marketsChanged.join(", ") : "none"})` : ""}${resent ? " and re-sent the invite" : ""}`,
     input.userId,
   );
 

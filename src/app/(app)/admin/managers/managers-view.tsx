@@ -489,10 +489,11 @@ export function AdminManagersView({ managers, totalModules }: { managers: Manage
       </div>
 
       <EditUserSheet
-        user={editTarget ? { id: editTarget.id, name: editTarget.name, email: editTarget.email, role: editTarget.role } : null}
+        user={editTarget ? { id: editTarget.id, name: editTarget.name, email: editTarget.email, role: editTarget.role, markets: editTarget.markets } : null}
         open={!!editTarget}
         onOpenChange={(o) => { if (!o) setEditTarget(null); }}
         showRole
+        showMarkets
       />
     </>
   );
